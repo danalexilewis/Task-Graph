@@ -1,5 +1,6 @@
 import { TaskStatus, EdgeType, Edge } from "./types";
 import { Result, ResultAsync, ok, err } from "neverthrow";
+import { errAsync, okAsync } from "neverthrow";
 import { AppError, ErrorCode, buildError } from "./errors";
 import { query } from "../db/query";
 import { sqlEscape } from "../db/escape";
@@ -83,7 +84,7 @@ export function checkRunnable(
     })
     .andThen((taskResult) => {
       if (taskResult.length === 0) {
-        return err(
+        return errAsync(
           buildError(
             ErrorCode.TASK_NOT_FOUND,
             `Task with ID ${taskId} not found.`,
@@ -93,7 +94,7 @@ export function checkRunnable(
       const taskStatus = taskResult[0].status;
 
       if (taskStatus !== "todo") {
-        return err(
+        return errAsync(
           buildError(
             ErrorCode.INVALID_TRANSITION,
             `Task ${taskId} is not in 'todo' status. Current status: ${taskStatus}.`,
@@ -109,19 +110,19 @@ export function checkRunnable(
           AND e.type = 'blocks'
           AND bt.status NOT IN ('done','canceled');
       `;
-      return q.raw<{ "COUNT(*)": number }[]>(unmetBlockersQuery);
+      return q.raw<{ "COUNT(*)": number }>(unmetBlockersQuery);
     })
-    .andThen((blockerCountResult: Array<{"COUNT(*)": number}>) => {
+    .andThen((blockerCountResult: Array<{ "COUNT(*)": number }>) => {
       const unmetBlockers = blockerCountResult[0]["COUNT(*)"];
       if (unmetBlockers > 0) {
-        return err(
+        return errAsync(
           buildError(
             ErrorCode.TASK_NOT_RUNNABLE,
             `Task ${taskId} has ${unmetBlockers} unmet blockers and is not runnable.`,
           ),
         );
       }
-      return ok(undefined);
+      return okAsync(undefined);
     });
 }
 

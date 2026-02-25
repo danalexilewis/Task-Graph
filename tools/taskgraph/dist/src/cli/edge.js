@@ -32,7 +32,9 @@ function edgeAddCommand() {
             const q = (0, query_1.query)(config.doltRepoPath);
             if (type === "blocks") {
                 return neverthrow_1.ResultAsync.fromPromise((async () => {
-                    const existingEdgesResult = await q.select("edge", { where: { type: "blocks" } });
+                    const existingEdgesResult = await q.select("edge", {
+                        where: { type: "blocks" },
+                    });
                     if (existingEdgesResult.isErr()) {
                         throw existingEdgesResult.error;
                     }
@@ -43,12 +45,14 @@ function edgeAddCommand() {
                     return (0, neverthrow_1.ok)(undefined); // Return an Ok Result to continue the chain
                 })(), (e) => e).andThen(() => {
                     // Continue the original chain here after cycle check
-                    return q.insert("edge", {
+                    return q
+                        .insert("edge", {
                         from_task_id: fromTaskId,
                         to_task_id: toTaskId,
                         type,
                         reason: options.reason ?? null,
-                    }).map(() => ({
+                    })
+                        .map(() => ({
                         from_task_id: fromTaskId,
                         to_task_id: toTaskId,
                         type,
@@ -56,7 +60,8 @@ function edgeAddCommand() {
                     }));
                 });
             }
-            return q.insert("edge", {
+            return q
+                .insert("edge", {
                 from_task_id: fromTaskId,
                 to_task_id: toTaskId,
                 type,

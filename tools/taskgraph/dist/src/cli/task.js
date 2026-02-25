@@ -4,7 +4,7 @@ exports.taskCommand = taskCommand;
 const commander_1 = require("commander");
 const uuid_1 = require("uuid");
 const commit_1 = require("../db/commit");
-const utils_1 = require("./utils"); // Import Config
+const utils_1 = require("./utils");
 const neverthrow_1 = require("neverthrow"); // Import errAsync
 const errors_1 = require("../domain/errors");
 const query_1 = require("../db/query");
@@ -58,7 +58,7 @@ function taskNewCommand() {
                     created_at: currentTimestamp,
                 });
             })
-                .andThen(() => (0, commit_1.doltCommit)(`task: create ${task_id} - ${title}`, config.doltRepoPath, cmd.parent?.opts().noCommit))
+                .andThen(() => (0, commit_1.doltCommit)(`task: create ${task_id} - ${title}`, config.doltRepoPath, (0, utils_1.rootOpts)(cmd).noCommit))
                 .map(() => ({
                 task_id,
                 plan_id: options.plan,
@@ -70,16 +70,15 @@ function taskNewCommand() {
         result.match((data) => {
             // Type unknown
             const resultData = data; // Cast to Task
-            if (!cmd.parent?.opts().json) {
+            if (!(0, utils_1.rootOpts)(cmd).json) {
                 console.log(`Task created with ID: ${resultData.task_id} for Plan ID: ${resultData.plan_id}`);
             }
             else {
                 console.log(JSON.stringify(resultData, null, 2));
             }
         }, (error) => {
-            // Type AppError
             console.error(`Error creating task: ${error.message}`);
-            if (cmd.parent?.opts().json) {
+            if ((0, utils_1.rootOpts)(cmd).json) {
                 console.log(JSON.stringify({
                     status: "error",
                     code: error.code,

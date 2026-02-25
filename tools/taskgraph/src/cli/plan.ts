@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
-import { readConfig, Config } from "./utils"; // Import Config
+import { readConfig, Config, rootOpts } from "./utils";
 import { ResultAsync } from "neverthrow";
 import { AppError, buildError, ErrorCode } from "../domain/errors";
 import { query, now } from "../db/query";
@@ -40,7 +40,7 @@ function planNewCommand(): Command {
             doltCommit(
               `plan: create ${title}`,
               config.doltRepoPath,
-              cmd.parent?.opts().noCommit,
+              rootOpts(cmd).noCommit,
             ),
           )
           .map(() => ({
@@ -59,7 +59,7 @@ function planNewCommand(): Command {
             intent: string;
             source_path: string | undefined;
           };
-          if (!cmd.parent?.opts().json) {
+          if (!rootOpts(cmd).json) {
             console.log(`Plan created with ID: ${resultData.plan_id}`);
           } else {
             console.log(JSON.stringify(resultData, null, 2));
@@ -67,7 +67,7 @@ function planNewCommand(): Command {
         },
         (error: AppError) => {
           console.error(`Error creating plan: ${error.message}`);
-          if (cmd.parent?.opts().json) {
+          if (rootOpts(cmd).json) {
             console.log(
               JSON.stringify({
                 status: "error",

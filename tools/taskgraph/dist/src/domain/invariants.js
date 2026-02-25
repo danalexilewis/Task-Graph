@@ -4,6 +4,7 @@ exports.checkNoBlockerCycle = checkNoBlockerCycle;
 exports.checkRunnable = checkRunnable;
 exports.checkValidTransition = checkValidTransition;
 const neverthrow_1 = require("neverthrow");
+const neverthrow_2 = require("neverthrow");
 const errors_1 = require("./errors");
 const query_1 = require("../db/query");
 const escape_1 = require("../db/escape");
@@ -63,11 +64,11 @@ function checkRunnable(taskId, repoPath) {
     })
         .andThen((taskResult) => {
         if (taskResult.length === 0) {
-            return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.TASK_NOT_FOUND, `Task with ID ${taskId} not found.`));
+            return (0, neverthrow_2.errAsync)((0, errors_1.buildError)(errors_1.ErrorCode.TASK_NOT_FOUND, `Task with ID ${taskId} not found.`));
         }
         const taskStatus = taskResult[0].status;
         if (taskStatus !== "todo") {
-            return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.INVALID_TRANSITION, `Task ${taskId} is not in 'todo' status. Current status: ${taskStatus}.`));
+            return (0, neverthrow_2.errAsync)((0, errors_1.buildError)(errors_1.ErrorCode.INVALID_TRANSITION, `Task ${taskId} is not in 'todo' status. Current status: ${taskStatus}.`));
         }
         const unmetBlockersQuery = `
         SELECT COUNT(*)
@@ -82,9 +83,9 @@ function checkRunnable(taskId, repoPath) {
         .andThen((blockerCountResult) => {
         const unmetBlockers = blockerCountResult[0]["COUNT(*)"];
         if (unmetBlockers > 0) {
-            return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.TASK_NOT_RUNNABLE, `Task ${taskId} has ${unmetBlockers} unmet blockers and is not runnable.`));
+            return (0, neverthrow_2.errAsync)((0, errors_1.buildError)(errors_1.ErrorCode.TASK_NOT_RUNNABLE, `Task ${taskId} has ${unmetBlockers} unmet blockers and is not runnable.`));
         }
-        return (0, neverthrow_1.ok)(undefined);
+        return (0, neverthrow_2.okAsync)(undefined);
     });
 }
 function checkValidTransition(currentStatus, nextStatus) {

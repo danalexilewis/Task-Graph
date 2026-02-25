@@ -60,9 +60,7 @@ function buildWhereClause(where: WhereClause): string {
   const parts: string[] = [];
   for (const [key, val] of Object.entries(where)) {
     if (typeof val === "object" && val !== null && "op" in val) {
-      parts.push(
-        `${backtickWrap(key)} ${val.op} ${formatValue(val.value)}`,
-      );
+      parts.push(`${backtickWrap(key)} ${val.op} ${formatValue(val.value)}`);
     } else {
       parts.push(`${backtickWrap(key)} = ${formatValue(val as SqlValue)}`);
     }
@@ -82,11 +80,14 @@ interface SelectOptions {
 
 export function query(repoPath: string) {
   return {
-    insert: <T>(table: string, data: Record<string, SqlValue>): ResultAsync<T[], AppError> => {
+    insert: <T>(
+      table: string,
+      data: Record<string, SqlValue>,
+    ): ResultAsync<T[], AppError> => {
       const cols = Object.keys(data).map(backtickWrap).join(", ");
       const vals = Object.values(data).map(formatValue).join(", ");
       const sql = `INSERT INTO ${backtickWrap(table)} (${cols}) VALUES (${vals})`;
-      return doltSql(sql, repoPath);
+      return doltSql(sql, repoPath).map((res) => res as T[]);
     },
 
     update: <T>(
@@ -99,7 +100,7 @@ export function query(repoPath: string) {
         .join(", ");
       const whereClause = buildWhereClause(where);
       const sql = `UPDATE ${backtickWrap(table)} SET ${setParts} WHERE ${whereClause}`;
-      return doltSql(sql, repoPath);
+      return doltSql(sql, repoPath).map((res) => res as T[]);
     },
 
     select: <T>(
@@ -107,8 +108,12 @@ export function query(repoPath: string) {
       options?: SelectOptions,
     ): ResultAsync<T[], AppError> => {
       let sql = `SELECT ${options?.columns?.map(backtickWrap).join(", ") ?? "*"} FROM ${backtickWrap(table)}`;
-      if (options?.where) {
-        sql += ` WHERE ${buildWhereClause(options.where)}`;
+      const whereClause =
+        options?.where && Object.keys(options.where).length > 0
+          ? buildWhereClause(options.where)
+          : "";
+      if (whereClause) {
+        sql += ` WHERE ${whereClause}`;
       }
       if (options?.groupBy && options.groupBy.length > 0) {
         sql += ` GROUP BY ${options.groupBy.map(backtickWrap).join(", ")}`;
@@ -125,19 +130,24 @@ export function query(repoPath: string) {
       if (options?.offset) {
         sql += ` OFFSET ${options.offset}`;
       }
-      return doltSql(sql, repoPath);
+      return doltSql(sql, repoPath).map((res) => res as T[]);
     },
 
-    count: (table: string, where?: WhereClause): ResultAsync<number, AppError> => {
+    count: (
+      table: string,
+      where?: WhereClause,
+    ): ResultAsync<number, AppError> => {
       let sql = `SELECT COUNT(*) AS count FROM ${backtickWrap(table)}`;
       if (where) {
         sql += ` WHERE ${buildWhereClause(where)}`;
       }
-      return doltSql<{count: number}[]>(sql, repoPath).map((res) => res[0]?.count ?? 0);
+      return doltSql(sql, repoPath).map(
+        (res) => (res as { count: number }[])[0]?.count ?? 0,
+      );
     },
 
     raw: <T>(sql: string): ResultAsync<T[], AppError> => {
-      return doltSql(sql, repoPath);
+      return doltSql(sql, repoPath).map((res) => res as T[]);
     },
   };
 }

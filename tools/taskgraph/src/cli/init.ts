@@ -30,7 +30,9 @@ export function initCommand(program: Command) {
             // Create the doltRepoPath directory before initializing Dolt
             mkdirSync(doltRepoPath, { recursive: true });
             console.log(`Creating Dolt repository at ${doltRepoPath}...`);
-            await execa("dolt", ["init"], { cwd: doltRepoPath }); // Changed cwd to doltRepoPath
+            await execa(process.env.DOLT_PATH || "dolt", ["init"], {
+              cwd: doltRepoPath,
+            }); // Changed cwd to doltRepoPath
             console.log("Dolt repository created.");
           } else {
             console.log(`Dolt repository already exists at ${doltRepoPath}.`);
@@ -50,8 +52,11 @@ export function initCommand(program: Command) {
             doltRepoPath: doltRepoPath,
           };
           // Use a valid ErrorCode, e.g., UNKNOWN_ERROR
-          return writeConfig(config, repoPath).mapErr((e) => // Pass repoPath as basePath
-            buildError(ErrorCode.UNKNOWN_ERROR, "Failed to write config", e),
+          return writeConfig(config, repoPath).mapErr(
+            (
+              e, // Pass repoPath as basePath
+            ) =>
+              buildError(ErrorCode.UNKNOWN_ERROR, "Failed to write config", e),
           );
         });
 

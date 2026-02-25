@@ -9,7 +9,10 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
     const currentTimestamp = (0, query_1.now)();
     const q = (0, query_1.query)(repoPath);
     return q
-        .select("task", { columns: ["task_id", "external_key"], where: { plan_id: planId } })
+        .select("task", {
+        columns: ["task_id", "external_key"],
+        where: { plan_id: planId },
+    })
         .andThen((existingTasksResult) => {
         return neverthrow_1.ResultAsync.fromPromise((async () => {
             const existingTasks = existingTasksResult;

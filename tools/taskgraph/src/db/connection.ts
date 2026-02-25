@@ -7,7 +7,9 @@ export function doltSql(
   repoPath: string,
 ): ResultAsync<any[], AppError> {
   return ResultAsync.fromPromise(
-    execa("dolt", ["sql", "-q", query, "-r", "json"], { cwd: repoPath }),
+    execa(process.env.DOLT_PATH || "dolt", ["sql", "-q", query, "-r", "json"], {
+      cwd: repoPath,
+    }),
     (e) =>
       buildError(
         ErrorCode.DB_QUERY_FAILED,
@@ -15,8 +17,11 @@ export function doltSql(
         e,
       ),
   ).andThen((result) => {
+    const out = (result.stdout || "").trim();
+    if (!out) return ok([]); // DML (INSERT/UPDATE/DELETE) returns no JSON
     try {
-      return ok(JSON.parse(result.stdout)?.rows ?? []);
+      const parsed = JSON.parse(out);
+      return ok(parsed?.rows ?? []);
     } catch (e) {
       return err(
         buildError(

@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.rootOpts = rootOpts;
 exports.readConfig = readConfig;
 exports.writeConfig = writeConfig;
 const fs_1 = require("fs");
@@ -40,6 +41,13 @@ const path = __importStar(require("path"));
 const neverthrow_1 = require("neverthrow");
 const errors_1 = require("../domain/errors");
 const TASKGRAPH_DIR = ".taskgraph";
+/** Walk to root command to access global options like --json */
+function rootOpts(cmd) {
+    let c = cmd;
+    while (c?.parent)
+        c = c.parent;
+    return (c?.opts?.() ?? {});
+}
 const CONFIG_FILE = path.join(TASKGRAPH_DIR, "config.json");
 function readConfig(basePath) {
     const configPath = path.join(basePath ?? process.cwd(), CONFIG_FILE);

@@ -1,9 +1,17 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import * as path from "path";
+import type { Command } from "commander";
 import { Result, ok, err } from "neverthrow";
 import { AppError, ErrorCode, buildError } from "../domain/errors";
 
 const TASKGRAPH_DIR = ".taskgraph";
+
+/** Walk to root command to access global options like --json */
+export function rootOpts(cmd: Command): { json?: boolean; noCommit?: boolean } {
+  let c: Command | undefined = cmd;
+  while (c?.parent) c = c.parent;
+  return (c?.opts?.() ?? {}) as { json?: boolean; noCommit?: boolean };
+}
 const CONFIG_FILE = path.join(TASKGRAPH_DIR, "config.json");
 
 export interface Config {
@@ -34,7 +42,10 @@ export function readConfig(basePath?: string): Result<Config, AppError> {
   }
 }
 
-export function writeConfig(config: Config, basePath?: string): Result<void, AppError> {
+export function writeConfig(
+  config: Config,
+  basePath?: string,
+): Result<void, AppError> {
   const configPath = path.join(basePath ?? process.cwd(), CONFIG_FILE);
   try {
     writeFileSync(configPath, JSON.stringify(config, null, 2));

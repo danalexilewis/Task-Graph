@@ -33,14 +33,14 @@ export function getGraphData(
     }
 
     return q
-      .select<Task[]>("task", {
+      .select<Task>("task", {
         columns: ["task_id", "title", "status"],
         where: whereClause,
       })
       .andThen((tasksResult) => {
         const tasks = tasksResult as Task[];
         const edgesQuery = `SELECT from_task_id, to_task_id, type FROM \`edge\`;`;
-        return q.raw<Edge[]>(edgesQuery).map((edgesResult) => {
+        return q.raw<Edge>(edgesQuery).map((edgesResult) => {
           const edges = edgesResult;
 
           const nodes: GraphNode[] = tasks.map((task) => ({

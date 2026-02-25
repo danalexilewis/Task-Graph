@@ -21,7 +21,11 @@ function doneCommand(program) {
             // Removed async, added type
             const currentTimestamp = (0, query_1.now)();
             const q = (0, query_1.query)(config.doltRepoPath);
-            return q.select("task", { columns: ["status"], where: { task_id: taskId } })
+            return q
+                .select("task", {
+                columns: ["status"],
+                where: { task_id: taskId },
+            })
                 .andThen((currentStatusResult) => {
                 if (currentStatusResult.length === 0) {
                     return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.TASK_NOT_FOUND, `Task with ID ${taskId} not found.`));

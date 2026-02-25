@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { execa } from "execa";
+import { execa, ExecaError } from "execa";
 import { applyMigrations } from "../../src/db/migrate";
 import { writeConfig } from "../../src/cli/utils";
 import { Config } from "../../src/cli/utils";
@@ -13,22 +13,28 @@ export interface IntegrationTestContext {
   cliPath: string;
 }
 
+const DOLT_PATH = process.env.DOLT_PATH || "dolt";
+if (!process.env.DOLT_PATH) process.env.DOLT_PATH = DOLT_PATH;
+
 export async function setupIntegrationTest(): Promise<IntegrationTestContext> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "tg-integration-"));
   const doltRepoPath = path.join(tempDir, ".taskgraph", "dolt");
-  const cliPath = "./dist/cli/index.js";
+  const cliPath = path.resolve(__dirname, "../../dist/src/cli/index.js");
 
   // Create .taskgraph/dolt directory
   fs.mkdirSync(doltRepoPath, { recursive: true });
 
-  // Initialize Dolt repo
-  await execa("dolt", ["init"], { cwd: doltRepoPath }); // Reverted to "dolt"
+  // Initialize Dolt repo (use DOLT_PATH so CI/local match)
+  await execa(DOLT_PATH, ["init"], {
+    cwd: doltRepoPath,
+    env: { ...process.env, DOLT_PATH },
+  });
 
   // Write config
-  writeConfig({ doltRepoPath: doltRepoPath }, tempDir).unwrapOrThrow(); // Corrected signature
+  writeConfig({ doltRepoPath: doltRepoPath }, tempDir)._unsafeUnwrap(); // Corrected signature
 
   // Apply migrations
-  (await applyMigrations(doltRepoPath)).unwrapOrThrow();
+  (await applyMigrations(doltRepoPath))._unsafeUnwrap();
 
   return { tempDir, doltRepoPath, cliPath };
 }
@@ -45,12 +51,17 @@ export async function runTgCli(
   cwd: string,
   expectError = false,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const TG_BIN = "pnpm run start --filter taskgraph -- ";
+  const cliPath = path.resolve(__dirname, "../../dist/src/cli/index.js");
+  const TG_BIN = `node ${cliPath} `;
   try {
-    const { stdout, stderr, exitCode } = await execa(TG_BIN + command, {
+    const result = await execa(TG_BIN + command, {
       cwd,
       shell: true,
+      env: { ...process.env, DOLT_PATH },
     });
+    const stdout = result.stdout;
+    const stderr = result.stderr;
+    const exitCode = result.exitCode ?? 0; // Explicit handling
     if (expectError && exitCode === 0) {
       throw new Error(
         `Expected command to fail but it succeeded. Output: ${stdout}, Error: ${stderr}`,
@@ -58,16 +69,17 @@ export async function runTgCli(
     }
     if (!expectError && exitCode !== 0) {
       throw new Error(
-        `Command failed unexpectedly. Exit Code: ${exitCode}, Output: ${stdout}, Error: ${stderr}`,
+        `Command failed unexpectedly. Exit Code: ${exitCode}, Output: ${result.stdout}, Error: ${result.stderr}`,
       );
     }
-    return { stdout, stderr, exitCode };
-  } catch (error: any) {
+    return { stdout: result.stdout, stderr: result.stderr, exitCode };
+  } catch (error: unknown) {
+    const execaError = error as ExecaError;
     if (expectError) {
       return {
-        stdout: error.stdout || "",
-        stderr: error.stderr || error.message,
-        exitCode: error.exitCode ?? 1,
+        stdout: execaError.stdout?.toString() || "",
+        stderr: execaError.stderr?.toString() || execaError.message,
+        exitCode: execaError.exitCode ?? 1,
       };
     }
     throw error;

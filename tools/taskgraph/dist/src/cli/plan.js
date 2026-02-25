@@ -4,7 +4,7 @@ exports.planCommand = planCommand;
 const commander_1 = require("commander");
 const uuid_1 = require("uuid");
 const commit_1 = require("../db/commit");
-const utils_1 = require("./utils"); // Import Config
+const utils_1 = require("./utils");
 const query_1 = require("../db/query");
 function planCommand(program) {
     program
@@ -33,7 +33,7 @@ function planNewCommand() {
                 created_at: currentTimestamp,
                 updated_at: currentTimestamp,
             })
-                .andThen(() => (0, commit_1.doltCommit)(`plan: create ${title}`, config.doltRepoPath, cmd.parent?.opts().noCommit))
+                .andThen(() => (0, commit_1.doltCommit)(`plan: create ${title}`, config.doltRepoPath, (0, utils_1.rootOpts)(cmd).noCommit))
                 .map(() => ({
                 plan_id,
                 title,
@@ -43,7 +43,7 @@ function planNewCommand() {
         });
         result.match((data) => {
             const resultData = data;
-            if (!cmd.parent?.opts().json) {
+            if (!(0, utils_1.rootOpts)(cmd).json) {
                 console.log(`Plan created with ID: ${resultData.plan_id}`);
             }
             else {
@@ -51,7 +51,7 @@ function planNewCommand() {
             }
         }, (error) => {
             console.error(`Error creating plan: ${error.message}`);
-            if (cmd.parent?.opts().json) {
+            if ((0, utils_1.rootOpts)(cmd).json) {
                 console.log(JSON.stringify({
                     status: "error",
                     code: error.code,

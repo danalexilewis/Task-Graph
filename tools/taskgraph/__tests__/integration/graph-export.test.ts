@@ -11,43 +11,51 @@ describe("Graph Export Integration Tests", () => {
   beforeAll(async () => {
     context = await setupIntegrationTest();
     // Seed some data
-    await doltSql(
-      `INSERT INTO plan (plan_id, title, intent, created_at, updated_at) VALUES (
+    (
+      await doltSql(
+        `INSERT INTO \`plan\` (plan_id, title, intent, created_at, updated_at) VALUES (
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'Test Plan', 
         'An intent for the test plan', 
         NOW(), NOW()
       );`,
-      context.doltRepoPath,
-    ).unwrapOrThrow();
-    await doltSql(
-      `INSERT INTO task (task_id, plan_id, title, status, created_at, updated_at) VALUES (
+        context.doltRepoPath,
+      )
+    )._unsafeUnwrap();
+    (
+      await doltSql(
+        `INSERT INTO \`task\` (task_id, plan_id, title, status, created_at, updated_at) VALUES (
         'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'Task 1', 
         'todo', 
         NOW(), NOW()
       );`,
-      context.doltRepoPath,
-    ).unwrapOrThrow();
-    await doltSql(
-      `INSERT INTO task (task_id, plan_id, title, status, created_at, updated_at) VALUES (
+        context.doltRepoPath,
+      )
+    )._unsafeUnwrap();
+    (
+      await doltSql(
+        `INSERT INTO \`task\` (task_id, plan_id, title, status, created_at, updated_at) VALUES (
         'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'Task 2', 
         'doing', 
         NOW(), NOW()
       );`,
-      context.doltRepoPath,
-    ).unwrapOrThrow();
-    await doltSql(
-      `INSERT INTO edge (from_task_id, to_task_id, type) VALUES (
+        context.doltRepoPath,
+      )
+    )._unsafeUnwrap();
+    (
+      await doltSql(
+        `INSERT INTO \`edge\` (from_task_id, to_task_id, type) VALUES (
         'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 
         'blocks'
       );`,
-      context.doltRepoPath,
-    ).unwrapOrThrow();
+        context.doltRepoPath,
+      )
+    )._unsafeUnwrap();
   }, 60000);
 
   afterAll(() => {

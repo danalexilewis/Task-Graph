@@ -50,11 +50,13 @@ export function showCommand(program: Command) {
             `);
             const blockers = blockersResult.isOk() ? blockersResult.value : [];
 
-            const dependentsResult = await q.raw<DependentDetails>(`
-              SELECT e.to_task_id, t.title, t.status, e.reason
+            const dependentsResult = await q.raw<
+              DependentDetails & { type: string }
+            >(`
+              SELECT e.to_task_id, e.type, t.title, t.status, e.reason
               FROM \`edge\` e
               JOIN \`task\` t ON e.to_task_id = t.task_id
-              WHERE e.from_task_id = '${taskId}' AND e.type = 'blocks';
+              WHERE e.from_task_id = '${taskId}';
             `);
             const dependents = dependentsResult.isOk()
               ? dependentsResult.value
@@ -114,8 +116,10 @@ export function showCommand(program: Command) {
             if (resultData.dependents.length > 0) {
               console.log("\nDependents:");
               resultData.dependents.forEach((d) => {
+                const edge = d as Edge & { title: string; status: TaskStatus };
+                const typeInfo = edge.type ? `, Type: ${edge.type}` : "";
                 console.log(
-                  `  - Task ID: ${d.to_task_id}, Title: ${d.title}, Status: ${d.status}, Reason: ${d.reason ?? "N/A"}`,
+                  `  - Task ID: ${edge.to_task_id}, Title: ${edge.title}, Status: ${edge.status}${typeInfo}, Reason: ${edge.reason ?? "N/A"}`,
                 );
               });
             }

@@ -53,7 +53,7 @@ function query(repoPath) {
             const cols = Object.keys(data).map(backtickWrap).join(", ");
             const vals = Object.values(data).map(formatValue).join(", ");
             const sql = `INSERT INTO ${backtickWrap(table)} (${cols}) VALUES (${vals})`;
-            return (0, connection_1.doltSql)(sql, repoPath);
+            return (0, connection_1.doltSql)(sql, repoPath).map((res) => res);
         },
         update: (table, data, where) => {
             const setParts = Object.entries(data)
@@ -61,12 +61,15 @@ function query(repoPath) {
                 .join(", ");
             const whereClause = buildWhereClause(where);
             const sql = `UPDATE ${backtickWrap(table)} SET ${setParts} WHERE ${whereClause}`;
-            return (0, connection_1.doltSql)(sql, repoPath);
+            return (0, connection_1.doltSql)(sql, repoPath).map((res) => res);
         },
         select: (table, options) => {
             let sql = `SELECT ${options?.columns?.map(backtickWrap).join(", ") ?? "*"} FROM ${backtickWrap(table)}`;
-            if (options?.where) {
-                sql += ` WHERE ${buildWhereClause(options.where)}`;
+            const whereClause = options?.where && Object.keys(options.where).length > 0
+                ? buildWhereClause(options.where)
+                : "";
+            if (whereClause) {
+                sql += ` WHERE ${whereClause}`;
             }
             if (options?.groupBy && options.groupBy.length > 0) {
                 sql += ` GROUP BY ${options.groupBy.map(backtickWrap).join(", ")}`;
@@ -83,7 +86,7 @@ function query(repoPath) {
             if (options?.offset) {
                 sql += ` OFFSET ${options.offset}`;
             }
-            return (0, connection_1.doltSql)(sql, repoPath);
+            return (0, connection_1.doltSql)(sql, repoPath).map((res) => res);
         },
         count: (table, where) => {
             let sql = `SELECT COUNT(*) AS count FROM ${backtickWrap(table)}`;
@@ -93,7 +96,7 @@ function query(repoPath) {
             return (0, connection_1.doltSql)(sql, repoPath).map((res) => res[0]?.count ?? 0);
         },
         raw: (sql) => {
-            return (0, connection_1.doltSql)(sql, repoPath);
+            return (0, connection_1.doltSql)(sql, repoPath).map((res) => res);
         },
     };
 }

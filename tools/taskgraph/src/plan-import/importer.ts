@@ -29,9 +29,10 @@ export function upsertTasksAndEdges(
   const q = query(repoPath);
 
   return q
-    .select<
-      Task[]
-    >("task", { columns: ["task_id", "external_key"], where: { plan_id: planId } })
+    .select<Task>("task", {
+      columns: ["task_id", "external_key"],
+      where: { plan_id: planId },
+    })
     .andThen((existingTasksResult) => {
       return ResultAsync.fromPromise(
         (async () => {

@@ -1,11 +1,11 @@
 import { Command } from "commander";
 import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
-import { readConfig, Config } from "./utils"; // Import Config
+import { readConfig, Config, rootOpts } from "./utils";
 import { ResultAsync, ok, err, errAsync } from "neverthrow"; // Import errAsync
 import { AppError, buildError, ErrorCode } from "../domain/errors";
 import { TaskStatusSchema, Task } from "../domain/types";
-import { query, now, jsonObj } from "../db/query";
+import { query, now, jsonObj, JsonObj } from "../db/query";
 
 export function taskCommand(program: Command) {
   program
@@ -70,7 +70,7 @@ function taskNewCommand(): Command {
             doltCommit(
               `task: create ${task_id} - ${title}`,
               config.doltRepoPath,
-              cmd.parent?.opts().noCommit,
+              rootOpts(cmd).noCommit,
             ),
           )
           .map(() => ({
@@ -86,7 +86,7 @@ function taskNewCommand(): Command {
         (data: unknown) => {
           // Type unknown
           const resultData = data as Task; // Cast to Task
-          if (!cmd.parent?.opts().json) {
+          if (!rootOpts(cmd).json) {
             console.log(
               `Task created with ID: ${resultData.task_id} for Plan ID: ${resultData.plan_id}`,
             );
@@ -95,9 +95,8 @@ function taskNewCommand(): Command {
           }
         },
         (error: AppError) => {
-          // Type AppError
           console.error(`Error creating task: ${error.message}`);
-          if (cmd.parent?.opts().json) {
+          if (rootOpts(cmd).json) {
             console.log(
               JSON.stringify({
                 status: "error",
