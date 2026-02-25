@@ -1,5 +1,5 @@
 ---
-description: Cursor plan format and how to write good task dependencies
+description: Cursor plan format; always use rich planning aligned with docs/plan-format.md
 globs: plans/**/*.md
 alwaysApply: false
 ---
@@ -8,57 +8,75 @@ alwaysApply: false
 
 Create plans as `plans/<name>.md` (not .plan.md). Plans use Cursor format for import into taskgraph via `tg import --format cursor`.
 
-For the **full enhanced format** (file trees, risks, tests, per-task intent and suggested changes, markdown body, original prompt), see [docs/plan-format.md](../docs/plan-format.md).
+**Always use the rich planning format** as defined in [docs/plan-format.md](../docs/plan-format.md). Plans are research artifacts: they must carry enough structure and analysis that `tg context` and the executing agent get file trees, risks, tests, and per-task intent/suggested changes.
+
+## Rich planning (required)
+
+Every plan MUST align with the enhanced format in docs/plan-format.md:
+
+| Element | Required | Description |
+|--------|----------|-------------|
+| **fileTree** | yes | Plan-level. Tree of files the plan touches, with `(create)` / `(modify)`. Stored on plan, shown in `tg context`. |
+| **risks** | yes | Plan-level array of `{ description, severity, mitigation }`. `severity`: `low`, `medium`, `high`. |
+| **tests** | yes | Plan-level array of strings describing tests to add. |
+| **intent** | yes (per todo) | Detailed description of what the task involves and why. Stored on task, shown in `tg context`. |
+| **suggestedChanges** | when helpful | Per todo. Directional code snippets or pointers for the agent; not prescriptive. |
+| **Markdown body** | yes | Below the closing `---`: Analysis, proposed changes, mermaid (e.g. dependency graph), risks/testing/open questions. End with `<original_prompt>...</original_prompt>`. |
+
+- **Mermaid**: Use for data flows, state machines, dependency graphs, or any logic that benefits from a diagram.
+- **suggestedChanges**: Add when a task touches a specific file/function; a short snippet speeds the agent up.
 
 ## YAML Frontmatter Structure
 
 ```yaml
 ---
 name: Plan Name
-overview: "Brief description of the plan."
+overview: |
+  Multi-line overview; can include why and scope.
+fileTree: |
+  path/to/file.ts    (modify)
+  path/to/new.ts     (create)
+risks:
+  - description: What could go wrong
+    severity: medium
+    mitigation: How we address it
+tests:
+  - "Test description 1"
+  - "Test description 2"
 todos:
   - id: stable-key
-    content: "Task title and description"
-    status: pending
-  - id: another-task
-    content: "Depends on first"
-    blockedBy: [stable-key]
+    content: "Task title (concise; under 255 chars)"
+    intent: |
+      Detailed scope, rationale, and references to code.
+    suggestedChanges: |
+      Optional snippet or pointer for the agent.
+    blockedBy: [other-id]
+    domain: [schema, cli]
+    skill: [cli-command-implementation]
+    changeType: modify
 isProject: false
 ---
 ```
+
+Below the closing `---`, add the markdown body: **Analysis**, **Proposed changes** (or Mermaid), **Open questions**, and end with `<original_prompt>...</original_prompt>`.
 
 ## Todo Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `id` | yes | Stable key → maps to `external_key`. Use kebab-case. |
-| `content` | yes | Task title (maps to task title) |
+| `content` | yes | Task title (maps to task title; VARCHAR(255) — keep under 255 chars). |
+| `intent` | yes | Detailed scope and rationale; stored on task, shown in `tg context`. |
 | `status` | no | `pending` → todo, `completed` → done |
 | `blockedBy` | no | Array of todo `id`s that block this task. Creates `blocks` edges on import. |
-| `domain` | no | Single slug or array of slugs → `docs/<domain>.md`. Agent reads these before starting (e.g. `schema`, `cli`, `plan-import`). |
-| `skill` | no | Single slug or array of slugs → `docs/skills/<skill>.md`. Use kebab-case (e.g. `sql-migration`, `yaml-parsing`, `cli-command`). |
-| `changeType` | no | How to approach: `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`. Shapes agent behavior (e.g. refactor = test before/after). |
+| `domain` | no | Single slug or array → `docs/<domain>.md`. Agent reads these before starting. |
+| `skill` | no | Single slug or array → `docs/skills/<skill>.md`. Use kebab-case. |
+| `changeType` | no | `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`. |
+| `suggestedChanges` | no | Directional snippets for the agent when the task touches specific code. |
 
-## When to use domain, skill, changeType
-
-- **domain** / **domains**: Set when the task touches specific areas of the codebase or docs; the agent will read those docs for conventions and prior decisions. You can set one value or an array.
-- **skill** / **skills**: Set when the task requires particular techniques (migrations, parsing, CLI design); the agent can load the skill guides and see past tasks with the same skills. One value or array.
-- **changeType**: Set when the approach matters: use `refactor` for behavior-preserving changes, `fix` for bugs (reproduce first), `create` for net-new work, `document` for docs-only.
-
-## Dependency Best Practices
+## Dependency and scope
 
 - Use `blockedBy` for tasks that cannot start until others are done.
 - Reference `id` values; they resolve to task IDs when importing.
 - Keep tasks scoped (~90 min or less); split large ones.
 - Order todos to reflect dependency graph when possible.
-
-## Rich planning (optional)
-
-For analysis-heavy plans, use the [enhanced format](docs/plan-format.md):
-
-- **fileTree**: List files the plan touches (with `(create)` / `(modify)`). Stored on the plan and shown in `tg context`.
-- **risks** / **tests**: Plan-level arrays. Risks: `{ description, severity, mitigation }`. Tests: strings describing tests to add.
-- **intent** / **suggestedChanges** (per todo): Detailed scope and proposed code snippets. Suggested changes are **directional** for the agent, not prescriptive.
-- **Markdown body** (below `---`): Analysis, mermaid diagrams, proposed changes, and end with `<original_prompt>...</original_prompt>` so the triggering request is preserved.
-
-When to add mermaid: data flows, state machines, dependency graphs, or any logic that benefits from a diagram. When to add suggested changes: when a task touches a specific file/function and a short snippet would speed the agent up.

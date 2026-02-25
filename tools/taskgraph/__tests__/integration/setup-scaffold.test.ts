@@ -38,6 +38,7 @@ describe("tg setup integration", () => {
       ".cursor/rules/taskgraph-workflow.mdc",
       ".cursor/rules/plan-authoring.mdc",
       ".cursor/rules/memory.mdc",
+      "AGENT.md",
     ];
 
     for (const p of expectedPaths) {

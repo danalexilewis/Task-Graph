@@ -6,9 +6,11 @@
   "bin": {
     "tg": "dist/src/cli/index.js"
   },
+  "files": ["dist", "templates", "README.md"],
   "scripts": {
     "dev": "tsx src/cli/index.ts",
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "start": "node dist/cli/index.js",
     "test": "vitest run --dir __tests__",
     "test:e2e": "vitest run --dir __tests__/e2e",
@@ -18,6 +20,14 @@
   "keywords": [],
   "author": "Cursor",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dan/Task-Graph.git"
+  },
+  "homepage": "https://github.com/dan/Task-Graph#readme",
   "dependencies": {
     "commander": "^12.0.0",
     "execa": "^9.0.0",

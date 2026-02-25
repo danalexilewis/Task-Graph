@@ -111,6 +111,17 @@ export function setupCommand(program: Command) {
             options,
             result,
           );
+          const agentMdSrc = path.join(templateRoot, "AGENT.md");
+          const agentMdDest = path.join(repoRoot, "AGENT.md");
+          if (fs.existsSync(agentMdSrc)) {
+            const rel = path.relative(repoRoot, agentMdDest);
+            if (fs.existsSync(agentMdDest) && !options.force) {
+              result.skipped.push(rel);
+            } else {
+              fs.copyFileSync(agentMdSrc, agentMdDest);
+              result.created.push(rel);
+            }
+          }
         }
 
         const json = Boolean(cmd.parent?.opts().json);

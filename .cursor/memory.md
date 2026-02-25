@@ -15,3 +15,9 @@
 
 ## Migration idempotency
 - `applyTaskDimensionsMigration` must skip when `task_domain` exists (junction migration has run and dropped domain/skill from task). Otherwise re-adding columns conflicts with existing `change_type`.
+
+## Plan authoring (user correction)
+- **Always use rich planning.** Plans must include fileTree, risks, tests, per-task intent, suggestedChanges when helpful, and markdown body ending with `<original_prompt>`. See docs/plan-format.md and .cursor/rules/plan-authoring.mdc. When creating plans, follow the rule — do not default to minimal/spartan format.
+
+## Memory rule (for agents)
+- memory.mdc includes an explicit trigger list and a "Before you consider your response complete" checklist. If any trigger applied (bug fix, pattern/rule change, user correction, tooling quirk), the last edit in that response must be to .cursor/memory.md — do not skip.

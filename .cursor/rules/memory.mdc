@@ -13,8 +13,14 @@ Every request MUST start by reading `.cursor/memory.md`. Internalize corrections
 
 ## 2. Update Last (mandatory hook)
 
-**Trigger**: When you fix a bug, add a pattern, or discover an environment/tooling quirk, you MUST update `.cursor/memory.md` in the same response.
+**Trigger**: You MUST update `.cursor/memory.md` in the same response when any of the following happened in that response:
 
+- You fixed a bug or addressed a failure.
+- You added or changed a pattern, convention, or rule (including when the user asked you to).
+- You discovered an environment/tooling quirk (e.g. DB returns object not string).
+- **The user corrected you** or asked you to do something differently regarding dev workflow or architecture (e.g. "always use X", "update the rule to Y").
+
+**Before you consider your response complete**: If any trigger above applied, perform a write or search_replace to `.cursor/memory.md` before ending. Do not skip this step.
 
 ### What to log
 
