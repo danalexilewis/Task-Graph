@@ -2,6 +2,8 @@
 
 The Task Graph system leverages Dolt as its underlying data store, providing version control capabilities for all stored data. The schema consists of five main tables: `plan`, `task`, `edge`, `event`, and `decision`.
 
+**Auto-migrate**: Every CLI command (except `init` and `setup`) runs idempotent migrations at startup. Agents never encounter a stale schema. See [multi-agent](multi-agent.md) for event body conventions.
+
 All UUIDs (e.g., `plan_id`, `task_id`) are stored as `CHAR(36)`. Enumerated types are used for status fields to ensure data integrity. JSON columns are utilized for flexible data storage where schema is less rigid, such as `acceptance` criteria or event `body`.
 
 ## Table: `plan`
@@ -91,7 +93,7 @@ An append-only log of operational events related to tasks, providing historical 
 | `event_id`   | `CHAR(36)`                                   | `PRIMARY KEY`                      | Unique identifier for the event                |
 | `task_id`    | `CHAR(36)`                                   | `NOT NULL`, `FK -> task.task_id`   | Foreign key to the associated task             |
 | `kind`       | `ENUM('created','started','progress','blocked','unblocked','done','split','decision_needed','note')` | `NOT NULL`                         | Type of event                                  |
-| `body`       | `JSON`                                       | `NOT NULL`                         | JSON payload containing event-specific details |
+| `body`       | `JSON`                                       | `NOT NULL`                         | JSON payload. Conventions: `started` → `{ agent, timestamp }`; `note` → `{ message, agent, timestamp }` |
 | `actor`      | `ENUM('human','agent')`                      | `DEFAULT 'agent'`                  | Who performed the event                        |
 | `created_at` | `DATETIME`                                   | `NOT NULL`                         | Timestamp when the event occurred              |
 

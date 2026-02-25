@@ -14,6 +14,9 @@ pnpm tg status
 This surfaces:
 - Plans in progress
 - Tasks stuck in `doing` (may need cleanup)
+- **Active work:** doing tasks with agent_id and plan (when multiple agents are active)
 - Next runnable tasks
+
+**When multiple agents are active:** Read the "Active work" section. Avoid picking tasks that touch the same area/files as another agent's doing task. If overlap is detected, leave a `tg note` and pick a different task.
 
 Address any stale `doing` tasks before starting new work. See **taskgraph-workflow.mdc → Recovery** for cleanup steps.

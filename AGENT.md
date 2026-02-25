@@ -11,13 +11,13 @@ Plan creation and review
 
 Agent operating loop
 
-- Always begin with: tg status to orient — surface stale tasks and plan state.
+- Always begin with: tg status to orient — surface stale tasks, plan state, and other agents' active work (if any).
 - Then: tg next --limit 5 and choose the top runnable task.
 - Before coding: tg show <taskId> and restate:
   - intent
   - scope in/out
   - acceptance checks
-- Then: tg start <taskId> — MUST run before any work
+- Then: tg start <taskId> [--agent <name>] — MUST run before any work. When multiple agents may be active, pass --agent so others see who is working.
 - Execute exactly within scope.
 - When done: tg done <taskId> --evidence "..." — MUST run immediately after work is complete.
   Include in evidence:
@@ -64,3 +64,10 @@ Safe graph edits the agent may do without asking
 - split a task when it exceeds ~90 minutes, keeping scope and acceptance intact
 
 Everything else is proposal-only.
+
+Multi-agent awareness (when 2–3 agents work alongside the human)
+
+- Always pass --agent <session-name> on tg start so other agents see who claimed each task.
+- Read "Active work" from tg status before picking a task; avoid overlapping on the same files/area.
+- Use tg note <taskId> --msg "..." to leave breadcrumbs when changing shared interfaces (types, schema, parser).
+- Do not pick a task in the same area as another agent's doing task without human approval.

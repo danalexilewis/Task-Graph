@@ -58,20 +58,23 @@ export function applyTaskDimensionsMigration(
   repoPath: string,
   noCommit: boolean = false,
 ): ResultAsync<void, AppError> {
-  return taskColumnExists(repoPath, "domain").andThen((hasDomain) => {
-    if (hasDomain) return ResultAsync.fromSafePromise(Promise.resolve());
-    const alter =
-      "ALTER TABLE `task` ADD COLUMN `domain` VARCHAR(64) NULL, ADD COLUMN `skill` VARCHAR(64) NULL, ADD COLUMN `change_type` ENUM('create','modify','refactor','fix','investigate','test','document') NULL";
-    return doltSql(alter, repoPath)
-      .map(() => undefined)
-      .andThen(() =>
-        doltCommit(
-          "db: add task dimensions (domain, skill, change_type)",
-          repoPath,
-          noCommit,
-        ),
-      )
-      .map(() => undefined);
+  return tableExists(repoPath, "task_domain").andThen((hasJunction) => {
+    if (hasJunction) return ResultAsync.fromSafePromise(Promise.resolve()); // Already migrated to junction tables
+    return taskColumnExists(repoPath, "domain").andThen((hasDomain) => {
+      if (hasDomain) return ResultAsync.fromSafePromise(Promise.resolve());
+      const alter =
+        "ALTER TABLE `task` ADD COLUMN `domain` VARCHAR(64) NULL, ADD COLUMN `skill` VARCHAR(64) NULL, ADD COLUMN `change_type` ENUM('create','modify','refactor','fix','investigate','test','document') NULL";
+      return doltSql(alter, repoPath)
+        .map(() => undefined)
+        .andThen(() =>
+          doltCommit(
+            "db: add task dimensions (domain, skill, change_type)",
+            repoPath,
+            noCommit,
+          ),
+        )
+        .map(() => undefined);
+    });
   });
 }
 
@@ -150,6 +153,18 @@ export function applyTaskDomainSkillJunctionMigration(
       )
       .map(() => undefined);
   });
+}
+
+/** Chains all idempotent migrations. Safe to run on every command. */
+export function ensureMigrations(
+  repoPath: string,
+  noCommit: boolean = false,
+): ResultAsync<void, AppError> {
+  return applyPlanRichFieldsMigration(repoPath, noCommit)
+    .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit))
+    .andThen(() => applyTaskSuggestedChangesMigration(repoPath, noCommit))
+    .andThen(() => applyTaskDomainSkillJunctionMigration(repoPath, noCommit))
+    .map(() => undefined);
 }
 
 export function applyMigrations(

@@ -14,9 +14,51 @@ import { portfolioCommand } from "./portfolio";
 import { importCommand } from "./import";
 import { statusCommand } from "./status";
 import { contextCommand } from "./context";
+import { noteCommand } from "./note";
 import { setupCommand } from "./setup";
+import { readConfig, rootOpts } from "./utils";
+import { ensureMigrations } from "../db/migrate";
+import { ErrorCode } from "../domain/errors";
 
 const program = new Command();
+
+/** Commands that create or scaffold; skip auto-migrate (no config or own migration path). */
+const SKIP_MIGRATE_COMMANDS = new Set(["init", "setup"]);
+
+function topLevelCommand(cmd: Command): Command {
+  let c: Command = cmd;
+  while (c.parent && c.parent.parent) {
+    c = c.parent;
+  }
+  return c;
+}
+
+program.hook("preAction", async (_thisCommand, actionCommand) => {
+  const top = topLevelCommand(actionCommand);
+  if (SKIP_MIGRATE_COMMANDS.has(top.name())) {
+    return;
+  }
+  const configResult = readConfig();
+  if (configResult.isErr()) {
+    if (configResult.error.code === ErrorCode.CONFIG_NOT_FOUND) {
+      return;
+    }
+    return;
+  }
+  const opts = rootOpts(actionCommand);
+  const noCommit = opts.noCommit ?? false;
+  const runResult = await ensureMigrations(
+    configResult.value.doltRepoPath,
+    noCommit,
+  );
+  runResult.match(
+    () => {},
+    (e) => {
+      console.error(`Migration failed: ${e.message}`);
+      process.exit(1);
+    },
+  );
+});
 
 program
   .name("tg")
@@ -41,6 +83,7 @@ exportCommand(program);
 portfolioCommand(program);
 importCommand(program);
 statusCommand(program);
+noteCommand(program);
 contextCommand(program);
 
 program.parse(process.argv);

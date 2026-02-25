@@ -9,6 +9,7 @@ var ErrorCode;
     ErrorCode["DB_PARSE_FAILED"] = "DB_PARSE_FAILED";
     // Domain errors
     ErrorCode["TASK_NOT_FOUND"] = "TASK_NOT_FOUND";
+    ErrorCode["TASK_ALREADY_CLAIMED"] = "TASK_ALREADY_CLAIMED";
     ErrorCode["PLAN_NOT_FOUND"] = "PLAN_NOT_FOUND";
     ErrorCode["INVALID_TRANSITION"] = "INVALID_TRANSITION";
     ErrorCode["TASK_NOT_RUNNABLE"] = "TASK_NOT_RUNNABLE";

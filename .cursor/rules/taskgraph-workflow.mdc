@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Orientation
 
-Before executing any plan, run `pnpm tg status` to see what's outstanding. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first (see Recovery below).
+Before executing any plan, run `pnpm tg status` to see what's outstanding. **Multi-agent:** Check "Active work" for other agents' tasks; avoid overlapping on the same files/area. If overlap is detected, use `tg note <taskId> --msg "..."` to signal and pick a different task. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first (see Recovery below).
 
 ## Plan Creation and Review
 
@@ -32,7 +32,7 @@ pnpm tg import plans/<file> --plan "<Plan Name>" --format cursor
 
 For EACH task, follow ALL steps in order. Never skip start, never defer done.
 
-1. `pnpm tg start <taskId>` — **MUST** run before doing any work
+1. `pnpm tg start <taskId> --agent <name>` — **MUST** run before doing any work (pass `--agent` when multiple agents may be active)
 2. `pnpm tg context <taskId>` — Read the output: domain doc path (`docs/<domain>.md`), skill guide path (`docs/skills/<skill>.md`), and related done tasks. Load those docs before coding.
 3. Do the work (stay within scope)
 4. `pnpm tg done <taskId> --evidence "..."` — **MUST** run immediately after work is complete

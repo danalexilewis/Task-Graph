@@ -61,4 +61,8 @@ flowchart TD
 -   **`domain/` layer**: Contains core business logic and invariants. Functions here return `Result` (for synchronous operations) or `ResultAsync` (for operations involving DB calls) to ensure all possible failure states are explicitly handled.
 -   **`export/` and `plan-import/` layers**: These layers process data from the database or external files and transform it. The plan-import parser and importer support the [enhanced plan format](plan-format.md) (file trees, risks, tests, per-task suggested changes), which is stored on plan and task rows and surfaced by `tg context`.
 -   **`cli/` layer**: The command handlers in this layer orchestrate the calls to the underlying domain, database, and other service layers. They use `neverthrow`'s `.match()` method at the outer boundary of the `action` handler to gracefully respond to the user with success messages or error details, terminating the process with `process.exit(1)` on error.
--   **Error Types**: A custom `AppError` interface with an `ErrorCode` enum provides a structured way to categorize and handle different types of errors consistently across the application. See [Error Handling](error-handling.md) for more details.
+-   **Error Types**: A custom `AppError` interface with an `ErrorCode` enum provides a structured way to categorize and handle different types of errors consistently across the application. See [Error Handling](error-handling.md) for more details. Multi-agent adds `TASK_ALREADY_CLAIMED` when `tg start` is attempted on an already-claimed task without `--force`.
+
+### Auto-Migration
+
+A `preAction` hook runs before every CLI command (except `init` and `setup`), calling `ensureMigrations()` to apply any pending idempotent migrations. This eliminates the "two worlds" problem where agents encounter a stale schema.

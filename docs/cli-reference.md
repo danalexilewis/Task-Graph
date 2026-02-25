@@ -182,9 +182,31 @@ tg next --plan "User Onboarding Flow"
 #   ID: b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11, Title: Develop Signup Form, Plan: User Onboarding Flow, Risk: low, Estimate: N/A
 ```
 
+### `tg note <taskId> --msg <text>`
+
+Appends a note event to a task. Useful for breadcrumbs between agents (e.g., "Changed parser signature, heads up").
+
+```bash
+tg note <taskId> --msg "<text>" [--agent <name>]
+```
+
+**Arguments:**
+-   `<taskId>`: The ID of the task to annotate.
+
+**Options:**
+-   `--msg <text>`: **(Required)** The note message.
+-   `--agent <name>`: Agent identifier (default: "default").
+
+**Example:**
+```bash
+tg note b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --msg "Schema in flux, support both until migration lands" --agent alice
+# Output:
+# Note added to task b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11.
+```
+
 ### `tg show <taskId>`
 
-Displays detailed information about a specific task, including its blockers, dependents, and recent events.
+Displays detailed information about a specific task, including its blockers, dependents, recent notes, and recent events.
 
 ```bash
 tg show <taskId>
@@ -221,18 +243,22 @@ tg show b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 
 ### `tg start <taskId>`
 
-Moves a task from `todo` to `doing` status, indicating active work has begun. This is only allowed if the task is runnable (i.e., it has no unmet blockers).
+Moves a task from `todo` to `doing` status, indicating active work has begun. This is only allowed if the task is runnable (i.e., it has no unmet blockers). If the task is already `doing`, returns `TASK_ALREADY_CLAIMED` unless `--force` is used.
 
 ```bash
-tg start <taskId>
+tg start <taskId> [--agent <name>] [--force]
 ```
 
 **Arguments:**
 -   `<taskId>`: The ID of the task to start.
 
+**Options:**
+-   `--agent <name>`: Agent identifier for multi-agent visibility. Recorded in the started event body.
+-   `--force`: Override claim when task is already being worked by another agent (human override).
+
 **Example:**
 ```bash
-tg start b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
+tg start b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --agent alice
 # Output:
 # Task b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 started.
 ```
@@ -404,6 +430,7 @@ tg status [--plan <planId>] [--domain <domain>] [--skill <skill>] [--change-type
 **Output (human):**
 -   Plans: count
 -   Task counts by status: todo, doing, blocked, done
+-   Active work: doing tasks with agent_id, plan title, started_at (when multiple agents may be active)
 -   Next runnable: up to 2 tasks with ID, title, plan
 
 ### `tg portfolio overlaps`

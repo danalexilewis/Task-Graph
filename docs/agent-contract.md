@@ -38,9 +38,9 @@ tg show <taskId>
     -   `scope_out`: What is explicitly *not* part of this task.
     -   `acceptance`: The criteria that must be met for the task to be considered complete.
 
-3.  **Start Task**: Mark the selected task as `doing` to indicate active work has commenced.
+3.  **Start Task**: Mark the selected task as `doing` to indicate active work has commenced. When multiple agents may be active, pass `--agent <name>` for visibility.
     ```bash
-tg start <taskId>
+tg start <taskId> [--agent <name>]
     ```
 
 4.  **Execute Task**: Perform the work exactly within the defined `scope_in` and aiming to meet all `acceptance` criteria. The agent must *not* deviate from the task's defined scope without explicit human approval.
@@ -98,6 +98,15 @@ To allow for efficient autonomous operation, the agent is permitted to make the 
 -   **Status Transitions**: Moving tasks between `todo` → `doing` → `done`, or setting to `blocked` when a real blocker is identified.
 -   **Add Dependencies**: When a prerequisite is objectively required for a task to proceed (e.g., "API endpoint must exist before UI integration"), the agent may add a `blocks` edge.
 -   **Split Tasks**: If a single task's scope becomes too large, typically exceeding an estimated 90 minutes of work, the agent may split it into smaller, more manageable subtasks, preserving the original scope and acceptance criteria. The original task can become an `umbrella` task or be `canceled`.
+
+## Multi-Agent Awareness
+
+When 2–3 agents work alongside the human on the same task graph:
+
+1.  **Always pass `--agent`**: Use `tg start <taskId> --agent <session-name>` so other agents see who claimed each task.
+2.  **Read Active Work**: Before picking a task, run `tg status` and check the "Active work" section. Avoid tasks that touch the same files/area as another agent's doing task.
+3.  **Leave Notes**: Use `tg note <taskId> --msg "..."` when changing shared interfaces (types, schema, parser) so other agents are aware.
+4.  **Conflict Avoidance**: Do not pick a task in the same area as another agent's doing task without human approval.
 
 ## Everything Else is Proposal-Only
 

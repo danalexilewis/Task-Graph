@@ -1,0 +1,14 @@
+---
+description: Multi-agent coordination when 2–3 agents work alongside the human
+alwaysApply: false
+---
+
+# Multi-Agent Coordination
+
+When multiple agents are active on the same Task-Graph:
+
+1. **Identity**: Always pass `--agent <session-name>` on `tg start` so others see who claimed each task.
+2. **Orientation**: Read "Active work" from `tg status` before picking a task. Avoid tasks touching the same files/area as another agent's doing task.
+3. **Breadcrumbs**: Use `tg note <taskId> --msg "..."` when changing shared interfaces (types, schema, parser).
+4. **Conflict**: If overlap is detected, pick a different task or ask the human to arbitrate.
+5. **Override**: The human may use `tg start <taskId> --force` to reclaim a task from another agent.

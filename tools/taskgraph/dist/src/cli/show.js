@@ -46,9 +46,10 @@ function showCommand(program) {
               FROM \`event\`
               WHERE task_id = '${taskId}'
               ORDER BY created_at DESC
-              LIMIT 5;
+              LIMIT 10;
             `);
                 const events = eventsResult.isOk() ? eventsResult.value : [];
+                const noteEvents = events.filter((e) => e.kind === "note");
                 const domainsResult = await q.select("task_domain", { columns: ["domain"], where: { task_id: taskId } });
                 const skillsResult = await q.select("task_skill", { columns: ["skill"], where: { task_id: taskId } });
                 const domains = domainsResult.isOk()
@@ -62,6 +63,7 @@ function showCommand(program) {
                     blockers,
                     dependents,
                     events,
+                    noteEvents,
                     domains,
                     skills,
                 };
@@ -101,6 +103,17 @@ function showCommand(program) {
                         const edge = d;
                         const typeInfo = edge.type ? `, Type: ${edge.type}` : "";
                         console.log(`  - Task ID: ${edge.to_task_id}, Title: ${edge.title}, Status: ${edge.status}${typeInfo}, Reason: ${edge.reason ?? "N/A"}`);
+                    });
+                }
+                if (resultData.noteEvents.length > 0) {
+                    console.log("\nRecent Notes:");
+                    resultData.noteEvents.slice(0, 5).forEach((e) => {
+                        const body = typeof e.body === "string"
+                            ? JSON.parse(e.body)
+                            : e.body;
+                        const msg = body?.message ?? JSON.stringify(e.body);
+                        const agent = body?.agent ?? e.actor ?? "unknown";
+                        console.log(`  - [${e.created_at}] ${agent}: ${msg}`);
                     });
                 }
                 if (resultData.events.length > 0) {

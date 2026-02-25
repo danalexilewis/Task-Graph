@@ -37,6 +37,7 @@ exports.applyPlanRichFieldsMigration = applyPlanRichFieldsMigration;
 exports.applyTaskDimensionsMigration = applyTaskDimensionsMigration;
 exports.applyTaskSuggestedChangesMigration = applyTaskSuggestedChangesMigration;
 exports.applyTaskDomainSkillJunctionMigration = applyTaskDomainSkillJunctionMigration;
+exports.ensureMigrations = ensureMigrations;
 exports.applyMigrations = applyMigrations;
 const connection_1 = require("./connection");
 const commit_1 = require("./commit");
@@ -75,14 +76,18 @@ function applyPlanRichFieldsMigration(repoPath, noCommit = false) {
 }
 /** Add domain, skill, change_type columns to task table if missing (idempotent). */
 function applyTaskDimensionsMigration(repoPath, noCommit = false) {
-    return taskColumnExists(repoPath, "domain").andThen((hasDomain) => {
-        if (hasDomain)
-            return neverthrow_1.ResultAsync.fromSafePromise(Promise.resolve());
-        const alter = "ALTER TABLE `task` ADD COLUMN `domain` VARCHAR(64) NULL, ADD COLUMN `skill` VARCHAR(64) NULL, ADD COLUMN `change_type` ENUM('create','modify','refactor','fix','investigate','test','document') NULL";
-        return (0, connection_1.doltSql)(alter, repoPath)
-            .map(() => undefined)
-            .andThen(() => (0, commit_1.doltCommit)("db: add task dimensions (domain, skill, change_type)", repoPath, noCommit))
-            .map(() => undefined);
+    return tableExists(repoPath, "task_domain").andThen((hasJunction) => {
+        if (hasJunction)
+            return neverthrow_1.ResultAsync.fromSafePromise(Promise.resolve()); // Already migrated to junction tables
+        return taskColumnExists(repoPath, "domain").andThen((hasDomain) => {
+            if (hasDomain)
+                return neverthrow_1.ResultAsync.fromSafePromise(Promise.resolve());
+            const alter = "ALTER TABLE `task` ADD COLUMN `domain` VARCHAR(64) NULL, ADD COLUMN `skill` VARCHAR(64) NULL, ADD COLUMN `change_type` ENUM('create','modify','refactor','fix','investigate','test','document') NULL";
+            return (0, connection_1.doltSql)(alter, repoPath)
+                .map(() => undefined)
+                .andThen(() => (0, commit_1.doltCommit)("db: add task dimensions (domain, skill, change_type)", repoPath, noCommit))
+                .map(() => undefined);
+        });
     });
 }
 /** Add suggested_changes column to task table if missing (idempotent). */
@@ -122,6 +127,14 @@ function applyTaskDomainSkillJunctionMigration(repoPath, noCommit = false) {
             .andThen(() => (0, commit_1.doltCommit)("db: task_domain/task_skill junction tables; drop task.domain/task.skill", repoPath, noCommit))
             .map(() => undefined);
     });
+}
+/** Chains all idempotent migrations. Safe to run on every command. */
+function ensureMigrations(repoPath, noCommit = false) {
+    return applyPlanRichFieldsMigration(repoPath, noCommit)
+        .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit))
+        .andThen(() => applyTaskSuggestedChangesMigration(repoPath, noCommit))
+        .andThen(() => applyTaskDomainSkillJunctionMigration(repoPath, noCommit))
+        .map(() => undefined);
 }
 function applyMigrations(repoPath, noCommit = false) {
     return neverthrow_1.ResultAsync.fromPromise((async () => {

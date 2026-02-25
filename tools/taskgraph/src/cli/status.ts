@@ -75,6 +75,21 @@ export function statusCommand(program: Command) {
           LIMIT 2
         `;
 
+        const activeWorkSql = `
+          SELECT t.task_id, t.title, p.title as plan_title, e.body, e.created_at
+          FROM \`task\` t
+          JOIN \`plan\` p ON t.plan_id = p.plan_id
+          JOIN \`event\` e ON e.task_id = t.task_id AND e.kind = 'started'
+          WHERE t.status = 'doing'
+          AND e.created_at = (
+            SELECT MAX(e2.created_at) FROM \`event\` e2
+            WHERE e2.task_id = t.task_id AND e2.kind = 'started'
+          )
+          ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
+          ${dimFilter}
+          ORDER BY e.created_at DESC
+        `;
+
         return q.raw<{ count: number }>(plansCountSql).andThen((plansRes) => {
           const plansCount = plansRes[0]?.count ?? 0;
           return q
@@ -90,11 +105,22 @@ export function statusCommand(program: Command) {
                   title: string;
                   plan_title: string;
                 }>(nextSql)
-                .map((nextTasks) => ({
-                  plansCount,
-                  statusCounts,
-                  nextTasks,
-                }));
+                .andThen((nextTasks) =>
+                  q
+                    .raw<{
+                      task_id: string;
+                      title: string;
+                      plan_title: string;
+                      body: string;
+                      created_at: string;
+                    }>(activeWorkSql)
+                    .map((activeWork) => ({
+                      plansCount,
+                      statusCounts,
+                      nextTasks,
+                      activeWork,
+                    })),
+                );
             });
         });
       });
@@ -108,6 +134,13 @@ export function statusCommand(program: Command) {
               task_id: string;
               title: string;
               plan_title: string;
+            }>;
+            activeWork: Array<{
+              task_id: string;
+              title: string;
+              plan_title: string;
+              body: string | object;
+              created_at: string;
             }>;
           };
           if (!rootOpts(cmd).json) {
@@ -123,6 +156,19 @@ export function statusCommand(program: Command) {
               const count = d.statusCounts[s] ?? 0;
               if (count > 0) console.log(`  ${s}: ${count}`);
             });
+            if (d.activeWork.length > 0) {
+              console.log("Active work:");
+              d.activeWork.forEach((w) => {
+                const body =
+                  typeof w.body === "string"
+                    ? (JSON.parse(w.body) as { agent?: string })
+                    : (w.body as { agent?: string });
+                const agent = body?.agent ?? "unknown";
+                console.log(
+                  `  ${w.task_id}  ${w.title} (${w.plan_title}) [${agent}] ${w.created_at}`,
+                );
+              });
+            }
             if (d.nextTasks.length > 0) {
               console.log("Next runnable:");
               d.nextTasks.forEach((t) => {
