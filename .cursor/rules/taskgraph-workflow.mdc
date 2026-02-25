@@ -5,6 +5,10 @@ alwaysApply: true
 
 # Task-Graph Workflow
 
+## Orientation
+
+Before executing any plan, run `pnpm tg status` to see what's outstanding. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first (see Recovery below).
+
 ## Plan Creation and Review
 
 - **Plans** live in `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
@@ -24,13 +28,36 @@ alwaysApply: true
 pnpm tg import plans/<file> --plan "<Plan Name>" --format cursor
 ```
 
-## Execution Loop
+## Execution Loop (per task — MANDATORY)
 
-1. `pnpm tg next --plan "<Plan>" --limit 5` — list runnable tasks
-2. `pnpm tg show <taskId>` — understand intent, scope, acceptance
-3. `pnpm tg start <taskId>` — mark task in progress
-4. Do the work (stay within scope)
-5. `pnpm tg done <taskId> --evidence "..."` — include tests run, commands, git hashes
+For EACH task, follow ALL steps in order. Never skip start, never defer done.
+
+1. `pnpm tg start <taskId>` — **MUST** run before doing any work
+2. Do the work (stay within scope)
+3. `pnpm tg done <taskId> --evidence "..."` — **MUST** run immediately after work is complete
+
+Evidence should include: tests run, commands, git hashes.
+
+### Multi-task discipline
+
+When executing N tasks in sequence, complete the full start→work→done cycle for each one individually. Never batch-skip transitions.
+
+### Plan completion
+
+After marking the last task in a plan as done, run:
+```bash
+pnpm tg export markdown --plan <planId> --out plans/<file>
+```
+This updates the plan file with final statuses, closing the round-trip.
+
+## Recovery (out-of-sync tasks)
+
+If work is already done but the task is still `todo` or `doing` in taskgraph:
+
+- **Task is `todo`**: `pnpm tg done <taskId> --force --evidence "completed previously"`
+- **Task is `doing`**: `pnpm tg done <taskId> --evidence "completed previously"`
+
+Run `pnpm tg status` after cleanup to verify.
 
 ## When Blocked
 

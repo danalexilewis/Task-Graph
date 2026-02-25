@@ -10,7 +10,50 @@ function planCommand(program) {
     program
         .command("plan")
         .description("Manage plans")
-        .addCommand(planNewCommand());
+        .addCommand(planNewCommand())
+        .addCommand(planListCommand());
+}
+function planListCommand() {
+    return new commander_1.Command("list")
+        .alias("ls")
+        .description("List all plans")
+        .action(async (options, cmd) => {
+        const result = await (0, utils_1.readConfig)().asyncAndThen((config) => {
+            const q = (0, query_1.query)(config.doltRepoPath);
+            return q.select("plan", {
+                columns: ["plan_id", "title", "status", "created_at"],
+                orderBy: "`created_at` DESC",
+            });
+        });
+        result.match((plans) => {
+            const plansArray = plans;
+            if (!(0, utils_1.rootOpts)(cmd).json) {
+                if (plansArray.length > 0) {
+                    console.log("Plans:");
+                    plansArray.forEach((p) => {
+                        console.log(`  ${p.plan_id}  ${p.title}  (${p.status})`);
+                    });
+                }
+                else {
+                    console.log("No plans found.");
+                }
+            }
+            else {
+                console.log(JSON.stringify(plansArray, null, 2));
+            }
+        }, (error) => {
+            console.error(`Error listing plans: ${error.message}`);
+            if ((0, utils_1.rootOpts)(cmd).json) {
+                console.log(JSON.stringify({
+                    status: "error",
+                    code: error.code,
+                    message: error.message,
+                    cause: error.cause,
+                }));
+            }
+            process.exit(1);
+        });
+    });
 }
 function planNewCommand() {
     return new commander_1.Command("new")

@@ -1,0 +1,19 @@
+---
+description: Run tg status at session start for orientation
+alwaysApply: true
+---
+
+# Session Start
+
+At the start of every session, run:
+
+```bash
+pnpm tg status
+```
+
+This surfaces:
+- Plans in progress
+- Tasks stuck in `doing` (may need cleanup)
+- Next runnable tasks
+
+Address any stale `doing` tasks before starting new work. See **taskgraph-workflow.mdc → Recovery** for cleanup steps.

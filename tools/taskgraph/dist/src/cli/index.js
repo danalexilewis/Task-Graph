@@ -14,6 +14,7 @@ const split_1 = require("./split");
 const export_1 = require("./export");
 const portfolio_1 = require("./portfolio");
 const import_1 = require("./import");
+const status_1 = require("./status");
 const program = new commander_1.Command();
 program
     .name("tg")
@@ -35,4 +36,5 @@ program
 (0, export_1.exportCommand)(program);
 (0, portfolio_1.portfolioCommand)(program);
 (0, import_1.importCommand)(program);
+(0, status_1.statusCommand)(program);
 program.parse(process.argv);

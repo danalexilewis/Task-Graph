@@ -61,6 +61,32 @@ tg plan new "User Onboarding Flow" --intent "Streamline the process for new user
 # Plan created with ID: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 ```
 
+### `tg plan list` / `tg plan ls`
+
+Lists all plans with their ID, title, and status. Use to discover plan IDs for `tg next --plan`, `tg export --plan`, and other commands.
+
+```bash
+tg plan list
+# or
+tg plan ls
+```
+
+**Output (human-readable):**
+-   One line per plan: `plan_id  title  (status)`
+-   Ordered by `created_at` DESC (newest first)
+
+**Options:**
+-   `--json`: Output as JSON array of `{ plan_id, title, status, created_at }`.
+
+**Example:**
+```bash
+tg plan list
+# Output:
+# Plans:
+#   6dbadd46-a0a6-4033-897d-e259cecb8af1  Export Markdown and tg status  (draft)
+#   3cf8e2e2-7cbc-4d07-95a0-bf4871e780bf  tg plan list  (draft)
+```
+
 ### `tg task new <title>`
 
 Creates a new task within an existing plan.
@@ -302,6 +328,39 @@ tg export dot --feature auth
 #   "task1" -> "task2" [label="blocks"];
 # }
 ```
+
+### `tg export markdown`
+
+Outputs a plan and its tasks in Cursor format (YAML frontmatter with todos). Enables round-trip: import → work → export updated plan.
+
+```bash
+tg export markdown --plan <planId> [--out <path>]
+```
+
+**Options:**
+-   `--plan <planId>`: **(Required)** Plan ID to export.
+-   `--out <path>`: Write to file instead of stdout.
+
+**Output:**
+-   YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy).
+-   Suitable for re-import via `tg import --format cursor`.
+
+### `tg status`
+
+Quick overview: plans count, task counts by status, next runnable tasks.
+
+```bash
+tg status [--plan <planId>]
+```
+
+**Options:**
+-   `--plan <planId>`: Filter by plan ID or title.
+-   `--json`: Output as JSON object.
+
+**Output (human):**
+-   Plans: count
+-   Task counts by status: todo, doing, blocked, done
+-   Next runnable: up to 2 tasks with ID, title, plan
 
 ### `tg portfolio overlaps`
 

@@ -1,0 +1,110 @@
+import yaml from "js-yaml";
+import { readConfig, Config } from "../cli/utils";
+import { ResultAsync, errAsync } from "neverthrow";
+import { AppError, buildError, ErrorCode } from "../domain/errors";
+import { query } from "../db/query";
+
+interface PlanRow {
+  plan_id: string;
+  title: string;
+  intent: string;
+}
+
+interface TaskRow {
+  task_id: string;
+  external_key: string | null;
+  title: string;
+  status: string;
+}
+
+interface EdgeRow {
+  from_task_id: string;
+  to_task_id: string;
+  type: string;
+}
+
+/** Generates Cursor-format markdown from plan and tasks. */
+export function generateMarkdown(
+  planId: string,
+  basePath?: string,
+): ResultAsync<string, AppError> {
+  return readConfig(basePath).asyncAndThen((config: Config) => {
+    const q = query(config.doltRepoPath);
+
+    return q
+      .select<PlanRow>("plan", {
+        columns: ["plan_id", "title", "intent"],
+        where: { plan_id: planId },
+      })
+      .andThen((plans) => {
+        if (plans.length === 0) {
+          return errAsync(
+            buildError(ErrorCode.PLAN_NOT_FOUND, `Plan ${planId} not found`),
+          );
+        }
+        const plan = plans[0];
+
+        return q
+          .select<TaskRow>("task", {
+            columns: ["task_id", "external_key", "title", "status"],
+            where: { plan_id: planId },
+          })
+          .andThen((tasks) => {
+            return q
+              .raw<EdgeRow>(
+                "SELECT from_task_id, to_task_id, type FROM `edge` WHERE type = 'blocks'",
+              )
+              .map((edges) => {
+                const taskIdToKey = new Map<string, string>();
+                tasks.forEach((t) => {
+                  if (t.external_key) {
+                    taskIdToKey.set(t.task_id, t.external_key);
+                  }
+                });
+
+                const blockedByMap = new Map<string, string[]>();
+                edges.forEach((e) => {
+                  if (
+                    e.to_task_id &&
+                    taskIdToKey.has(e.from_task_id) &&
+                    taskIdToKey.has(e.to_task_id)
+                  ) {
+                    const key = taskIdToKey.get(e.to_task_id)!;
+                    const blockerKey = taskIdToKey.get(e.from_task_id)!;
+                    if (!blockedByMap.has(key)) {
+                      blockedByMap.set(key, []);
+                    }
+                    blockedByMap.get(key)!.push(blockerKey);
+                  }
+                });
+
+                const todos = tasks
+                  .filter((t) => t.external_key)
+                  .map((t) => {
+                    const status =
+                      t.status === "done" ? "completed" : "pending";
+                    const blockedBy = blockedByMap.get(t.external_key!) ?? [];
+                    return {
+                      id: t.external_key!,
+                      content: t.title,
+                      status,
+                      ...(blockedBy.length > 0 && { blockedBy }),
+                    };
+                  });
+
+                const frontmatter = {
+                  name: plan.title,
+                  overview: plan.intent || "",
+                  todos,
+                  isProject: false,
+                };
+
+                const yamlStr = yaml.dump(frontmatter, { lineWidth: -1 });
+                return `---
+${yamlStr}---
+`;
+              });
+          });
+      });
+  });
+}

@@ -12,6 +12,7 @@ import { splitCommand } from "./split";
 import { exportCommand } from "./export";
 import { portfolioCommand } from "./portfolio";
 import { importCommand } from "./import";
+import { statusCommand } from "./status";
 
 const program = new Command();
 
@@ -36,5 +37,6 @@ splitCommand(program);
 exportCommand(program);
 portfolioCommand(program);
 importCommand(program);
+statusCommand(program);
 
 program.parse(process.argv);
