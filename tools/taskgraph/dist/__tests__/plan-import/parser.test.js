@@ -176,3 +176,81 @@ ACCEPTANCE:
         (0, fs_1.unlinkSync)(testFilePath);
     });
 });
+(0, vitest_1.describe)("parseCursorPlan", () => {
+    const testFilePath = path.join(__dirname, "test-cursor-plan.md");
+    (0, vitest_1.it)("should parse Cursor format with YAML frontmatter and todos", () => {
+        const content = `---
+name: My Cursor Plan
+overview: "A test plan in Cursor format."
+todos:
+  - id: task-1
+    content: "First task"
+    status: pending
+  - id: task-2
+    content: "Second task"
+    status: completed
+  - id: task-3
+    content: "Third task"
+    blockedBy: [task-1]
+isProject: false
+---
+
+# Plan body (ignored)
+`;
+        (0, fs_1.writeFileSync)(testFilePath, content);
+        const result = (0, parser_1.parseCursorPlan)(testFilePath);
+        (0, vitest_1.expect)(result.isOk()).toBe(true);
+        const { planTitle, planIntent, tasks } = result._unsafeUnwrap();
+        (0, vitest_1.expect)(planTitle).toBe("My Cursor Plan");
+        (0, vitest_1.expect)(planIntent).toBe("A test plan in Cursor format.");
+        (0, vitest_1.expect)(tasks.length).toBe(3);
+        (0, vitest_1.expect)(tasks[0]).toEqual({
+            stableKey: "task-1",
+            title: "First task",
+            blockedBy: [],
+            acceptance: [],
+            status: "todo",
+        });
+        (0, vitest_1.expect)(tasks[1]).toEqual({
+            stableKey: "task-2",
+            title: "Second task",
+            blockedBy: [],
+            acceptance: [],
+            status: "done",
+        });
+        (0, vitest_1.expect)(tasks[2]).toEqual({
+            stableKey: "task-3",
+            title: "Third task",
+            blockedBy: ["task-1"],
+            acceptance: [],
+            status: "todo",
+        });
+        (0, fs_1.unlinkSync)(testFilePath);
+    });
+    (0, vitest_1.it)("should return error when file has no frontmatter", () => {
+        (0, fs_1.writeFileSync)(testFilePath, "# No frontmatter here");
+        const result = (0, parser_1.parseCursorPlan)(testFilePath);
+        (0, vitest_1.expect)(result.isErr()).toBe(true);
+        (0, vitest_1.expect)(result._unsafeUnwrapErr().code).toBe(errors_1.ErrorCode.FILE_READ_FAILED);
+        (0, fs_1.unlinkSync)(testFilePath);
+    });
+    (0, vitest_1.it)("should return error for non-existent file", () => {
+        const result = (0, parser_1.parseCursorPlan)("/non/existent/path/to/file.md");
+        (0, vitest_1.expect)(result.isErr()).toBe(true);
+        (0, vitest_1.expect)(result._unsafeUnwrapErr().code).toBe(errors_1.ErrorCode.FILE_READ_FAILED);
+    });
+    (0, vitest_1.it)("should handle empty todos array", () => {
+        const content = `---
+name: Empty Plan
+overview: "No tasks."
+todos: []
+---
+`;
+        (0, fs_1.writeFileSync)(testFilePath, content);
+        const result = (0, parser_1.parseCursorPlan)(testFilePath);
+        (0, vitest_1.expect)(result.isOk()).toBe(true);
+        const { tasks } = result._unsafeUnwrap();
+        (0, vitest_1.expect)(tasks).toEqual([]);
+        (0, fs_1.unlinkSync)(testFilePath);
+    });
+});

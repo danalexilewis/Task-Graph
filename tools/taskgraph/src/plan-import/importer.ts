@@ -12,6 +12,7 @@ interface ParsedTask {
   area?: string;
   blockedBy: string[];
   acceptance: string[];
+  status?: "todo" | "done";
 }
 
 interface ImportResult {
@@ -61,6 +62,9 @@ export function upsertTasksAndEdges(
                     parsedTask.acceptance.length > 0
                       ? jsonObj({ val: JSON.stringify(parsedTask.acceptance) })
                       : null,
+                  ...(parsedTask.status !== undefined && {
+                    status: parsedTask.status,
+                  }),
                   updated_at: currentTimestamp,
                 },
                 { task_id: taskId },
@@ -73,6 +77,7 @@ export function upsertTasksAndEdges(
               // Insert new task
               taskId = uuidv4();
               importedTasksCount++;
+              const taskStatus = parsedTask.status ?? "todo";
               const insertResult = await q.insert("task", {
                 task_id: taskId,
                 plan_id: planId,
@@ -84,6 +89,7 @@ export function upsertTasksAndEdges(
                   parsedTask.acceptance.length > 0
                     ? jsonObj({ val: JSON.stringify(parsedTask.acceptance) })
                     : null,
+                status: taskStatus,
                 created_at: currentTimestamp,
                 updated_at: currentTimestamp,
               });
@@ -110,6 +116,9 @@ export function upsertTasksAndEdges(
                 throw insertEventResult.error;
               }
             }
+
+            // Register for edge resolution (blocker keys may reference tasks just inserted)
+            externalKeyToTaskId.set(parsedTask.stableKey, taskId);
 
             // Handle edges
             for (const blockerKey of parsedTask.blockedBy) {

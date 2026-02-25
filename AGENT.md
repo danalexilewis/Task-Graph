@@ -1,3 +1,14 @@
+Plan creation and review
+
+- When the user asks for a plan: create `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`). Summarize the plan, then pause and ask for review.
+- Do not import or execute until the user responds. Interpret the response using this table:
+
+| User says | Meaning | Agent action |
+|-----------|---------|--------------|
+| proceed, go ahead, execute, run it, let's do it | Approve and execute | Run `tg import plans/<file> --plan "<Plan Name>" --format cursor`, then enter the execution loop below |
+| just add the tasks, add to taskgraph only, import but don't run | Add to graph only | Run `tg import plans/<file> --plan "<Plan Name>" --format cursor`. Do not execute tasks |
+| thanks, that's good, looks good, ok, don't do anything | Acknowledgement only | Do nothing. No import, no execution |
+
 Agent operating loop
 
 - Always begin with: tg next --limit 5 and choose the top runnable task.

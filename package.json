@@ -1,0 +1,7 @@
+{
+  "name": "task-graph",
+  "private": true,
+  "scripts": {
+    "tg": "node tools/taskgraph/dist/src/cli/index.js"
+  }
+}

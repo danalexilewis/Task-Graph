@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { parsePlanMarkdown } from "../../src/plan-import/parser";
+import {
+  parsePlanMarkdown,
+  parseCursorPlan,
+} from "../../src/plan-import/parser";
 import { AppError, ErrorCode } from "../../src/domain/errors";
 import { writeFileSync, unlinkSync } from "fs";
 import * as path from "path";
@@ -154,6 +157,96 @@ ACCEPTANCE:
       "Second check",
       "Third check",
     ]);
+    unlinkSync(testFilePath);
+  });
+});
+
+describe("parseCursorPlan", () => {
+  const testFilePath = path.join(__dirname, "test-cursor-plan.md");
+
+  it("should parse Cursor format with YAML frontmatter and todos", () => {
+    const content = `---
+name: My Cursor Plan
+overview: "A test plan in Cursor format."
+todos:
+  - id: task-1
+    content: "First task"
+    status: pending
+  - id: task-2
+    content: "Second task"
+    status: completed
+  - id: task-3
+    content: "Third task"
+    blockedBy: [task-1]
+isProject: false
+---
+
+# Plan body (ignored)
+`;
+    writeFileSync(testFilePath, content);
+
+    const result = parseCursorPlan(testFilePath);
+
+    expect(result.isOk()).toBe(true);
+    const { planTitle, planIntent, tasks } = result._unsafeUnwrap();
+
+    expect(planTitle).toBe("My Cursor Plan");
+    expect(planIntent).toBe("A test plan in Cursor format.");
+    expect(tasks.length).toBe(3);
+
+    expect(tasks[0]).toEqual({
+      stableKey: "task-1",
+      title: "First task",
+      blockedBy: [],
+      acceptance: [],
+      status: "todo",
+    });
+
+    expect(tasks[1]).toEqual({
+      stableKey: "task-2",
+      title: "Second task",
+      blockedBy: [],
+      acceptance: [],
+      status: "done",
+    });
+
+    expect(tasks[2]).toEqual({
+      stableKey: "task-3",
+      title: "Third task",
+      blockedBy: ["task-1"],
+      acceptance: [],
+      status: "todo",
+    });
+
+    unlinkSync(testFilePath);
+  });
+
+  it("should return error when file has no frontmatter", () => {
+    writeFileSync(testFilePath, "# No frontmatter here");
+    const result = parseCursorPlan(testFilePath);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().code).toBe(ErrorCode.FILE_READ_FAILED);
+    unlinkSync(testFilePath);
+  });
+
+  it("should return error for non-existent file", () => {
+    const result = parseCursorPlan("/non/existent/path/to/file.md");
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr().code).toBe(ErrorCode.FILE_READ_FAILED);
+  });
+
+  it("should handle empty todos array", () => {
+    const content = `---
+name: Empty Plan
+overview: "No tasks."
+todos: []
+---
+`;
+    writeFileSync(testFilePath, content);
+    const result = parseCursorPlan(testFilePath);
+    expect(result.isOk()).toBe(true);
+    const { tasks } = result._unsafeUnwrap();
+    expect(tasks).toEqual([]);
     unlinkSync(testFilePath);
   });
 });

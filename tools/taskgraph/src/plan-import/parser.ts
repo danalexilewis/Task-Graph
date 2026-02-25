@@ -1,14 +1,17 @@
 import { readFileSync } from "fs";
+import yaml from "js-yaml";
 import { Result, ok, err } from "neverthrow";
 import { AppError, ErrorCode, buildError } from "../domain/errors";
 
-interface ParsedTask {
+export interface ParsedTask {
   stableKey: string;
   title: string;
   feature?: string;
   area?: string;
   blockedBy: string[];
   acceptance: string[];
+  /** Mapped from Cursor todo status: completed→done, pending/other→todo */
+  status?: "todo" | "done";
 }
 
 export interface ParsedPlan {
@@ -90,6 +93,84 @@ export function parsePlanMarkdown(
       buildError(
         ErrorCode.FILE_READ_FAILED,
         `Failed to read or parse markdown file at ${filePath}`,
+        e,
+      ),
+    );
+  }
+}
+
+interface CursorTodo {
+  id: string;
+  content: string;
+  status?: string;
+  blockedBy?: string[];
+}
+
+interface CursorFrontmatter {
+  name?: string;
+  overview?: string;
+  todos?: CursorTodo[];
+}
+
+/** Parses a Cursor Plan file (YAML frontmatter with todos). */
+export function parseCursorPlan(
+  filePath: string,
+): Result<ParsedPlan, AppError> {
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (!frontmatterMatch) {
+      return err(
+        buildError(
+          ErrorCode.FILE_READ_FAILED,
+          `File ${filePath} does not have YAML frontmatter (--- ... ---)`,
+        ),
+      );
+    }
+
+    const parsed = yaml.load(frontmatterMatch[1]) as CursorFrontmatter | null;
+    if (!parsed || typeof parsed !== "object") {
+      return err(
+        buildError(
+          ErrorCode.FILE_READ_FAILED,
+          `Invalid YAML frontmatter in ${filePath}`,
+        ),
+      );
+    }
+
+    const todos = parsed.todos ?? [];
+    if (!Array.isArray(todos)) {
+      return err(
+        buildError(
+          ErrorCode.FILE_READ_FAILED,
+          `Expected 'todos' to be an array in ${filePath}`,
+        ),
+      );
+    }
+
+    const tasks: ParsedTask[] = todos
+      .filter((t): t is CursorTodo => t != null && typeof t === "object" && typeof t.id === "string" && typeof t.content === "string")
+      .map((t) => {
+        const status = t.status === "completed" ? ("done" as const) : ("todo" as const);
+        return {
+          stableKey: t.id,
+          title: t.content,
+          blockedBy: Array.isArray(t.blockedBy) ? t.blockedBy : [],
+          acceptance: [],
+          status,
+        };
+      });
+
+    return ok({
+      planTitle: parsed.name ?? null,
+      planIntent: parsed.overview ?? null,
+      tasks,
+    });
+  } catch (e) {
+    return err(
+      buildError(
+        ErrorCode.FILE_READ_FAILED,
+        `Failed to read or parse Cursor plan at ${filePath}`,
         e,
       ),
     );

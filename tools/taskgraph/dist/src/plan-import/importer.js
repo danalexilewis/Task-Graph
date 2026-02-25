@@ -34,6 +34,9 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         acceptance: parsedTask.acceptance.length > 0
                             ? (0, query_1.jsonObj)({ val: JSON.stringify(parsedTask.acceptance) })
                             : null,
+                        ...(parsedTask.status !== undefined && {
+                            status: parsedTask.status,
+                        }),
                         updated_at: currentTimestamp,
                     }, { task_id: taskId });
                     if (updateResult.isErr()) {
@@ -45,6 +48,7 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                     // Insert new task
                     taskId = (0, uuid_1.v4)();
                     importedTasksCount++;
+                    const taskStatus = parsedTask.status ?? "todo";
                     const insertResult = await q.insert("task", {
                         task_id: taskId,
                         plan_id: planId,
@@ -55,6 +59,7 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         acceptance: parsedTask.acceptance.length > 0
                             ? (0, query_1.jsonObj)({ val: JSON.stringify(parsedTask.acceptance) })
                             : null,
+                        status: taskStatus,
                         created_at: currentTimestamp,
                         updated_at: currentTimestamp,
                     });
@@ -77,6 +82,8 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         throw insertEventResult.error;
                     }
                 }
+                // Register for edge resolution (blocker keys may reference tasks just inserted)
+                externalKeyToTaskId.set(parsedTask.stableKey, taskId);
                 // Handle edges
                 for (const blockerKey of parsedTask.blockedBy) {
                     const blockerTaskId = externalKeyToTaskId.get(blockerKey);

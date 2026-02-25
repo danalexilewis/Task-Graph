@@ -1,6 +1,10 @@
 import { Command } from "commander";
 import { readConfig, Config } from "./utils";
-import { parsePlanMarkdown, ParsedPlan } from "../plan-import/parser";
+import {
+  parsePlanMarkdown,
+  parseCursorPlan,
+  ParsedPlan,
+} from "../plan-import/parser";
 import { upsertTasksAndEdges } from "../plan-import/importer";
 import { doltCommit } from "../db/commit";
 import { v4 as uuidv4 } from "uuid";
@@ -20,11 +24,20 @@ export function importCommand(program: Command) {
       "--plan <planTitleOrId>",
       "Title or ID of the plan to associate tasks with",
     )
+    .option(
+      "--format <format>",
+      "Plan format: 'legacy' (TASK:/TITLE:/BLOCKED_BY:) or 'cursor' (YAML frontmatter with todos). Default: legacy",
+      "legacy",
+    )
     .action(async (filePath, options, cmd) => {
       const result = await readConfig().asyncAndThen((config: Config) => {
         const currentTimestamp = now();
+        const parseResult =
+          options.format === "cursor"
+            ? parseCursorPlan(filePath)
+            : parsePlanMarkdown(filePath);
 
-        return parsePlanMarkdown(filePath).asyncAndThen((parsedPlan: ParsedPlan) => {
+        return parseResult.asyncAndThen((parsedPlan: ParsedPlan) => {
           return ResultAsync.fromPromise(
             (async () => {
               const q = query(config.doltRepoPath);

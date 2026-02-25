@@ -15,10 +15,14 @@ function importCommand(program) {
         .description("Import tasks and edges from a markdown plan file")
         .argument("<filePath>", "Path to the markdown plan file (e.g., plans/feature-auth.md)")
         .requiredOption("--plan <planTitleOrId>", "Title or ID of the plan to associate tasks with")
+        .option("--format <format>", "Plan format: 'legacy' (TASK:/TITLE:/BLOCKED_BY:) or 'cursor' (YAML frontmatter with todos). Default: legacy", "legacy")
         .action(async (filePath, options, cmd) => {
         const result = await (0, utils_1.readConfig)().asyncAndThen((config) => {
             const currentTimestamp = (0, query_1.now)();
-            return (0, parser_1.parsePlanMarkdown)(filePath).asyncAndThen((parsedPlan) => {
+            const parseResult = options.format === "cursor"
+                ? (0, parser_1.parseCursorPlan)(filePath)
+                : (0, parser_1.parsePlanMarkdown)(filePath);
+            return parseResult.asyncAndThen((parsedPlan) => {
                 return neverthrow_1.ResultAsync.fromPromise((async () => {
                     const q = (0, query_1.query)(config.doltRepoPath);
                     const { planTitle, planIntent, tasks: parsedTasks } = parsedPlan;
