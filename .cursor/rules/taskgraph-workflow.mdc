@@ -33,8 +33,9 @@ pnpm tg import plans/<file> --plan "<Plan Name>" --format cursor
 For EACH task, follow ALL steps in order. Never skip start, never defer done.
 
 1. `pnpm tg start <taskId>` — **MUST** run before doing any work
-2. Do the work (stay within scope)
-3. `pnpm tg done <taskId> --evidence "..."` — **MUST** run immediately after work is complete
+2. `pnpm tg context <taskId>` — Read the output: domain doc path (`docs/<domain>.md`), skill guide path (`docs/skills/<skill>.md`), and related done tasks. Load those docs before coding.
+3. Do the work (stay within scope)
+4. `pnpm tg done <taskId> --evidence "..."` — **MUST** run immediately after work is complete
 
 Evidence should include: tests run, commands, git hashes.
 

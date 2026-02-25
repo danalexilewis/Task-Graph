@@ -12,12 +12,41 @@ export interface ParsedTask {
   acceptance: string[];
   /** Mapped from Cursor todo status: completed→done, pending/other→todo */
   status?: "todo" | "done";
+  /** Maps to docs/<domain>.md */
+  domain?: string;
+  /** Maps to docs/skills/<skill>.md */
+  skill?: string;
+  /** How to approach the work: create, modify, refactor, fix, investigate, test, document */
+  changeType?:
+    | "create"
+    | "modify"
+    | "refactor"
+    | "fix"
+    | "investigate"
+    | "test"
+    | "document";
 }
 
 export interface ParsedPlan {
   planTitle: string | null;
   planIntent: string | null;
   tasks: ParsedTask[];
+}
+
+const CHANGE_TYPES = [
+  "create",
+  "modify",
+  "refactor",
+  "fix",
+  "investigate",
+  "test",
+  "document",
+] as const;
+function isChangeType(s: unknown): s is (typeof CHANGE_TYPES)[number] {
+  return (
+    typeof s === "string" &&
+    CHANGE_TYPES.includes(s as (typeof CHANGE_TYPES)[number])
+  );
 }
 
 export function parsePlanMarkdown(
@@ -58,6 +87,16 @@ export function parsePlanMarkdown(
         inAcceptanceBlock = false;
       } else if (currentTask && trimmedLine.startsWith("AREA:")) {
         currentTask.area = trimmedLine.substring("AREA:".length).trim();
+        inAcceptanceBlock = false;
+      } else if (currentTask && trimmedLine.startsWith("DOMAIN:")) {
+        currentTask.domain = trimmedLine.substring("DOMAIN:".length).trim();
+        inAcceptanceBlock = false;
+      } else if (currentTask && trimmedLine.startsWith("SKILL:")) {
+        currentTask.skill = trimmedLine.substring("SKILL:".length).trim();
+        inAcceptanceBlock = false;
+      } else if (currentTask && trimmedLine.startsWith("CHANGE_TYPE:")) {
+        const val = trimmedLine.substring("CHANGE_TYPE:".length).trim();
+        if (isChangeType(val)) currentTask.changeType = val;
         inAcceptanceBlock = false;
       } else if (currentTask && trimmedLine.startsWith("BLOCKED_BY:")) {
         const blockers = trimmedLine
@@ -104,6 +143,9 @@ interface CursorTodo {
   content: string;
   status?: string;
   blockedBy?: string[];
+  domain?: string;
+  skill?: string;
+  changeType?: string;
 }
 
 interface CursorFrontmatter {
@@ -149,15 +191,29 @@ export function parseCursorPlan(
     }
 
     const tasks: ParsedTask[] = todos
-      .filter((t): t is CursorTodo => t != null && typeof t === "object" && typeof t.id === "string" && typeof t.content === "string")
+      .filter(
+        (t): t is CursorTodo =>
+          t != null &&
+          typeof t === "object" &&
+          typeof t.id === "string" &&
+          typeof t.content === "string",
+      )
       .map((t) => {
-        const status = t.status === "completed" ? ("done" as const) : ("todo" as const);
+        const status =
+          t.status === "completed" ? ("done" as const) : ("todo" as const);
+        const changeType =
+          t.changeType != null && isChangeType(t.changeType)
+            ? t.changeType
+            : undefined;
         return {
           stableKey: t.id,
           title: t.content,
           blockedBy: Array.isArray(t.blockedBy) ? t.blockedBy : [],
           acceptance: [],
           status,
+          domain: typeof t.domain === "string" ? t.domain : undefined,
+          skill: typeof t.skill === "string" ? t.skill : undefined,
+          changeType,
         };
       });
 

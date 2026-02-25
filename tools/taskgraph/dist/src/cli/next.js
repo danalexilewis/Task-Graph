@@ -2,14 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.nextCommand = nextCommand;
 const utils_1 = require("./utils");
-const neverthrow_1 = require("neverthrow"); // Added errAsync
+const neverthrow_1 = require("neverthrow");
 const errors_1 = require("../domain/errors");
 const query_1 = require("../db/query");
+const escape_1 = require("../db/escape");
 function nextCommand(program) {
     program
         .command("next")
         .description("Select runnable tasks")
         .option("--plan <planId>", "Optional filter by plan ID or title")
+        .option("--domain <domain>", "Filter by task domain (maps to docs/<domain>.md)")
+        .option("--skill <skill>", "Filter by task skill (maps to docs/skills/<skill>.md)")
+        .option("--change-type <type>", "Filter by change type: create, modify, refactor, fix, investigate, test, document")
         .option("--limit <limit>", "Limit the number of tasks returned", "10")
         .action(async (options, cmd) => {
         const result = await (0, utils_1.readConfig)().asyncAndThen((config) => {
@@ -22,11 +26,23 @@ function nextCommand(program) {
             if (options.plan) {
                 const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(options.plan);
                 if (isUUID) {
-                    planFilter = `AND p.plan_id = '${options.plan}'`;
+                    planFilter = `AND p.plan_id = '${(0, escape_1.sqlEscape)(options.plan)}'`;
                 }
                 else {
-                    planFilter = `AND p.title = '${options.plan}'`;
+                    planFilter = `AND p.title = '${(0, escape_1.sqlEscape)(options.plan)}'`;
                 }
+            }
+            let domainFilter = "";
+            if (options.domain) {
+                domainFilter = `AND t.\`domain\` = '${(0, escape_1.sqlEscape)(options.domain)}'`;
+            }
+            let skillFilter = "";
+            if (options.skill) {
+                skillFilter = `AND t.\`skill\` = '${(0, escape_1.sqlEscape)(options.skill)}'`;
+            }
+            let changeTypeFilter = "";
+            if (options.changeType) {
+                changeTypeFilter = `AND t.\`change_type\` = '${(0, escape_1.sqlEscape)(options.changeType)}'`;
             }
             const nextTasksQuery = `
           SELECT t.task_id, t.title, p.title as plan_title, t.risk, t.estimate_mins,
@@ -38,6 +54,9 @@ function nextCommand(program) {
           JOIN \`plan\` p ON t.plan_id = p.plan_id
           WHERE t.status = 'todo'
           ${planFilter}
+          ${domainFilter}
+          ${skillFilter}
+          ${changeTypeFilter}
           HAVING unmet_blockers = 0
           ORDER BY p.priority DESC, t.risk ASC, 
             CASE WHEN t.estimate_mins IS NULL THEN 1 ELSE 0 END,

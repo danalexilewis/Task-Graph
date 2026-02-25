@@ -35,7 +35,9 @@ export function splitCommand(program: Command) {
           (async () => {
             const q = query(config.doltRepoPath);
 
-            const originalTaskQueryResult = await q.select<Task>("task", { where: { task_id: taskId } });
+            const originalTaskQueryResult = await q.select<Task>("task", {
+              where: { task_id: taskId },
+            });
             if (originalTaskQueryResult.isErr())
               throw originalTaskQueryResult.error;
             const originalTasks = originalTaskQueryResult.value;
@@ -73,6 +75,9 @@ export function splitCommand(program: Command) {
                 created_at: currentTimestamp,
                 updated_at: currentTimestamp,
                 external_key: null,
+                domain: originalTask.domain ?? null,
+                skill: originalTask.skill ?? null,
+                change_type: originalTask.change_type ?? null,
               };
               newTasks.push(newTask);
               taskMappings.push({ original: taskId, new: newTaskId });
@@ -85,7 +90,9 @@ export function splitCommand(program: Command) {
                 intent: newTask.intent ?? null,
                 scope_in: newTask.scope_in ?? null,
                 scope_out: newTask.scope_out ?? null,
-                acceptance: newTask.acceptance ? jsonObj({ val: JSON.stringify(newTask.acceptance) }) : null,
+                acceptance: newTask.acceptance
+                  ? jsonObj({ val: JSON.stringify(newTask.acceptance) })
+                  : null,
                 status: newTask.status,
                 owner: newTask.owner,
                 area: newTask.area ?? null,
@@ -93,6 +100,9 @@ export function splitCommand(program: Command) {
                 estimate_mins: newTask.estimate_mins ?? null,
                 created_at: newTask.created_at,
                 updated_at: newTask.updated_at,
+                domain: newTask.domain ?? null,
+                skill: newTask.skill ?? null,
+                change_type: newTask.change_type ?? null,
               });
               if (insertTaskResult.isErr())
                 throw buildError(
@@ -137,9 +147,10 @@ export function splitCommand(program: Command) {
             }
 
             if (!options.keepOriginal) {
-              const updateOriginalTaskResult = await q.update("task",
+              const updateOriginalTaskResult = await q.update(
+                "task",
                 { status: "canceled", updated_at: currentTimestamp },
-                { task_id: taskId }
+                { task_id: taskId },
               );
               if (updateOriginalTaskResult.isErr())
                 throw buildError(
@@ -154,7 +165,10 @@ export function splitCommand(program: Command) {
               task_id: taskId,
               kind: "split",
               body: jsonObj({
-                newTasks: newTasks.map((t) => ({ id: t.task_id, title: t.title })),
+                newTasks: newTasks.map((t) => ({
+                  id: t.task_id,
+                  title: t.title,
+                })),
                 taskMappings,
               }),
               created_at: currentTimestamp,

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DecisionSchema = exports.EventSchema = exports.EdgeSchema = exports.TaskSchema = exports.PlanSchema = exports.ActorSchema = exports.EventKindSchema = exports.EdgeTypeSchema = exports.RiskSchema = exports.OwnerSchema = exports.TaskStatusSchema = exports.PlanStatusSchema = void 0;
+exports.DecisionSchema = exports.EventSchema = exports.EdgeSchema = exports.TaskSchema = exports.PlanSchema = exports.ActorSchema = exports.EventKindSchema = exports.EdgeTypeSchema = exports.ChangeTypeSchema = exports.RiskSchema = exports.OwnerSchema = exports.TaskStatusSchema = exports.PlanStatusSchema = void 0;
 const zod_1 = require("zod");
 // Enums
 exports.PlanStatusSchema = zod_1.z.enum([
@@ -19,6 +19,15 @@ exports.TaskStatusSchema = zod_1.z.enum([
 ]);
 exports.OwnerSchema = zod_1.z.enum(["human", "agent"]);
 exports.RiskSchema = zod_1.z.enum(["low", "medium", "high"]);
+exports.ChangeTypeSchema = zod_1.z.enum([
+    "create",
+    "modify",
+    "refactor",
+    "fix",
+    "investigate",
+    "test",
+    "document",
+]);
 exports.EdgeTypeSchema = zod_1.z.enum(["blocks", "relates"]);
 exports.EventKindSchema = zod_1.z.enum([
     "created",
@@ -61,6 +70,9 @@ exports.TaskSchema = zod_1.z.object({
     created_at: zod_1.z.string().datetime(),
     updated_at: zod_1.z.string().datetime(),
     external_key: zod_1.z.string().max(128).nullable(),
+    domain: zod_1.z.string().max(64).nullable(),
+    skill: zod_1.z.string().max(64).nullable(),
+    change_type: exports.ChangeTypeSchema.nullable(),
 });
 exports.EdgeSchema = zod_1.z.object({
     from_task_id: zod_1.z.string().uuid(),

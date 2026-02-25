@@ -144,6 +144,9 @@ tg next
 
 **Options:**
 -   `--plan <planId|title>`: Optional filter by plan ID or title.
+-   `--domain <domain>`: Filter by task domain (maps to `docs/<domain>.md`).
+-   `--skill <skill>`: Filter by task skill (maps to `docs/skills/<skill>.md`).
+-   `--change-type <type>`: Filter by change type: `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`.
 -   `--limit <limit>`: Limit the number of tasks returned (default: 10).
 
 **Output fields (human-readable):**
@@ -345,16 +348,35 @@ tg export markdown --plan <planId> [--out <path>]
 -   YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy).
 -   Suitable for re-import via `tg import --format cursor`.
 
+### `tg context <taskId>`
+
+Outputs domain doc path, skill guide path, and related done tasks for a task. Run after `tg start` to load the right docs before doing work.
+
+```bash
+tg context <taskId>
+```
+
+**Arguments:**
+-   `<taskId>`: The ID of the task.
+
+**Options:**
+-   `--json`: Output as JSON (domain_doc, skill_doc, related_done_by_domain, related_done_by_skill).
+
+**Output (human):** Task title and ID; change type; domain doc path (`docs/<domain>.md`); skill guide path (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 related done tasks by skill.
+
 ### `tg status`
 
 Quick overview: plans count, task counts by status, next runnable tasks.
 
 ```bash
-tg status [--plan <planId>]
+tg status [--plan <planId>] [--domain <domain>] [--skill <skill>] [--change-type <type>]
 ```
 
 **Options:**
 -   `--plan <planId>`: Filter by plan ID or title.
+-   `--domain <domain>`: Filter by task domain.
+-   `--skill <skill>`: Filter by task skill.
+-   `--change-type <type>`: Filter by change type.
 -   `--json`: Output as JSON object.
 
 **Output (human):**

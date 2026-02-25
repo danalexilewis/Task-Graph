@@ -16,6 +16,12 @@ export function statusCommand(program: Command) {
       "Quick overview: plans count, tasks by status, next runnable tasks",
     )
     .option("--plan <planId>", "Filter by plan ID or title")
+    .option("--domain <domain>", "Filter by task domain")
+    .option("--skill <skill>", "Filter by task skill")
+    .option(
+      "--change-type <type>",
+      "Filter by change type: create, modify, refactor, fix, investigate, test, document",
+    )
     .action(async (options, cmd) => {
       const result = await readConfig().asyncAndThen((config: Config) => {
         const q = query(config.doltRepoPath);
@@ -34,14 +40,26 @@ export function statusCommand(program: Command) {
             planWhere = `WHERE ${backtickWrap("title")} = '${sqlEscape(options.plan)}'`;
           }
         }
+        const dimFilter =
+          (options.domain
+            ? ` AND t.\`domain\` = '${sqlEscape(options.domain)}'`
+            : "") +
+          (options.skill
+            ? ` AND t.\`skill\` = '${sqlEscape(options.skill)}'`
+            : "") +
+          (options.changeType
+            ? ` AND t.\`change_type\` = '${sqlEscape(options.changeType)}'`
+            : "");
 
-        const plansCountSql = `SELECT COUNT(*) AS count FROM \`plan\` ${planWhere}`;
         const planFilter = options.plan
           ? isUUID
             ? `WHERE p.plan_id = '${sqlEscape(options.plan)}'`
             : `WHERE p.title = '${sqlEscape(options.plan)}'`
           : "";
-        const statusCountsSql = `SELECT t.status, COUNT(*) AS count FROM \`task\` t JOIN \`plan\` p ON t.plan_id = p.plan_id ${planFilter} GROUP BY t.status`;
+        const plansCountSql = dimFilter
+          ? `SELECT COUNT(DISTINCT p.plan_id) AS count FROM \`plan\` p JOIN \`task\` t ON t.plan_id = p.plan_id ${planFilter || "WHERE 1=1"} ${dimFilter}`
+          : `SELECT COUNT(*) AS count FROM \`plan\` ${planWhere}`;
+        const statusCountsSql = `SELECT t.status, COUNT(*) AS count FROM \`task\` t JOIN \`plan\` p ON t.plan_id = p.plan_id ${planFilter || "WHERE 1=1"} ${dimFilter} GROUP BY t.status`;
         const nextSql = `
           SELECT t.task_id, t.title, p.title as plan_title
           FROM \`task\` t
@@ -52,6 +70,7 @@ export function statusCommand(program: Command) {
                WHERE e.to_task_id = t.task_id AND e.type = 'blocks'
                AND bt.status NOT IN ('done','canceled')) = 0
           ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
+          ${dimFilter}
           ORDER BY p.priority DESC, t.created_at ASC
           LIMIT 2
         `;

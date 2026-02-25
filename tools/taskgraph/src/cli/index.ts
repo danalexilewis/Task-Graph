@@ -13,6 +13,7 @@ import { exportCommand } from "./export";
 import { portfolioCommand } from "./portfolio";
 import { importCommand } from "./import";
 import { statusCommand } from "./status";
+import { contextCommand } from "./context";
 
 const program = new Command();
 
@@ -38,5 +39,6 @@ exportCommand(program);
 portfolioCommand(program);
 importCommand(program);
 statusCommand(program);
+contextCommand(program);
 
 program.parse(process.argv);

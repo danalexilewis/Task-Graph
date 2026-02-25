@@ -42,6 +42,9 @@ Represents an individual task within a plan, which can have dependencies and eve
 | `created_at`  | `DATETIME`                           | `NOT NULL`                         | Timestamp when the task was created            |
 | `updated_at`  | `DATETIME`                           | `NOT NULL`                         | Timestamp when the task was last updated       |
 | `external_key`| `VARCHAR(128)`                       | `NULL`, `UNIQUE`                   | Stable key for markdown import                 |
+| `domain`      | `VARCHAR(64)`                        | `NULL`                             | Knowledge area → maps to `docs/<domain>.md`   |
+| `skill`       | `VARCHAR(64)`                        | `NULL`                             | Technique → maps to `docs/skills/<skill>.md`   |
+| `change_type` | `ENUM('create','modify','refactor','fix','investigate','test','document')` | `NULL` | How to approach the work                      |
 
 ## Table: `edge`
 

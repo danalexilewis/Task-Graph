@@ -58,8 +58,9 @@ async function setupIntegrationTest() {
     });
     // Write config
     (0, utils_1.writeConfig)({ doltRepoPath: doltRepoPath }, tempDir)._unsafeUnwrap(); // Corrected signature
-    // Apply migrations
+    // Apply migrations and task dimensions (domain, skill, change_type)
     (await (0, migrate_1.applyMigrations)(doltRepoPath))._unsafeUnwrap();
+    (await (0, migrate_1.applyTaskDimensionsMigration)(doltRepoPath))._unsafeUnwrap();
     return { tempDir, doltRepoPath, cliPath };
 }
 function teardownIntegrationTest(tempDir) {

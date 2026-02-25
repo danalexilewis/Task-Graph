@@ -1,0 +1,37 @@
+---
+description: Mandatory read/update of project's persistent dev & architecture memory
+alwaysApply: true
+---
+
+# Persistent Memory (Dev & Architecture)
+
+Maintains project-wide persistent memory for **development, tooling, and system architecture** learnings. This is NOT for document content corrections — those belong in `src/sources/corrections.md` (ingest normalization) and `.cursor/corrections.md` (content generation). This rule tracks agent mistakes, environment surprises, and engineering patterns.
+
+## 1. Read First
+
+Every request MUST start by reading `.cursor/memory.md`. Internalize corrections, preferences, and patterns. Do not announce that you are reading it.
+
+## 2. Update Last (mandatory hook)
+
+**Trigger**: When you fix a bug, add a pattern, or discover an environment/tooling quirk, you MUST update `.cursor/memory.md` in the same response.
+
+
+### What to log
+
+- **Mistakes**: Wrong assumptions, misread code, failed commands.
+- **User corrections**: Anything the user told you to do differently regarding dev workflow or architecture.
+- **Tool / environment surprises**: Unexpected repo patterns, CLI behaviors, dependency quirks.
+- **Dev preferences**: Build conventions, naming rules, framework idioms the user enforces.
+- **Successes**: Non-obvious approaches that worked well.
+
+### What NOT to log
+
+- Routine operations that worked as expected.
+- Information already captured in the memory.
+- **Document content corrections** — those go in `src/sources/corrections.md` or `.cursor/corrections.md`.
+- Verbose restatements — keep entries terse and actionable.
+
+## 3. Maintenance
+
+- **Consolidate**: When the Corrections table exceeds ~50 entries, merge redundant ones into Preferences or Patterns.
+- **Target**: Keep total length under 300 lines for high-signal context.

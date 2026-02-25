@@ -54,6 +54,9 @@ function splitCommand(program) {
                         created_at: currentTimestamp,
                         updated_at: currentTimestamp,
                         external_key: null,
+                        domain: originalTask.domain ?? null,
+                        skill: originalTask.skill ?? null,
+                        change_type: originalTask.change_type ?? null,
                     };
                     newTasks.push(newTask);
                     taskMappings.push({ original: taskId, new: newTaskId });
@@ -73,6 +76,9 @@ function splitCommand(program) {
                         estimate_mins: newTask.estimate_mins ?? null,
                         created_at: newTask.created_at,
                         updated_at: newTask.updated_at,
+                        domain: newTask.domain ?? null,
+                        skill: newTask.skill ?? null,
+                        change_type: newTask.change_type ?? null,
                     });
                     if (insertTaskResult.isErr())
                         throw (0, errors_1.buildError)(errors_1.ErrorCode.DB_QUERY_FAILED, "Failed to insert new task", insertTaskResult.error);

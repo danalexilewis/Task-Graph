@@ -9,6 +9,10 @@ const fs_1 = require("fs");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const neverthrow_1 = require("neverthrow");
 const errors_1 = require("../domain/errors");
+const CHANGE_TYPES = ["create", "modify", "refactor", "fix", "investigate", "test", "document"];
+function isChangeType(s) {
+    return typeof s === "string" && CHANGE_TYPES.includes(s);
+}
 function parsePlanMarkdown(filePath) {
     try {
         const content = (0, fs_1.readFileSync)(filePath, "utf-8");
@@ -47,6 +51,20 @@ function parsePlanMarkdown(filePath) {
             }
             else if (currentTask && trimmedLine.startsWith("AREA:")) {
                 currentTask.area = trimmedLine.substring("AREA:".length).trim();
+                inAcceptanceBlock = false;
+            }
+            else if (currentTask && trimmedLine.startsWith("DOMAIN:")) {
+                currentTask.domain = trimmedLine.substring("DOMAIN:".length).trim();
+                inAcceptanceBlock = false;
+            }
+            else if (currentTask && trimmedLine.startsWith("SKILL:")) {
+                currentTask.skill = trimmedLine.substring("SKILL:".length).trim();
+                inAcceptanceBlock = false;
+            }
+            else if (currentTask && trimmedLine.startsWith("CHANGE_TYPE:")) {
+                const val = trimmedLine.substring("CHANGE_TYPE:".length).trim();
+                if (isChangeType(val))
+                    currentTask.changeType = val;
                 inAcceptanceBlock = false;
             }
             else if (currentTask && trimmedLine.startsWith("BLOCKED_BY:")) {
@@ -102,12 +120,16 @@ function parseCursorPlan(filePath) {
             .filter((t) => t != null && typeof t === "object" && typeof t.id === "string" && typeof t.content === "string")
             .map((t) => {
             const status = t.status === "completed" ? "done" : "todo";
+            const changeType = t.changeType != null && isChangeType(t.changeType) ? t.changeType : undefined;
             return {
                 stableKey: t.id,
                 title: t.content,
                 blockedBy: Array.isArray(t.blockedBy) ? t.blockedBy : [],
                 acceptance: [],
                 status,
+                domain: typeof t.domain === "string" ? t.domain : undefined,
+                skill: typeof t.skill === "string" ? t.skill : undefined,
+                changeType,
             };
         });
         return (0, neverthrow_1.ok)({

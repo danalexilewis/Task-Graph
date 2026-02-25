@@ -13,6 +13,16 @@ interface ParsedTask {
   blockedBy: string[];
   acceptance: string[];
   status?: "todo" | "done";
+  domain?: string;
+  skill?: string;
+  changeType?:
+    | "create"
+    | "modify"
+    | "refactor"
+    | "fix"
+    | "investigate"
+    | "test"
+    | "document";
 }
 
 interface ImportResult {
@@ -58,6 +68,9 @@ export function upsertTasksAndEdges(
                   title: parsedTask.title,
                   feature_key: parsedTask.feature ?? null,
                   area: parsedTask.area ?? null,
+                  domain: parsedTask.domain ?? null,
+                  skill: parsedTask.skill ?? null,
+                  change_type: parsedTask.changeType ?? null,
                   acceptance:
                     parsedTask.acceptance.length > 0
                       ? jsonObj({ val: JSON.stringify(parsedTask.acceptance) })
@@ -85,6 +98,9 @@ export function upsertTasksAndEdges(
                 title: parsedTask.title,
                 feature_key: parsedTask.feature ?? null,
                 area: parsedTask.area ?? null,
+                domain: parsedTask.domain ?? null,
+                skill: parsedTask.skill ?? null,
+                change_type: parsedTask.changeType ?? null,
                 acceptance:
                   parsedTask.acceptance.length > 0
                     ? jsonObj({ val: JSON.stringify(parsedTask.acceptance) })

@@ -31,6 +31,9 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         title: parsedTask.title,
                         feature_key: parsedTask.feature ?? null,
                         area: parsedTask.area ?? null,
+                        domain: parsedTask.domain ?? null,
+                        skill: parsedTask.skill ?? null,
+                        change_type: parsedTask.changeType ?? null,
                         acceptance: parsedTask.acceptance.length > 0
                             ? (0, query_1.jsonObj)({ val: JSON.stringify(parsedTask.acceptance) })
                             : null,
@@ -56,6 +59,9 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         title: parsedTask.title,
                         feature_key: parsedTask.feature ?? null,
                         area: parsedTask.area ?? null,
+                        domain: parsedTask.domain ?? null,
+                        skill: parsedTask.skill ?? null,
+                        change_type: parsedTask.changeType ?? null,
                         acceptance: parsedTask.acceptance.length > 0
                             ? (0, query_1.jsonObj)({ val: JSON.stringify(parsedTask.acceptance) })
                             : null,

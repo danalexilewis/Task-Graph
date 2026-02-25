@@ -25,6 +25,17 @@ export type Owner = z.infer<typeof OwnerSchema>;
 export const RiskSchema = z.enum(["low", "medium", "high"]);
 export type Risk = z.infer<typeof RiskSchema>;
 
+export const ChangeTypeSchema = z.enum([
+  "create",
+  "modify",
+  "refactor",
+  "fix",
+  "investigate",
+  "test",
+  "document",
+]);
+export type ChangeType = z.infer<typeof ChangeTypeSchema>;
+
 export const EdgeTypeSchema = z.enum(["blocks", "relates"]);
 export type EdgeType = z.infer<typeof EdgeTypeSchema>;
 
@@ -75,6 +86,9 @@ export const TaskSchema = z.object({
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   external_key: z.string().max(128).nullable(),
+  domain: z.string().max(64).nullable(),
+  skill: z.string().max(64).nullable(),
+  change_type: ChangeTypeSchema.nullable(),
 });
 export type Task = z.infer<typeof TaskSchema>;
 

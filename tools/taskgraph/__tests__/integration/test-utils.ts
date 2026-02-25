@@ -2,7 +2,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { execa, ExecaError } from "execa";
-import { applyMigrations } from "../../src/db/migrate";
+import {
+  applyMigrations,
+  applyTaskDimensionsMigration,
+} from "../../src/db/migrate";
 import { writeConfig } from "../../src/cli/utils";
 import { Config } from "../../src/cli/utils";
 import { doltSql } from "../../src/db/connection";
@@ -33,8 +36,9 @@ export async function setupIntegrationTest(): Promise<IntegrationTestContext> {
   // Write config
   writeConfig({ doltRepoPath: doltRepoPath }, tempDir)._unsafeUnwrap(); // Corrected signature
 
-  // Apply migrations
+  // Apply migrations and task dimensions (domain, skill, change_type)
   (await applyMigrations(doltRepoPath))._unsafeUnwrap();
+  (await applyTaskDimensionsMigration(doltRepoPath))._unsafeUnwrap();
 
   return { tempDir, doltRepoPath, cliPath };
 }
