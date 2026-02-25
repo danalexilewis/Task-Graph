@@ -2,6 +2,22 @@
 
 This document outlines the protocol and responsibilities of an agent interacting with the Task Graph system. The goal is to enable "centaur development", where a human plans and audits, and an agent executes, ensuring determinism and auditability.
 
+**Canonical source**: [AGENT.md](../AGENT.md) in the repo root. This doc expands on it.
+
+## Plan Creation and Review
+
+When the user asks for a plan:
+
+1.  Create `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
+2.  Summarize the plan, then **pause** and ask for review.
+3.  Do not import or execute until the user responds. Interpret the response:
+
+| User says | Meaning | Agent action |
+|-----------|---------|--------------|
+| proceed, go ahead, execute, run it, let's do it | Approve and execute | Run `tg import plans/<file> --plan "<Plan Name>" --format cursor`, then enter the execution loop |
+| just add the tasks, add to taskgraph only | Add to graph only | Run `tg import`; do not execute |
+| thanks, that's good, looks good, ok, don't do anything | Acknowledgement only | Do nothing. No import, no execution. |
+
 ## Agent Operating Loop
 
 The agent's primary interaction loop is designed to pick up the next runnable task, execute it, and update its status. This loop ensures a structured and predictable workflow.

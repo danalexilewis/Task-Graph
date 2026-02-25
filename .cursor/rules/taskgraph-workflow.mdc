@@ -1,0 +1,38 @@
+---
+description: Task-Graph plan creation, review protocol, import, and execution loop
+alwaysApply: true
+---
+
+# Task-Graph Workflow
+
+## Plan Creation and Review
+
+- **Plans** live in `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
+- After creating a plan: summarize it, then **pause** and ask for review. Do not import or execute until the user responds.
+
+### Interpreting User Response
+
+| User says | Action |
+|-----------|--------|
+| proceed, go ahead, execute, run it, let's do it | Import plan to taskgraph, then execute tasks |
+| just add the tasks, add to taskgraph only | Import only; do not execute |
+| thanks, that's good, looks good, ok, don't do anything | Do nothing (acknowledgement only) |
+
+### Import Command
+
+```bash
+pnpm tg import plans/<file> --plan "<Plan Name>" --format cursor
+```
+
+## Execution Loop
+
+1. `pnpm tg next --plan "<Plan>" --limit 5` — list runnable tasks
+2. `pnpm tg show <taskId>` — understand intent, scope, acceptance
+3. `pnpm tg start <taskId>` — mark task in progress
+4. Do the work (stay within scope)
+5. `pnpm tg done <taskId> --evidence "..."` — include tests run, commands, git hashes
+
+## When Blocked
+
+- `pnpm tg block <taskId> --on <blockerId> --reason "..."`
+- If blocker does not exist: create a new task with owner=human, then block on it.

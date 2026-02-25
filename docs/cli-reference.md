@@ -358,7 +358,7 @@ tg portfolio hotspots
 Imports tasks and edges from a markdown plan file into the Dolt database. This command will upsert tasks based on their stable keys and create blocking edges as defined in the markdown.
 
 ```bash
-tg import <filePath> --plan "<planTitleOrId>"
+tg import <filePath> --plan "<planTitleOrId>" [--format cursor|legacy]
 ```
 
 **Arguments:**
@@ -366,6 +366,7 @@ tg import <filePath> --plan "<planTitleOrId>"
 
 **Options:**
 -   `--plan <planTitleOrId>`: **(Required)** The title or ID of the plan to associate the imported tasks with. If a plan with the given title/ID does not exist, a new one will be created.
+-   `--format <format>`: Plan format. `cursor` for Cursor plans (YAML frontmatter with todos); `legacy` for TASK:/TITLE:/BLOCKED_BY: format (default).
 
 **Example:**
 ```bash

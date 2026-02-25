@@ -1,0 +1,34 @@
+---
+description: TypeScript, neverthrow, and layering for tools/taskgraph
+globs: tools/taskgraph/**/*.ts
+alwaysApply: false
+---
+
+# Code Standards (tools/taskgraph)
+
+## Stack
+
+- **TypeScript** with strict mode
+- **neverthrow** — use `Result<T, E>` / `ResultAsync<T, E>` instead of throw/catch
+- **Zod** — validation for types and input schemas
+
+## Layering
+
+- **db/** — Dolt connection, commits, migrations. Low-level SQL execution.
+- **domain/** — Types, invariants, error codes. No DB calls; pure logic.
+- **plan-import/**, **export/** — Transform data; may call db layer.
+- **cli/** — Command handlers only. Orchestrate domain/db; use `.match()` at boundary for errors.
+
+## Error Handling
+
+- Return `Result`/`ResultAsync` from functions that can fail.
+- Use `AppError` and `ErrorCode` from `domain/errors.ts`.
+- Unwrap only at CLI boundary; call `process.exit(1)` on error there.
+
+## Tests
+
+- Unit: `__tests__/` (mirrors src)
+- Integration: `__tests__/integration/` (real Dolt)
+- E2E: `__tests__/e2e/` (full CLI)
+
+Run: `pnpm test`, `pnpm run test:integration`, `pnpm run test:e2e`

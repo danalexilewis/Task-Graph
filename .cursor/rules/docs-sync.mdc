@@ -1,0 +1,24 @@
+---
+description: When and how to update documentation
+globs: docs/**/*.md, AGENT.md
+alwaysApply: false
+---
+
+# Documentation Sync
+
+## Source of Truth
+
+- **AGENT.md** — canonical agent contract. Plan creation/review, execution loop, blocking.
+- **docs/cli-reference.md** — CLI commands and options. Must match actual `tg` behavior.
+- **docs/agent-contract.md** — detailed version; keep aligned with AGENT.md.
+
+## Update Triggers
+
+- **New CLI option or command** → update `docs/cli-reference.md`
+- **Agent workflow change** → update AGENT.md and `docs/agent-contract.md`
+- **New import format or plan format** → update `docs/plan-import.md`
+- **Schema or architecture change** → update `docs/schema.md` or `docs/architecture.md`
+
+## Rule
+
+When adding or changing features that affect user/agent behavior, update the relevant docs in the same change.

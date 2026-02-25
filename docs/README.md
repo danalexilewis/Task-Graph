@@ -8,24 +8,26 @@ The Task Graph CLI (`tg`) provides a small, safe command surface for agents to i
 
 ## Quick Start
 
+From the repo root, use `pnpm tg` (see root [package.json](../package.json)). Requires Dolt (`brew install dolt`) and `pnpm tg` init in the project directory.
+
 1.  **Initialize the repository:**
     ```bash
-    tg init
+    pnpm tg init
     ```
 
-2.  **Create a new plan:**
+2.  **Create a new plan** (or import from Cursor format — see [Plan Import](plan-import.md#cursor-format-recommended)):
     ```bash
-    tg plan new "My First Feature" --intent "Implement basic user authentication."
+    pnpm tg plan new "My First Feature" --intent "Implement basic user authentication."
     ```
 
 3.  **Create a task:**
     ```bash
-    tg task new "Design Auth API" --plan "My First Feature" --feature auth --area backend
+    pnpm tg task new "Design Auth API" --plan "My First Feature" --feature auth --area backend
     ```
 
 4.  **Find runnable tasks:**
     ```bash
-    tg next
+    pnpm tg next
     ```
 
 For more detailed information, refer to the following documentation sections:

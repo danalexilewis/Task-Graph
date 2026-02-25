@@ -2,7 +2,44 @@
 
 The Task Graph system supports importing tasks and dependencies directly from markdown files, allowing for a seamless transition from narrative planning to structured task management. This feature is particularly useful for initial plan creation or for incorporating plans drafted externally.
 
-## Markdown Conventions
+Two formats are supported: **Cursor** (YAML frontmatter with todos) and **Legacy** (TASK:/TITLE:/BLOCKED_BY:). Use `--format cursor` for Cursor plans.
+
+## Cursor Format (Recommended)
+
+Plans produced by Cursor planning mode use YAML frontmatter with a `todos` array. Use `--format cursor` when importing:
+
+```bash
+tg import plans/feature-x.plan.md --plan "Feature X" --format cursor
+```
+
+### Structure
+
+```yaml
+---
+name: Plan Name
+overview: "Brief description."
+todos:
+  - id: task-1
+    content: "Task title"
+    status: pending
+  - id: task-2
+    content: "Depends on task-1"
+    blockedBy: [task-1]
+    status: completed
+isProject: false
+---
+```
+
+### Todo Fields
+
+| Field | Description |
+|-------|-------------|
+| `id` | Stable key → `external_key` in DB |
+| `content` | Task title |
+| `status` | `pending` → todo, `completed` → done |
+| `blockedBy` | Array of todo `id`s that block this task |
+
+## Legacy Format (Markdown Conventions)
 
 Markdown plan files (`.md`) follow a lightweight convention to define plans, tasks, and their relationships. These conventions are designed to be human-readable while providing enough structure for automated parsing.
 
@@ -72,11 +109,12 @@ The `tg import` command processes the markdown file based on these rules:
 To import a markdown plan file:
 
 ```bash
-tg import <filePath> --plan "<planTitleOrId>"
+tg import <filePath> --plan "<planTitleOrId>" [--format cursor|legacy]
 ```
 
 -   `<filePath>`: The path to your markdown plan file (e.g., `plans/my-new-feature.md`).
 -   `--plan <planTitleOrId>`: **(Required)** Specify the title or ID of the plan to which these tasks should belong. If the plan doesn't exist, it will be created using the markdown's title and intent, or fallback values.
+-   `--format <format>`: Plan format. `cursor` for YAML frontmatter with todos; `legacy` for TASK:/TITLE:/BLOCKED_BY: (default).
 
 **Example:**
 

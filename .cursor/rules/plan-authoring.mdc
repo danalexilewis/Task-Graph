@@ -1,0 +1,42 @@
+---
+description: Cursor plan format and how to write good task dependencies
+globs: plans/**/*.md
+alwaysApply: false
+---
+
+# Plan Authoring (Cursor Format)
+
+Plans in `plans/` use Cursor format for import into taskgraph via `tg import --format cursor`.
+
+## YAML Frontmatter Structure
+
+```yaml
+---
+name: Plan Name
+overview: "Brief description of the plan."
+todos:
+  - id: stable-key
+    content: "Task title and description"
+    status: pending
+  - id: another-task
+    content: "Depends on first"
+    blockedBy: [stable-key]
+isProject: false
+---
+```
+
+## Todo Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | yes | Stable key → maps to `external_key`. Use kebab-case. |
+| `content` | yes | Task title (maps to task title) |
+| `status` | no | `pending` → todo, `completed` → done |
+| `blockedBy` | no | Array of todo `id`s that block this task. Creates `blocks` edges on import. |
+
+## Dependency Best Practices
+
+- Use `blockedBy` for tasks that cannot start until others are done.
+- Reference `id` values; they resolve to task IDs when importing.
+- Keep tasks scoped (~90 min or less); split large ones.
+- Order todos to reflect dependency graph when possible.
