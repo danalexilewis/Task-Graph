@@ -1,0 +1,35 @@
+---
+description: TaskGraph plan creation/review + execution loop (per task)
+alwaysApply: true
+---
+
+# TaskGraph Workflow
+
+## Orientation
+
+Before executing work, run `tg status` to see what's outstanding. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first.
+
+## Plan creation and review
+
+- Plans live in `plans/<name>.md` (Cursor YAML frontmatter format).
+- After creating a plan: summarize it, then pause for human review. Don’t import or execute until the user says to proceed.
+
+## Execution loop (per task — mandatory)
+
+For EACH task, follow all steps in order.
+
+1. `tg start <taskId>` — must run before doing any work
+2. `tg context <taskId>` — read the printed domain doc paths (`docs/<domain>.md`) and skill guide paths (`docs/skills/<skill>.md`)
+3. Do the work (stay within scope)
+4. `tg done <taskId> --evidence "tests run, commands, commit hashes"` — must run immediately after finishing
+
+## Recovery (out-of-sync tasks)
+
+- Task is `todo` but already done: `tg done <taskId> --force --evidence "completed previously"`
+- Task is `doing` but already done: `tg done <taskId> --evidence "completed previously"`
+
+## When blocked
+
+- `tg block <taskId> --on <blockerId> --reason "..."`
+- If blocker does not exist: create a new task (owner=human), then block on it.
+

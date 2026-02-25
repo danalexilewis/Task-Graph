@@ -45,10 +45,10 @@ todos:
     status: pending
 ---
 `;
-    fs.writeFileSync(path.join(plansDir, "rich.plan.md"), planContent);
+    fs.writeFileSync(path.join(plansDir, "rich.md"), planContent);
 
     const { stdout: importStdout } = await runTgCli(
-      `import plans/rich.plan.md --plan "Rich Test Plan" --format cursor --no-commit`,
+      `import plans/rich.md --plan "Rich Test Plan" --format cursor --no-commit`,
       context.tempDir,
     );
     expect(importStdout).toContain("Successfully imported");
@@ -117,7 +117,9 @@ todos:
       expect(data.file_tree).toContain("src/foo.ts");
     }
     if (data.risks != null && Array.isArray(data.risks)) {
-      expect((data.risks as Array<{ description?: string }>).length).toBeGreaterThanOrEqual(1);
+      expect(
+        (data.risks as Array<{ description?: string }>).length,
+      ).toBeGreaterThanOrEqual(1);
     }
   });
 });

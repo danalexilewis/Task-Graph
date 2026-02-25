@@ -34,7 +34,7 @@ isProject: false
 - **Goal**: Output tasks in Cursor format so `tg import --format cursor` can re-ingest. Enables import → work → export updated plan.
 - **Output**: YAML frontmatter with `name` (plan title), `overview` (plan intent), `todos` array.
 - **Task mapping**: `external_key` → `id`, `title` → `content`, `status` (todo/done) → `status` (pending/completed), edges → `blockedBy`.
-- **Usage**: `tg export markdown --plan <id>` (stdout) or `--out plans/updated.plan.md` to write file.
+- **Usage**: `tg export markdown --plan <id>` (stdout) or `--out plans/updated.md` to write file.
 
 ## Feature 2: tg status
 

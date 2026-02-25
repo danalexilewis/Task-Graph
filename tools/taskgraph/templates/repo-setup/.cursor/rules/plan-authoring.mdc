@@ -1,0 +1,42 @@
+---
+description: Cursor plan format for tg import (stable ids, dependencies, domain/skill)
+globs: plans/**/*.md
+alwaysApply: false
+---
+
+# Plan Authoring (Cursor Format)
+
+Plans in `plans/` can be imported into TaskGraph with:
+
+```bash
+tg import plans/<file> --plan "<Plan Name>" --format cursor
+```
+
+## Minimal YAML frontmatter
+
+```yaml
+---
+name: Plan Name
+overview: "Brief description of the plan."
+todos:
+  - id: stable-key
+    content: "Small task"
+    status: pending
+  - id: another-task
+    content: "Depends on first"
+    blockedBy: [stable-key]
+---
+```
+
+## Useful fields
+
+- `domain`: string or array → `docs/<domain>.md`
+- `skill`: string or array → `docs/skills/<skill>.md`
+- `changeType`: `create` | `modify` | `refactor` | `fix` | `investigate` | `test` | `document`
+
+## Best practices
+
+- Keep `id` stable over time (kebab-case).
+- Keep tasks scoped (roughly ≤ 90 minutes); split big ones.
+- Use `blockedBy` for true dependencies, not mere sequencing preferences.
+

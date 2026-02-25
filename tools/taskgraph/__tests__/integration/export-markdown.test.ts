@@ -30,10 +30,10 @@ todos:
 isProject: false
 ---
 `;
-    fs.writeFileSync(path.join(plansDir, "round-trip.plan.md"), planContent);
+    fs.writeFileSync(path.join(plansDir, "round-trip.md"), planContent);
 
     const { stdout: importStdout } = await runTgCli(
-      `import plans/round-trip.plan.md --plan "Round Trip Test" --format cursor --no-commit`,
+      `import plans/round-trip.md --plan "Round Trip Test" --format cursor --no-commit`,
       context.tempDir,
     );
     expect(importStdout).toContain("Successfully imported");

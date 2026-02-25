@@ -8,7 +8,7 @@ This document outlines the protocol and responsibilities of an agent interacting
 
 When the user asks for a plan:
 
-1.  Create `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
+1.  Create `plans/<name>.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
 2.  Summarize the plan, then **pause** and ask for review.
 3.  Do not import or execute until the user responds. Interpret the response:
 

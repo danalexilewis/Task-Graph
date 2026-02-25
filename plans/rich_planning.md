@@ -125,7 +125,7 @@ The gap is clear: the rich plan **front-loads analysis** so execution is faster 
 
 ```
 plans/
-  rich_planning.plan.md          (this plan)
+  rich_planning.md          (this plan)
 
 docs/
   plan-format.md                 (create) — format specification
@@ -154,7 +154,7 @@ flowchart TD
     subgraph Planning Phase
         prompt[User Prompt] --> analysis[Agent Analysis]
         analysis --> codebase[Codebase Exploration]
-        codebase --> planDoc[Plan Document .plan.md]
+        codebase --> planDoc[Plan Document .md]
     end
 
     subgraph Plan Document Structure

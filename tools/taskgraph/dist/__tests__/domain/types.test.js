@@ -16,6 +16,9 @@ const types_1 = require("../../src/domain/types");
                 source_commit: null,
                 created_at: now,
                 updated_at: now,
+                file_tree: null,
+                risks: null,
+                tests: null,
             };
             (0, vitest_1.expect)(types_1.PlanSchema.parse(validPlan)).toEqual(validPlan);
         });
@@ -48,6 +51,8 @@ const types_1 = require("../../src/domain/types");
                 created_at: now,
                 updated_at: now,
                 external_key: null,
+                change_type: null,
+                suggested_changes: null,
             };
             (0, vitest_1.expect)(types_1.TaskSchema.parse(validTask)).toEqual(validTask);
         });

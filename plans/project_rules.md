@@ -51,7 +51,7 @@ Define Cursor rules (`.cursor/rules/`) that codify how agents and humans interac
 When to create plans, when to pause for review, how to interpret user responses, and the execution loop.
 
 **Key behaviors:**
-- Plans go in `plans/<name>.plan.md` in Cursor format.
+- Plans go in `plans/<name>.md` in Cursor format.
 - Pause after creating a plan; do not import or execute until user responds.
 - "Proceed" → import + execute. "Thanks" → acknowledge only. "Just add tasks" → import only.
 - Execution: `tg next` → `tg show <id>` → `tg start <id>` → work → `tg done <id> --evidence "..."`.

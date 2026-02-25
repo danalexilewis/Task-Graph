@@ -2,9 +2,9 @@
   "name": "taskgraph",
   "version": "0.1.0",
   "description": "Task Graph CLI for Centaur Development",
-  "main": "dist/cli/index.js",
+  "main": "dist/src/cli/index.js",
   "bin": {
-    "tg": "dist/cli/index.js"
+    "tg": "dist/src/cli/index.js"
   },
   "scripts": {
     "dev": "tsx src/cli/index.ts",

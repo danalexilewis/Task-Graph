@@ -14,6 +14,7 @@ import { portfolioCommand } from "./portfolio";
 import { importCommand } from "./import";
 import { statusCommand } from "./status";
 import { contextCommand } from "./context";
+import { setupCommand } from "./setup";
 
 const program = new Command();
 
@@ -26,6 +27,7 @@ program
   .option("--commit-msg <msg>", "Override default commit message");
 
 initCommand(program);
+setupCommand(program);
 planCommand(program);
 taskCommand(program);
 edgeCommand(program);

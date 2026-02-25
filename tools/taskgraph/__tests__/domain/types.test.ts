@@ -29,6 +29,9 @@ describe("types Zod schemas", () => {
         source_commit: null,
         created_at: now,
         updated_at: now,
+        file_tree: null,
+        risks: null,
+        tests: null,
       };
       expect(PlanSchema.parse(validPlan)).toEqual(validPlan);
     });
@@ -63,6 +66,8 @@ describe("types Zod schemas", () => {
         created_at: now,
         updated_at: now,
         external_key: null,
+        change_type: null,
+        suggested_changes: null,
       };
       expect(TaskSchema.parse(validTask)).toEqual(validTask);
     });

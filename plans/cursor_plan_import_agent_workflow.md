@@ -21,7 +21,7 @@ todos:
     content: Document user intent table in AGENT.md — proceed→import+execute, thanks/ok→do nothing, just add tasks→import only
     status: completed
   - id: tests
-    content: Add parser test for Cursor format and integration test for tg import plans/foo.plan.md --format cursor
+    content: Add parser test for Cursor format and integration test for tg import plans/foo.md --format cursor
     status: completed
 isProject: false
 ---
@@ -71,7 +71,7 @@ isProject: false
 ---
 ```
 
-Existing plans (e.g. [task_graph_implementation_006e808b.plan.md](task_graph_implementation_006e808b.plan.md)) use `id`, `content`, `status`. No `blockedBy` in current files — infer from content (e.g. "blocked by m0-scaffold") or add optional support for future format.
+Existing plans (e.g. [task_graph_implementation_006e808b.md](task_graph_implementation_006e808b.md)) use `id`, `content`, `status`. No `blockedBy` in current files — infer from content (e.g. "blocked by m0-scaffold") or add optional support for future format.
 
 ---
 
@@ -101,7 +101,7 @@ Existing plans (e.g. [task_graph_implementation_006e808b.plan.md](task_graph_imp
 
 Add a new section **"Plan creation and review"**:
 
-- When user asks for a plan: create `plans/<name>.plan.md` in Cursor format, summarize, then ask for review.
+- When user asks for a plan: create `plans/<name>.md` in Cursor format, summarize, then ask for review.
 - Pause. Do not import or execute until user responds.
 - **Proceed** (phrases: proceed, go ahead, execute, run it, let's do it): Run `tg import plans/<file> --plan "<Plan Name>"` (with format flag if needed), then enter execution loop (`tg next` → ...).
 - **Just add** (phrases: just add the tasks, add to taskgraph only): Run `tg import` only. Do not execute.
@@ -133,8 +133,8 @@ Include a small intent table for clarity.
 
 ## Verification
 
-1. Create a test plan `plans/test-cursor.plan.md` in Cursor format.
-2. Run `tg import plans/test-cursor.plan.md --plan "Test Plan" --format cursor`.
+1. Create a test plan `plans/test-cursor.md` in Cursor format.
+2. Run `tg import plans/test-cursor.md --plan "Test Plan" --format cursor`.
 3. Run `tg next --plan "Test Plan"` — should list runnable tasks.
 4. Manually test agent workflow: create plan, say "proceed", confirm agent imports and executes.
 5. Run `pnpm test` and `pnpm test:integration` from tools/taskgraph.

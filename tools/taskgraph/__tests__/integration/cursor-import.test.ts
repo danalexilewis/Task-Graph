@@ -16,7 +16,7 @@ describe("Cursor format import integration", () => {
     context = await setupIntegrationTest();
     const plansDir = path.join(context.tempDir, "plans");
     fs.mkdirSync(plansDir, { recursive: true });
-    planFilePath = path.join(plansDir, "cursor-test.plan.md");
+    planFilePath = path.join(plansDir, "cursor-test.md");
 
     const planContent = `---
 name: Cursor Import Test
@@ -47,7 +47,7 @@ isProject: false
     if (!context) throw new Error("Context not initialized");
 
     const { exitCode, stdout } = await runTgCli(
-      `import plans/cursor-test.plan.md --plan "Cursor Import Test" --format cursor --no-commit`,
+      `import plans/cursor-test.md --plan "Cursor Import Test" --format cursor --no-commit`,
       context.tempDir,
     );
 

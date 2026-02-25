@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Plan Authoring (Cursor Format)
 
-Plans in `plans/` use Cursor format for import into taskgraph via `tg import --format cursor`.
+Create plans as `plans/<name>.md` (not .plan.md). Plans use Cursor format for import into taskgraph via `tg import --format cursor`.
 
 For the **full enhanced format** (file trees, risks, tests, per-task intent and suggested changes, markdown body, original prompt), see [docs/plan-format.md](../docs/plan-format.md).
 

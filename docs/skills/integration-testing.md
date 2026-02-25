@@ -13,8 +13,8 @@ Add or extend integration tests that run the real `tg` CLI against a temporary D
 ## Steps
 
 1. Use `setupIntegrationTest()` in `beforeAll`; use `teardownIntegrationTest(context.tempDir)` in `afterAll`.
-2. Create any needed files under `context.tempDir` (e.g. `plans/foo.plan.md`) with `fs.mkdirSync` and `fs.writeFileSync`.
-3. Run the CLI via `runTgCli("import plans/foo.plan.md --plan \"Bar\" --format cursor --no-commit", context.tempDir)`. Use `--no-commit` to keep tests fast and avoid commit noise.
+2. Create any needed files under `context.tempDir` (e.g. `plans/foo.md`) with `fs.mkdirSync` and `fs.writeFileSync`.
+3. Run the CLI via `runTgCli("import plans/foo.md --plan \"Bar\" --format cursor --no-commit", context.tempDir)`. Use `--no-commit` to keep tests fast and avoid commit noise.
 4. Parse JSON output when needed (e.g. `plan list --json` to get `plan_id` for later commands).
 5. Assert on `exitCode`, `stdout`, and (if needed) `stderr`. For expected failures use `runTgCli(..., context.tempDir, true)`.
 6. If the test adds new DB columns or migrations, ensure `test-utils.ts` calls the migration (e.g. `applyTaskDimensionsMigration`) after `applyMigrations` so the temp schema matches production.

@@ -1,0 +1,11 @@
+---
+description: Maintain repo-specific persistent memory at .cursor/memory.md
+alwaysApply: true
+---
+
+# Persistent Memory
+
+Every request should start by reading `.cursor/memory.md` to learn repo-specific conventions and prior decisions.
+
+When you discover a tooling quirk, fix a recurring mistake, or establish a useful pattern, update `.cursor/memory.md` at the end of the session.
+

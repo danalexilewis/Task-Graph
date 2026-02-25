@@ -39,6 +39,28 @@ tg init
 # Task Graph initialized successfully.
 ```
 
+### `tg setup`
+
+Scaffolds recommended repo conventions used by agents:
+
+- Example domain docs in `docs/` (e.g. `docs/backend.md`)
+- Skill guides in `docs/skills/`
+- (Optional) Cursor rules in `.cursor/rules/` plus `.cursor/memory.md`
+
+```bash
+tg setup
+```
+
+**Options:**
+-   `--no-docs`: Do not scaffold `docs/` and `docs/skills/`.
+-   `--no-cursor`: Do not scaffold `.cursor/` (rules + memory).
+-   `--force`: Overwrite existing files (default is to skip).
+
+**Example:**
+```bash
+tg setup --force
+```
+
 ### `tg plan new <title>`
 
 Creates a new high-level plan.

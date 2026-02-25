@@ -11,7 +11,7 @@ Before executing any plan, run `pnpm tg status` to see what's outstanding. If th
 
 ## Plan Creation and Review
 
-- **Plans** live in `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
+- **Plans** live in `plans/<name>.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
 - After creating a plan: summarize it, then **pause** and ask for review. Do not import or execute until the user responds.
 
 ### Interpreting User Response

@@ -9,7 +9,7 @@ Two formats are supported: **Cursor** (YAML frontmatter with todos) and **Legacy
 Plans produced by Cursor planning mode use YAML frontmatter with a `todos` array. Use `--format cursor` when importing:
 
 ```bash
-tg import plans/feature-x.plan.md --plan "Feature X" --format cursor
+tg import plans/feature-x.md --plan "Feature X" --format cursor
 ```
 
 ### Structure

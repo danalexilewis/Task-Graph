@@ -16,6 +16,7 @@ const portfolio_1 = require("./portfolio");
 const import_1 = require("./import");
 const status_1 = require("./status");
 const context_1 = require("./context");
+const setup_1 = require("./setup");
 const program = new commander_1.Command();
 program
     .name("tg")
@@ -25,6 +26,7 @@ program
     .option("--no-commit", "Do not commit changes to Dolt", false)
     .option("--commit-msg <msg>", "Override default commit message");
 (0, init_1.initCommand)(program);
+(0, setup_1.setupCommand)(program);
 (0, plan_1.planCommand)(program);
 (0, task_1.taskCommand)(program);
 (0, edge_1.edgeCommand)(program);

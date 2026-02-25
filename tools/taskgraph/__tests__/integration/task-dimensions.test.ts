@@ -40,10 +40,10 @@ todos:
     status: completed
 ---
 `;
-    fs.writeFileSync(path.join(plansDir, "dimensions.plan.md"), planContent);
+    fs.writeFileSync(path.join(plansDir, "dimensions.md"), planContent);
 
     const { stdout: importStdout } = await runTgCli(
-      `import plans/dimensions.plan.md --plan "Dimensions Test Plan" --format cursor --no-commit`,
+      `import plans/dimensions.md --plan "Dimensions Test Plan" --format cursor --no-commit`,
       context.tempDir,
     );
     expect(importStdout).toContain("Successfully imported");

@@ -15,17 +15,22 @@ From the repo root, use `pnpm tg` (see root [package.json](../package.json)). Re
     pnpm tg init
     ```
 
-2.  **Create a new plan** (or import from Cursor format — see [Plan Import](plan-import.md#cursor-format-recommended)):
+2.  **Scaffold recommended conventions (docs + skills + Cursor rules):**
+    ```bash
+    pnpm tg setup
+    ```
+
+3.  **Create a new plan** (or import from Cursor format — see [Plan Import](plan-import.md#cursor-format-recommended)):
     ```bash
     pnpm tg plan new "My First Feature" --intent "Implement basic user authentication."
     ```
 
-3.  **Create a task:**
+4.  **Create a task:**
     ```bash
     pnpm tg task new "Design Auth API" --plan "My First Feature" --feature auth --area backend
     ```
 
-4.  **Find runnable tasks:**
+5.  **Find runnable tasks:**
     ```bash
     pnpm tg next
     ```

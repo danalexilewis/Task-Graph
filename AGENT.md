@@ -1,6 +1,6 @@
 Plan creation and review
 
-- When the user asks for a plan: create `plans/<name>.plan.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`). Summarize the plan, then pause and ask for review.
+- When the user asks for a plan: create `plans/<name>.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`). Summarize the plan, then pause and ask for review.
 - Do not import or execute until the user responds. Interpret the response using this table:
 
 | User says | Meaning | Agent action |

@@ -12,7 +12,7 @@ Write Cursor-format plans in `plans/` that import cleanly into taskgraph: clear 
 
 ## Steps
 
-1. Create `plans/<name>.plan.md` with YAML frontmatter: `name`, `overview`, `todos`.
+1. Create `plans/<name>.md` with YAML frontmatter: `name`, `overview`, `todos`.
 2. For each task: set `id` (kebab-case, stable key), `content` (task title), and optionally `blockedBy`, `domain`, `skill`, `changeType`.
 3. Design the dependency graph: use `blockedBy` with other todos' `id` values; avoid cycles.
 4. Keep tasks scoped (~90 min or less); split large work into multiple todos.
