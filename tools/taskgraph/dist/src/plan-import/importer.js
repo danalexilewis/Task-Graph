@@ -5,6 +5,7 @@ const uuid_1 = require("uuid");
 const commit_1 = require("../db/commit");
 const neverthrow_1 = require("neverthrow");
 const query_1 = require("../db/query");
+const escape_1 = require("../db/escape");
 function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
     const currentTimestamp = (0, query_1.now)();
     const q = (0, query_1.query)(repoPath);
@@ -31,9 +32,9 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         title: parsedTask.title,
                         feature_key: parsedTask.feature ?? null,
                         area: parsedTask.area ?? null,
-                        domain: parsedTask.domain ?? null,
-                        skill: parsedTask.skill ?? null,
                         change_type: parsedTask.changeType ?? null,
+                        intent: parsedTask.intent ?? null,
+                        suggested_changes: parsedTask.suggestedChanges ?? null,
                         acceptance: parsedTask.acceptance.length > 0
                             ? (0, query_1.jsonObj)({ val: JSON.stringify(parsedTask.acceptance) })
                             : null,
@@ -59,9 +60,9 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                         title: parsedTask.title,
                         feature_key: parsedTask.feature ?? null,
                         area: parsedTask.area ?? null,
-                        domain: parsedTask.domain ?? null,
-                        skill: parsedTask.skill ?? null,
                         change_type: parsedTask.changeType ?? null,
+                        intent: parsedTask.intent ?? null,
+                        suggested_changes: parsedTask.suggestedChanges ?? null,
                         acceptance: parsedTask.acceptance.length > 0
                             ? (0, query_1.jsonObj)({ val: JSON.stringify(parsedTask.acceptance) })
                             : null,
@@ -90,6 +91,29 @@ function upsertTasksAndEdges(planId, parsedTasks, repoPath, noCommit = false) {
                 }
                 // Register for edge resolution (blocker keys may reference tasks just inserted)
                 externalKeyToTaskId.set(parsedTask.stableKey, taskId);
+                // Sync task_domain and task_skill junction tables
+                const delDomainResult = await q.raw(`DELETE FROM \`task_domain\` WHERE task_id = '${(0, escape_1.sqlEscape)(taskId)}'`);
+                if (delDomainResult.isErr())
+                    throw delDomainResult.error;
+                const delSkillResult = await q.raw(`DELETE FROM \`task_skill\` WHERE task_id = '${(0, escape_1.sqlEscape)(taskId)}'`);
+                if (delSkillResult.isErr())
+                    throw delSkillResult.error;
+                for (const domain of parsedTask.domains ?? []) {
+                    const ins = await q.insert("task_domain", {
+                        task_id: taskId,
+                        domain,
+                    });
+                    if (ins.isErr())
+                        throw ins.error;
+                }
+                for (const skill of parsedTask.skills ?? []) {
+                    const ins = await q.insert("task_skill", {
+                        task_id: taskId,
+                        skill,
+                    });
+                    if (ins.isErr())
+                        throw ins.error;
+                }
                 // Handle edges
                 for (const blockerKey of parsedTask.blockedBy) {
                     const blockerTaskId = externalKeyToTaskId.get(blockerKey);

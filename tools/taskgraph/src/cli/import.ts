@@ -10,7 +10,7 @@ import { doltCommit } from "../db/commit";
 import { v4 as uuidv4 } from "uuid";
 import { ResultAsync, ok, err } from "neverthrow";
 import { AppError, buildError, ErrorCode } from "../domain/errors";
-import { query, now } from "../db/query";
+import { query, now, type SqlValue } from "../db/query";
 
 export function importCommand(program: Command) {
   program
@@ -41,7 +41,14 @@ export function importCommand(program: Command) {
           return ResultAsync.fromPromise(
             (async () => {
               const q = query(config.doltRepoPath);
-              const { planTitle, planIntent, tasks: parsedTasks } = parsedPlan;
+              const {
+                planTitle,
+                planIntent,
+                tasks: parsedTasks,
+                fileTree,
+                risks,
+                tests,
+              } = parsedPlan;
               let planId: string | null = null;
 
               // Try to find plan by ID first
@@ -70,14 +77,22 @@ export function importCommand(program: Command) {
                 planId = uuidv4();
                 const newPlanTitle = planTitle || options.plan;
                 const newPlanIntent = planIntent || `Imported from ${filePath}`;
-                const insertResult = await q.insert("plan", {
+                const insertPayload: Record<string, SqlValue> = {
                   plan_id: planId,
                   title: newPlanTitle,
                   intent: newPlanIntent,
                   source_path: filePath,
                   created_at: currentTimestamp,
                   updated_at: currentTimestamp,
-                });
+                };
+                if (options.format === "cursor") {
+                  if (fileTree != null) insertPayload.file_tree = fileTree;
+                  if (risks != null)
+                    insertPayload.risks = JSON.stringify(risks);
+                  if (tests != null)
+                    insertPayload.tests = JSON.stringify(tests);
+                }
+                const insertResult = await q.insert("plan", insertPayload);
                 if (insertResult.isErr()) throw insertResult.error;
 
                 console.log(
@@ -96,6 +111,21 @@ export function importCommand(program: Command) {
                   ErrorCode.PLAN_NOT_FOUND,
                   "Could not find or create a plan for the import.",
                 );
+              }
+
+              if (options.format === "cursor" && (fileTree != null || risks != null || tests != null)) {
+                const planUpdatePayload: Record<string, SqlValue> = {
+                  updated_at: currentTimestamp,
+                };
+                if (fileTree != null) planUpdatePayload.file_tree = fileTree;
+                if (risks != null) planUpdatePayload.risks = JSON.stringify(risks);
+                if (tests != null) planUpdatePayload.tests = JSON.stringify(tests);
+                const planUpdateResult = await q.update(
+                  "plan",
+                  planUpdatePayload,
+                  { plan_id: planId },
+                );
+                if (planUpdateResult.isErr()) throw planUpdateResult.error;
               }
 
               const upsertResult = await upsertTasksAndEdges(

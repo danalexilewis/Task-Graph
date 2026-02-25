@@ -8,6 +8,8 @@ alwaysApply: false
 
 Plans in `plans/` use Cursor format for import into taskgraph via `tg import --format cursor`.
 
+For the **full enhanced format** (file trees, risks, tests, per-task intent and suggested changes, markdown body, original prompt), see [docs/plan-format.md](../docs/plan-format.md).
+
 ## YAML Frontmatter Structure
 
 ```yaml
@@ -33,14 +35,14 @@ isProject: false
 | `content` | yes | Task title (maps to task title) |
 | `status` | no | `pending` → todo, `completed` → done |
 | `blockedBy` | no | Array of todo `id`s that block this task. Creates `blocks` edges on import. |
-| `domain` | no | Knowledge area → maps to `docs/<domain>.md`. Agent reads this before starting. Use a slug (e.g. `schema`, `cli`, `plan-import`). |
-| `skill` | no | Technique required → maps to `docs/skills/<skill>.md`. Use kebab-case (e.g. `sql-migration`, `yaml-parsing`, `cli-command`). |
+| `domain` | no | Single slug or array of slugs → `docs/<domain>.md`. Agent reads these before starting (e.g. `schema`, `cli`, `plan-import`). |
+| `skill` | no | Single slug or array of slugs → `docs/skills/<skill>.md`. Use kebab-case (e.g. `sql-migration`, `yaml-parsing`, `cli-command`). |
 | `changeType` | no | How to approach: `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`. Shapes agent behavior (e.g. refactor = test before/after). |
 
 ## When to use domain, skill, changeType
 
-- **domain**: Set when the task touches a specific area of the codebase or docs; the agent will read that doc for conventions and prior decisions.
-- **skill**: Set when the task requires a particular technique (migrations, parsing, CLI design); the agent can load the skill guide and see past tasks with the same skill.
+- **domain** / **domains**: Set when the task touches specific areas of the codebase or docs; the agent will read those docs for conventions and prior decisions. You can set one value or an array.
+- **skill** / **skills**: Set when the task requires particular techniques (migrations, parsing, CLI design); the agent can load the skill guides and see past tasks with the same skills. One value or array.
 - **changeType**: Set when the approach matters: use `refactor` for behavior-preserving changes, `fix` for bugs (reproduce first), `create` for net-new work, `document` for docs-only.
 
 ## Dependency Best Practices
@@ -49,3 +51,14 @@ isProject: false
 - Reference `id` values; they resolve to task IDs when importing.
 - Keep tasks scoped (~90 min or less); split large ones.
 - Order todos to reflect dependency graph when possible.
+
+## Rich planning (optional)
+
+For analysis-heavy plans, use the [enhanced format](docs/plan-format.md):
+
+- **fileTree**: List files the plan touches (with `(create)` / `(modify)`). Stored on the plan and shown in `tg context`.
+- **risks** / **tests**: Plan-level arrays. Risks: `{ description, severity, mitigation }`. Tests: strings describing tests to add.
+- **intent** / **suggestedChanges** (per todo): Detailed scope and proposed code snippets. Suggested changes are **directional** for the agent, not prescriptive.
+- **Markdown body** (below `---`): Analysis, mermaid diagrams, proposed changes, and end with `<original_prompt>...</original_prompt>` so the triggering request is preserved.
+
+When to add mermaid: data flows, state machines, dependency graphs, or any logic that benefits from a diagram. When to add suggested changes: when a task touches a specific file/function and a short snippet would speed the agent up.

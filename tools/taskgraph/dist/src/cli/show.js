@@ -49,7 +49,22 @@ function showCommand(program) {
               LIMIT 5;
             `);
                 const events = eventsResult.isOk() ? eventsResult.value : [];
-                return { taskDetails, blockers, dependents, events };
+                const domainsResult = await q.select("task_domain", { columns: ["domain"], where: { task_id: taskId } });
+                const skillsResult = await q.select("task_skill", { columns: ["skill"], where: { task_id: taskId } });
+                const domains = domainsResult.isOk()
+                    ? domainsResult.value.map((r) => r.domain)
+                    : [];
+                const skills = skillsResult.isOk()
+                    ? skillsResult.value.map((r) => r.skill)
+                    : [];
+                return {
+                    taskDetails,
+                    blockers,
+                    dependents,
+                    events,
+                    domains,
+                    skills,
+                };
             })(), (e) => e);
         });
         result.match((data) => {
@@ -62,6 +77,10 @@ function showCommand(program) {
                 console.log(`  Status: ${task.status}`);
                 console.log(`  Owner: ${task.owner}`);
                 console.log(`  Area: ${task.area ?? "N/A"}`);
+                if (resultData.domains.length > 0)
+                    console.log(`  Domains: ${resultData.domains.join(", ")}`);
+                if (resultData.skills.length > 0)
+                    console.log(`  Skills: ${resultData.skills.join(", ")}`);
                 console.log(`  Risk: ${task.risk}`);
                 console.log(`  Estimate: ${task.estimate_mins ?? "N/A"} minutes`);
                 console.log(`  Intent: ${task.intent ?? "N/A"}`);

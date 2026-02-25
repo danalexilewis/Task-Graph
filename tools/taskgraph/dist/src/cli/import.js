@@ -25,7 +25,7 @@ function importCommand(program) {
             return parseResult.asyncAndThen((parsedPlan) => {
                 return neverthrow_1.ResultAsync.fromPromise((async () => {
                     const q = (0, query_1.query)(config.doltRepoPath);
-                    const { planTitle, planIntent, tasks: parsedTasks } = parsedPlan;
+                    const { planTitle, planIntent, tasks: parsedTasks, fileTree, risks, tests, } = parsedPlan;
                     let planId = null;
                     // Try to find plan by ID first
                     if (options.plan.length === 36 &&
@@ -47,14 +47,23 @@ function importCommand(program) {
                         planId = (0, uuid_1.v4)();
                         const newPlanTitle = planTitle || options.plan;
                         const newPlanIntent = planIntent || `Imported from ${filePath}`;
-                        const insertResult = await q.insert("plan", {
+                        const insertPayload = {
                             plan_id: planId,
                             title: newPlanTitle,
                             intent: newPlanIntent,
                             source_path: filePath,
                             created_at: currentTimestamp,
                             updated_at: currentTimestamp,
-                        });
+                        };
+                        if (options.format === "cursor") {
+                            if (fileTree != null)
+                                insertPayload.file_tree = fileTree;
+                            if (risks != null)
+                                insertPayload.risks = JSON.stringify(risks);
+                            if (tests != null)
+                                insertPayload.tests = JSON.stringify(tests);
+                        }
+                        const insertResult = await q.insert("plan", insertPayload);
                         if (insertResult.isErr())
                             throw insertResult.error;
                         console.log(`Created new plan '${newPlanTitle}' with ID: ${planId}`);
@@ -64,6 +73,20 @@ function importCommand(program) {
                     }
                     if (!planId) {
                         throw (0, errors_1.buildError)(errors_1.ErrorCode.PLAN_NOT_FOUND, "Could not find or create a plan for the import.");
+                    }
+                    if (options.format === "cursor" && (fileTree != null || risks != null || tests != null)) {
+                        const planUpdatePayload = {
+                            updated_at: currentTimestamp,
+                        };
+                        if (fileTree != null)
+                            planUpdatePayload.file_tree = fileTree;
+                        if (risks != null)
+                            planUpdatePayload.risks = JSON.stringify(risks);
+                        if (tests != null)
+                            planUpdatePayload.tests = JSON.stringify(tests);
+                        const planUpdateResult = await q.update("plan", planUpdatePayload, { plan_id: planId });
+                        if (planUpdateResult.isErr())
+                            throw planUpdateResult.error;
                     }
                     const upsertResult = await (0, importer_1.upsertTasksAndEdges)(planId, parsedTasks, config.doltRepoPath, cmd.parent?.opts().noCommit);
                     if (upsertResult.isErr())

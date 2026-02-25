@@ -71,7 +71,29 @@ export function showCommand(program: Command) {
             `);
             const events = eventsResult.isOk() ? eventsResult.value : [];
 
-            return { taskDetails, blockers, dependents, events };
+            const domainsResult = await q.select<{ domain: string }>(
+              "task_domain",
+              { columns: ["domain"], where: { task_id: taskId } },
+            );
+            const skillsResult = await q.select<{ skill: string }>(
+              "task_skill",
+              { columns: ["skill"], where: { task_id: taskId } },
+            );
+            const domains = domainsResult.isOk()
+              ? domainsResult.value.map((r) => r.domain)
+              : [];
+            const skills = skillsResult.isOk()
+              ? skillsResult.value.map((r) => r.skill)
+              : [];
+
+            return {
+              taskDetails,
+              blockers,
+              dependents,
+              events,
+              domains,
+              skills,
+            };
           })(),
           (e) => e as AppError, // Error handler for the promise
         );
@@ -84,6 +106,8 @@ export function showCommand(program: Command) {
             blockers: ({ title: string; status: TaskStatus } & Edge)[];
             dependents: ({ title: string; status: TaskStatus } & Edge)[];
             events: Event[];
+            domains: string[];
+            skills: string[];
           };
           if (!cmd.parent?.opts().json) {
             const task = resultData.taskDetails;
@@ -93,6 +117,10 @@ export function showCommand(program: Command) {
             console.log(`  Status: ${task.status}`);
             console.log(`  Owner: ${task.owner}`);
             console.log(`  Area: ${task.area ?? "N/A"}`);
+            if (resultData.domains.length > 0)
+              console.log(`  Domains: ${resultData.domains.join(", ")}`);
+            if (resultData.skills.length > 0)
+              console.log(`  Skills: ${resultData.skills.join(", ")}`);
             console.log(`  Risk: ${task.risk}`);
             console.log(`  Estimate: ${task.estimate_mins ?? "N/A"} minutes`);
             console.log(`  Intent: ${task.intent ?? "N/A"}`);

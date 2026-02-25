@@ -19,6 +19,9 @@ Represents a high-level plan, which can contain multiple tasks. Corresponds to a
 | `source_commit` | `VARCHAR(64)`            | `NULL`                | Git commit hash of the source document         |
 | `created_at`  | `DATETIME`               | `NOT NULL`            | Timestamp when the plan was created            |
 | `updated_at`  | `DATETIME`               | `NOT NULL`            | Timestamp when the plan was last updated       |
+| `file_tree`   | `TEXT`                   | `NULL`                | Tree of files affected (rich planning)         |
+| `risks`       | `JSON`                   | `NULL`                | Array of `{description, severity, mitigation}` (rich planning) |
+| `tests`       | `JSON`                   | `NULL`                | Array of test descriptions to create (rich planning) |
 
 ## Table: `task`
 
@@ -42,9 +45,30 @@ Represents an individual task within a plan, which can have dependencies and eve
 | `created_at`  | `DATETIME`                           | `NOT NULL`                         | Timestamp when the task was created            |
 | `updated_at`  | `DATETIME`                           | `NOT NULL`                         | Timestamp when the task was last updated       |
 | `external_key`| `VARCHAR(128)`                       | `NULL`, `UNIQUE`                   | Stable key for markdown import                 |
-| `domain`      | `VARCHAR(64)`                        | `NULL`                             | Knowledge area → maps to `docs/<domain>.md`   |
-| `skill`       | `VARCHAR(64)`                        | `NULL`                             | Technique → maps to `docs/skills/<skill>.md`   |
 | `change_type` | `ENUM('create','modify','refactor','fix','investigate','test','document')` | `NULL` | How to approach the work                      |
+| `suggested_changes` | `TEXT`                       | `NULL`                             | Proposed code snippets as starting point (rich planning) |
+
+A task may have multiple domains and skills, stored in junction tables below.
+
+## Table: `task_domain`
+
+Junction table: many-to-many between tasks and domains (knowledge areas → `docs/<domain>.md`).
+
+| Column     | Type         | Constraints                        | Description        |
+| :--------- | :----------- | :--------------------------------- | :----------------- |
+| `task_id`  | `CHAR(36)`   | `NOT NULL`, `FK -> task.task_id`   | Task reference     |
+| `domain`   | `VARCHAR(64)`| `NOT NULL`                         | Domain slug        |
+| `PRIMARY KEY` |            | `(task_id, domain)`               | Unique per task/domain |
+
+## Table: `task_skill`
+
+Junction table: many-to-many between tasks and skills (techniques → `docs/skills/<skill>.md`).
+
+| Column     | Type         | Constraints                        | Description        |
+| :--------- | :----------- | :--------------------------------- | :----------------- |
+| `task_id`  | `CHAR(36)`   | `NOT NULL`, `FK -> task.task_id`   | Task reference     |
+| `skill`    | `VARCHAR(64)`| `NOT NULL`                         | Skill slug         |
+| `PRIMARY KEY` |            | `(task_id, skill)`                | Unique per task/skill |
 
 ## Table: `edge`
 

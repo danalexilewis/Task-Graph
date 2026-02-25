@@ -51,11 +51,11 @@ export function nextCommand(program: Command) {
         }
         let domainFilter = "";
         if (options.domain) {
-          domainFilter = `AND t.\`domain\` = '${sqlEscape(options.domain)}'`;
+          domainFilter = `AND EXISTS (SELECT 1 FROM \`task_domain\` td WHERE td.task_id = t.task_id AND td.domain = '${sqlEscape(options.domain)}')`;
         }
         let skillFilter = "";
         if (options.skill) {
-          skillFilter = `AND t.\`skill\` = '${sqlEscape(options.skill)}'`;
+          skillFilter = `AND EXISTS (SELECT 1 FROM \`task_skill\` ts WHERE ts.task_id = t.task_id AND ts.skill = '${sqlEscape(options.skill)}')`;
         }
         let changeTypeFilter = "";
         if (options.changeType) {

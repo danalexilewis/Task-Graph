@@ -83,17 +83,17 @@ todos:
     );
     expect(exitCode).toBe(0);
     const data = JSON.parse(stdout) as {
-      domain: string | null;
-      skill: string | null;
+      domains: string[];
+      skills: string[];
       change_type: string | null;
-      domain_doc: string | null;
-      skill_doc: string | null;
+      domain_docs: string[];
+      skill_docs: string[];
     };
-    expect(data.domain).toBe("schema");
-    expect(data.skill).toBe("sql-migration");
+    expect(data.domains).toContain("schema");
+    expect(data.skills).toContain("sql-migration");
     expect(data.change_type).toBe("modify");
-    expect(data.domain_doc).toBe("docs/schema.md");
-    expect(data.skill_doc).toBe("docs/skills/sql-migration.md");
+    expect(data.domain_docs).toContain("docs/schema.md");
+    expect(data.skill_docs).toContain("docs/skills/sql-migration.md");
   });
 
   it("should filter tg next by --domain", async () => {

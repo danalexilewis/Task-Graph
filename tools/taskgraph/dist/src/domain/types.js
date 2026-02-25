@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DecisionSchema = exports.EventSchema = exports.EdgeSchema = exports.TaskSchema = exports.PlanSchema = exports.ActorSchema = exports.EventKindSchema = exports.EdgeTypeSchema = exports.ChangeTypeSchema = exports.RiskSchema = exports.OwnerSchema = exports.TaskStatusSchema = exports.PlanStatusSchema = void 0;
+exports.DecisionSchema = exports.EventSchema = exports.EdgeSchema = exports.TaskSkillSchema = exports.TaskDomainSchema = exports.TaskSchema = exports.PlanSchema = exports.PlanRiskEntrySchema = exports.ActorSchema = exports.EventKindSchema = exports.EdgeTypeSchema = exports.ChangeTypeSchema = exports.RiskSchema = exports.OwnerSchema = exports.TaskStatusSchema = exports.PlanStatusSchema = void 0;
 const zod_1 = require("zod");
 // Enums
 exports.PlanStatusSchema = zod_1.z.enum([
@@ -41,6 +41,12 @@ exports.EventKindSchema = zod_1.z.enum([
     "note",
 ]);
 exports.ActorSchema = zod_1.z.enum(["human", "agent"]);
+// Risk entry for plan.risks (rich planning)
+exports.PlanRiskEntrySchema = zod_1.z.object({
+    description: zod_1.z.string(),
+    severity: exports.RiskSchema,
+    mitigation: zod_1.z.string(),
+});
 // Schemas
 exports.PlanSchema = zod_1.z.object({
     plan_id: zod_1.z.string().uuid(),
@@ -52,6 +58,9 @@ exports.PlanSchema = zod_1.z.object({
     source_commit: zod_1.z.string().max(64).nullable(),
     created_at: zod_1.z.string().datetime(),
     updated_at: zod_1.z.string().datetime(),
+    file_tree: zod_1.z.string().nullable(),
+    risks: zod_1.z.array(exports.PlanRiskEntrySchema).nullable(),
+    tests: zod_1.z.array(zod_1.z.string()).nullable(),
 });
 exports.TaskSchema = zod_1.z.object({
     task_id: zod_1.z.string().uuid(),
@@ -70,9 +79,18 @@ exports.TaskSchema = zod_1.z.object({
     created_at: zod_1.z.string().datetime(),
     updated_at: zod_1.z.string().datetime(),
     external_key: zod_1.z.string().max(128).nullable(),
-    domain: zod_1.z.string().max(64).nullable(),
-    skill: zod_1.z.string().max(64).nullable(),
     change_type: exports.ChangeTypeSchema.nullable(),
+    suggested_changes: zod_1.z.string().nullable(),
+});
+/** Junction: task_id + domain (task can have many domains). */
+exports.TaskDomainSchema = zod_1.z.object({
+    task_id: zod_1.z.string().uuid(),
+    domain: zod_1.z.string().max(64),
+});
+/** Junction: task_id + skill (task can have many skills). */
+exports.TaskSkillSchema = zod_1.z.object({
+    task_id: zod_1.z.string().uuid(),
+    skill: zod_1.z.string().max(64),
 });
 exports.EdgeSchema = zod_1.z.object({
     from_task_id: zod_1.z.string().uuid(),

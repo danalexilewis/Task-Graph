@@ -1,7 +1,13 @@
 import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { execa } from "execa";
-import { applyMigrations, applyTaskDimensionsMigration } from "../db/migrate";
+import {
+  applyMigrations,
+  applyTaskDimensionsMigration,
+  applyPlanRichFieldsMigration,
+  applyTaskSuggestedChangesMigration,
+  applyTaskDomainSkillJunctionMigration,
+} from "../db/migrate";
 import * as path from "path";
 import { readConfig, writeConfig } from "./utils";
 import { ResultAsync } from "neverthrow";
@@ -49,6 +55,15 @@ export function initCommand(program: Command) {
         .andThen(() => applyMigrations(doltRepoPath, options.noCommit))
         .andThen(() =>
           applyTaskDimensionsMigration(doltRepoPath, options.noCommit),
+        )
+        .andThen(() =>
+          applyPlanRichFieldsMigration(doltRepoPath, options.noCommit),
+        )
+        .andThen(() =>
+          applyTaskSuggestedChangesMigration(doltRepoPath, options.noCommit),
+        )
+        .andThen(() =>
+          applyTaskDomainSkillJunctionMigration(doltRepoPath, options.noCommit),
         )
         .andThen(() => {
           const config = {

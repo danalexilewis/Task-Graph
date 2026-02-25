@@ -55,6 +55,14 @@ export type EventKind = z.infer<typeof EventKindSchema>;
 export const ActorSchema = z.enum(["human", "agent"]);
 export type Actor = z.infer<typeof ActorSchema>;
 
+// Risk entry for plan.risks (rich planning)
+export const PlanRiskEntrySchema = z.object({
+  description: z.string(),
+  severity: RiskSchema,
+  mitigation: z.string(),
+});
+export type PlanRiskEntry = z.infer<typeof PlanRiskEntrySchema>;
+
 // Schemas
 export const PlanSchema = z.object({
   plan_id: z.string().uuid(),
@@ -66,6 +74,9 @@ export const PlanSchema = z.object({
   source_commit: z.string().max(64).nullable(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
+  file_tree: z.string().nullable(),
+  risks: z.array(PlanRiskEntrySchema).nullable(),
+  tests: z.array(z.string()).nullable(),
 });
 export type Plan = z.infer<typeof PlanSchema>;
 
@@ -86,11 +97,24 @@ export const TaskSchema = z.object({
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   external_key: z.string().max(128).nullable(),
-  domain: z.string().max(64).nullable(),
-  skill: z.string().max(64).nullable(),
   change_type: ChangeTypeSchema.nullable(),
+  suggested_changes: z.string().nullable(),
 });
 export type Task = z.infer<typeof TaskSchema>;
+
+/** Junction: task_id + domain (task can have many domains). */
+export const TaskDomainSchema = z.object({
+  task_id: z.string().uuid(),
+  domain: z.string().max(64),
+});
+export type TaskDomain = z.infer<typeof TaskDomainSchema>;
+
+/** Junction: task_id + skill (task can have many skills). */
+export const TaskSkillSchema = z.object({
+  task_id: z.string().uuid(),
+  skill: z.string().max(64),
+});
+export type TaskSkill = z.infer<typeof TaskSkillSchema>;
 
 export const EdgeSchema = z.object({
   from_task_id: z.string().uuid(),

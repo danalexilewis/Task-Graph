@@ -350,7 +350,7 @@ tg export markdown --plan <planId> [--out <path>]
 
 ### `tg context <taskId>`
 
-Outputs domain doc path, skill guide path, and related done tasks for a task. Run after `tg start` to load the right docs before doing work.
+Outputs domain doc path, skill guide path, related done tasks, and (when present) task suggested changes and plan file tree/risks. Run after `tg start` to load the right docs before doing work.
 
 ```bash
 tg context <taskId>
@@ -360,9 +360,9 @@ tg context <taskId>
 -   `<taskId>`: The ID of the task.
 
 **Options:**
--   `--json`: Output as JSON (domain_doc, skill_doc, related_done_by_domain, related_done_by_skill).
+-   `--json`: Output as JSON: `domains`, `skills` (arrays), `domain_docs`, `skill_docs` (paths), `related_done_by_domain`, `related_done_by_skill`, and when present: `suggested_changes`, `file_tree`, `risks` (plan-level).
 
-**Output (human):** Task title and ID; change type; domain doc path (`docs/<domain>.md`); skill guide path (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 related done tasks by skill.
+**Output (human):** Task title and ID; change type; domain doc path(s) (`docs/<domain>.md`); skill guide path(s) (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 by skill. If the task has `suggested_changes`, the plan has `file_tree`, or the plan has `risks`, those are printed as well.
 
 ### `tg status`
 

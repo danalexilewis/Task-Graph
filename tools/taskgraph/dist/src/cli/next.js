@@ -34,11 +34,11 @@ function nextCommand(program) {
             }
             let domainFilter = "";
             if (options.domain) {
-                domainFilter = `AND t.\`domain\` = '${(0, escape_1.sqlEscape)(options.domain)}'`;
+                domainFilter = `AND EXISTS (SELECT 1 FROM \`task_domain\` td WHERE td.task_id = t.task_id AND td.domain = '${(0, escape_1.sqlEscape)(options.domain)}')`;
             }
             let skillFilter = "";
             if (options.skill) {
-                skillFilter = `AND t.\`skill\` = '${(0, escape_1.sqlEscape)(options.skill)}'`;
+                skillFilter = `AND EXISTS (SELECT 1 FROM \`task_skill\` ts WHERE ts.task_id = t.task_id AND ts.skill = '${(0, escape_1.sqlEscape)(options.skill)}')`;
             }
             let changeTypeFilter = "";
             if (options.changeType) {

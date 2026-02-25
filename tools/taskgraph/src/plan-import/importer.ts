@@ -4,6 +4,7 @@ import { Task, Edge, Event } from "../domain/types";
 import { ResultAsync, ok, err } from "neverthrow";
 import { AppError, buildError, ErrorCode } from "../domain/errors";
 import { query, now, jsonObj } from "../db/query";
+import { sqlEscape } from "../db/escape";
 
 interface ParsedTask {
   stableKey: string;
@@ -13,8 +14,8 @@ interface ParsedTask {
   blockedBy: string[];
   acceptance: string[];
   status?: "todo" | "done";
-  domain?: string;
-  skill?: string;
+  domains?: string[];
+  skills?: string[];
   changeType?:
     | "create"
     | "modify"
@@ -23,6 +24,8 @@ interface ParsedTask {
     | "investigate"
     | "test"
     | "document";
+  intent?: string;
+  suggestedChanges?: string;
 }
 
 interface ImportResult {
@@ -68,9 +71,9 @@ export function upsertTasksAndEdges(
                   title: parsedTask.title,
                   feature_key: parsedTask.feature ?? null,
                   area: parsedTask.area ?? null,
-                  domain: parsedTask.domain ?? null,
-                  skill: parsedTask.skill ?? null,
                   change_type: parsedTask.changeType ?? null,
+                  intent: parsedTask.intent ?? null,
+                  suggested_changes: parsedTask.suggestedChanges ?? null,
                   acceptance:
                     parsedTask.acceptance.length > 0
                       ? jsonObj({ val: JSON.stringify(parsedTask.acceptance) })
@@ -98,9 +101,9 @@ export function upsertTasksAndEdges(
                 title: parsedTask.title,
                 feature_key: parsedTask.feature ?? null,
                 area: parsedTask.area ?? null,
-                domain: parsedTask.domain ?? null,
-                skill: parsedTask.skill ?? null,
                 change_type: parsedTask.changeType ?? null,
+                intent: parsedTask.intent ?? null,
+                suggested_changes: parsedTask.suggestedChanges ?? null,
                 acceptance:
                   parsedTask.acceptance.length > 0
                     ? jsonObj({ val: JSON.stringify(parsedTask.acceptance) })
@@ -135,6 +138,30 @@ export function upsertTasksAndEdges(
 
             // Register for edge resolution (blocker keys may reference tasks just inserted)
             externalKeyToTaskId.set(parsedTask.stableKey, taskId);
+
+            // Sync task_domain and task_skill junction tables
+            const delDomainResult = await q.raw(
+              `DELETE FROM \`task_domain\` WHERE task_id = '${sqlEscape(taskId)}'`,
+            );
+            if (delDomainResult.isErr()) throw delDomainResult.error;
+            const delSkillResult = await q.raw(
+              `DELETE FROM \`task_skill\` WHERE task_id = '${sqlEscape(taskId)}'`,
+            );
+            if (delSkillResult.isErr()) throw delSkillResult.error;
+            for (const domain of parsedTask.domains ?? []) {
+              const ins = await q.insert("task_domain", {
+                task_id: taskId,
+                domain,
+              });
+              if (ins.isErr()) throw ins.error;
+            }
+            for (const skill of parsedTask.skills ?? []) {
+              const ins = await q.insert("task_skill", {
+                task_id: taskId,
+                skill,
+              });
+              if (ins.isErr()) throw ins.error;
+            }
 
             // Handle edges
             for (const blockerKey of parsedTask.blockedBy) {

@@ -9,7 +9,7 @@ export function contextCommand(program: Command) {
   program
     .command("context")
     .description(
-      "Output domain doc path, skill guide path, and related done tasks for a task (run before starting work)",
+      "Output domain doc paths, skill guide paths, and related done tasks for a task (run before starting work)",
     )
     .argument("<taskId>", "Task ID")
     .action(async (taskId, options, cmd) => {
@@ -19,15 +19,21 @@ export function contextCommand(program: Command) {
           .select<{
             task_id: string;
             title: string;
-            domain: string | null;
-            skill: string | null;
             change_type: string | null;
+            plan_id: string;
+            suggested_changes: string | null;
           }>("task", {
-            columns: ["task_id", "title", "domain", "skill", "change_type"],
+            columns: [
+              "task_id",
+              "title",
+              "change_type",
+              "plan_id",
+              "suggested_changes",
+            ],
             where: { task_id: taskId },
           })
-          .andThen((rows) => {
-            if (rows.length === 0) {
+          .andThen((taskRows) => {
+            if (taskRows.length === 0) {
               return errAsync(
                 buildError(
                   ErrorCode.TASK_NOT_FOUND,
@@ -35,29 +41,68 @@ export function contextCommand(program: Command) {
                 ),
               );
             }
-            const task = rows[0];
-            const domain = task.domain ?? null;
-            const skill = task.skill ?? null;
-            const domainDoc = domain ? `docs/${domain}.md` : null;
-            const skillDoc = skill ? `docs/skills/${skill}.md` : null;
+            const task = taskRows[0];
+            return q
+              .select<{ file_tree: string | null; risks: string | null }>(
+                "plan",
+                {
+                  columns: ["file_tree", "risks"],
+                  where: { plan_id: task.plan_id },
+                },
+              )
+              .andThen((planRows) => {
+                const plan = planRows[0];
+                const file_tree = plan?.file_tree ?? null;
+                let risks: unknown = null;
+                if (plan?.risks != null && typeof plan.risks === "string") {
+                  try {
+                    risks = JSON.parse(plan.risks);
+                  } catch {
+                    risks = null;
+                  }
+                }
+                return q
+                  .select<{ domain: string }>("task_domain", {
+                    columns: ["domain"],
+                    where: { task_id: taskId },
+                  })
+                  .andThen((domainRows) =>
+                    q
+                      .select<{ skill: string }>("task_skill", {
+                        columns: ["skill"],
+                        where: { task_id: taskId },
+                      })
+                      .map((skillRows) => ({
+                        task,
+                        file_tree,
+                        risks,
+                        domains: domainRows.map((r) => r.domain),
+                        skills: skillRows.map((r) => r.skill),
+                      })),
+                  );
+              });
+          })
+          .andThen(({ task, file_tree, risks, domains, skills }) => {
+            const domain_docs = domains.map((d) => `docs/${d}.md`);
+            const skill_docs = skills.map((s) => `docs/skills/${s}.md`);
 
-            const domainTasksSql =
-              domain != null
-                ? `SELECT task_id, title, plan_id FROM \`task\` WHERE \`domain\` = '${sqlEscape(domain)}' AND status = 'done' AND task_id != '${sqlEscape(taskId)}' ORDER BY updated_at DESC LIMIT 5`
+            const relatedByDomainSql =
+              domains.length > 0
+                ? `SELECT DISTINCT t.task_id, t.title, t.plan_id FROM \`task\` t JOIN \`task_domain\` td ON t.task_id = td.task_id WHERE t.status = 'done' AND t.task_id != '${sqlEscape(taskId)}' AND td.domain IN (${domains.map((d) => `'${sqlEscape(d)}'`).join(",")}) ORDER BY t.updated_at DESC LIMIT 5`
                 : null;
-            const skillTasksSql =
-              skill != null
-                ? `SELECT task_id, title, plan_id FROM \`task\` WHERE \`skill\` = '${sqlEscape(skill)}' AND status = 'done' AND task_id != '${sqlEscape(taskId)}' ORDER BY updated_at DESC LIMIT 5`
+            const relatedBySkillSql =
+              skills.length > 0
+                ? `SELECT DISTINCT t.task_id, t.title, t.plan_id FROM \`task\` t JOIN \`task_skill\` ts ON t.task_id = ts.task_id WHERE t.status = 'done' AND t.task_id != '${sqlEscape(taskId)}' AND ts.skill IN (${skills.map((s) => `'${sqlEscape(s)}'`).join(",")}) ORDER BY t.updated_at DESC LIMIT 5`
                 : null;
 
-            const runDomain = domainTasksSql
+            const runDomain = relatedByDomainSql
               ? q.raw<{ task_id: string; title: string; plan_id: string }>(
-                  domainTasksSql,
+                  relatedByDomainSql,
                 )
               : ResultAsync.fromSafePromise(Promise.resolve([]));
-            const runSkill = skillTasksSql
+            const runSkill = relatedBySkillSql
               ? q.raw<{ task_id: string; title: string; plan_id: string }>(
-                  skillTasksSql,
+                  relatedBySkillSql,
                 )
               : ResultAsync.fromSafePromise(Promise.resolve([]));
 
@@ -65,11 +110,14 @@ export function contextCommand(program: Command) {
               runSkill.map((relatedBySkill) => ({
                 task_id: task.task_id,
                 title: task.title,
-                domain,
-                skill,
+                domains,
+                skills,
                 change_type: task.change_type ?? null,
-                domain_doc: domainDoc,
-                skill_doc: skillDoc,
+                suggested_changes: task.suggested_changes ?? null,
+                file_tree,
+                risks,
+                domain_docs,
+                skill_docs,
                 related_done_by_domain: relatedByDomain,
                 related_done_by_skill: relatedBySkill,
               })),
@@ -82,11 +130,14 @@ export function contextCommand(program: Command) {
           const d = data as {
             task_id: string;
             title: string;
-            domain: string | null;
-            skill: string | null;
+            domains: string[];
+            skills: string[];
             change_type: string | null;
-            domain_doc: string | null;
-            skill_doc: string | null;
+            suggested_changes: string | null;
+            file_tree: string | null;
+            risks: unknown;
+            domain_docs: string[];
+            skill_docs: string[];
             related_done_by_domain: Array<{
               task_id: string;
               title: string;
@@ -104,8 +155,29 @@ export function contextCommand(program: Command) {
           }
           console.log(`Task: ${d.title} (${d.task_id})`);
           if (d.change_type) console.log(`Change type: ${d.change_type}`);
-          if (d.domain_doc) console.log(`Domain doc: ${d.domain_doc}`);
-          if (d.skill_doc) console.log(`Skill guide: ${d.skill_doc}`);
+          d.domain_docs.forEach((doc) => console.log(`Domain doc: ${doc}`));
+          d.skill_docs.forEach((doc) => console.log(`Skill guide: ${doc}`));
+          if (d.suggested_changes) {
+            console.log(`Suggested changes:`);
+            console.log(d.suggested_changes);
+          }
+          if (d.file_tree) {
+            console.log(`Plan file tree:`);
+            console.log(d.file_tree);
+          }
+          if (d.risks != null && Array.isArray(d.risks) && d.risks.length > 0) {
+            console.log(`Plan risks:`);
+            d.risks.forEach(
+              (r: {
+                description?: string;
+                severity?: string;
+                mitigation?: string;
+              }) =>
+                console.log(
+                  `  - ${r.severity ?? "?"}: ${r.description ?? ""} (${r.mitigation ?? ""})`,
+                ),
+            );
+          }
           if (d.related_done_by_domain.length > 0) {
             console.log(`Related done (same domain):`);
             d.related_done_by_domain.forEach((t) =>

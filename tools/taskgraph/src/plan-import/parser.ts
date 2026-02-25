@@ -12,10 +12,10 @@ export interface ParsedTask {
   acceptance: string[];
   /** Mapped from Cursor todo status: completed→done, pending/other→todo */
   status?: "todo" | "done";
-  /** Maps to docs/<domain>.md */
-  domain?: string;
-  /** Maps to docs/skills/<skill>.md */
-  skill?: string;
+  /** Maps to docs/<domain>.md; multiple allowed. */
+  domains?: string[];
+  /** Maps to docs/skills/<skill>.md; multiple allowed. */
+  skills?: string[];
   /** How to approach the work: create, modify, refactor, fix, investigate, test, document */
   changeType?:
     | "create"
@@ -25,12 +25,28 @@ export interface ParsedTask {
     | "investigate"
     | "test"
     | "document";
+  /** Detailed intent; maps to task.intent */
+  intent?: string;
+  /** Suggested code changes; maps to task.suggested_changes */
+  suggestedChanges?: string;
 }
 
 export interface ParsedPlan {
   planTitle: string | null;
   planIntent: string | null;
   tasks: ParsedTask[];
+  /** File tree (rich planning); maps to plan.file_tree */
+  fileTree?: string | null;
+  /** Risks array (rich planning); maps to plan.risks */
+  risks?: Array<{
+    description: string;
+    severity: string;
+    mitigation: string;
+  }> | null;
+  /** Tests to create (rich planning); maps to plan.tests */
+  tests?: string[] | null;
+  /** Markdown body below frontmatter (for display/export) */
+  body?: string | null;
 }
 
 const CHANGE_TYPES = [
@@ -89,10 +105,20 @@ export function parsePlanMarkdown(
         currentTask.area = trimmedLine.substring("AREA:".length).trim();
         inAcceptanceBlock = false;
       } else if (currentTask && trimmedLine.startsWith("DOMAIN:")) {
-        currentTask.domain = trimmedLine.substring("DOMAIN:".length).trim();
+        const parts = trimmedLine
+          .substring("DOMAIN:".length)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        currentTask.domains = [...(currentTask.domains || []), ...parts];
         inAcceptanceBlock = false;
       } else if (currentTask && trimmedLine.startsWith("SKILL:")) {
-        currentTask.skill = trimmedLine.substring("SKILL:".length).trim();
+        const parts = trimmedLine
+          .substring("SKILL:".length)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        currentTask.skills = [...(currentTask.skills || []), ...parts];
         inAcceptanceBlock = false;
       } else if (currentTask && trimmedLine.startsWith("CHANGE_TYPE:")) {
         const val = trimmedLine.substring("CHANGE_TYPE:".length).trim();
@@ -143,15 +169,43 @@ interface CursorTodo {
   content: string;
   status?: string;
   blockedBy?: string[];
-  domain?: string;
-  skill?: string;
+  domain?: string | string[];
+  skill?: string | string[];
   changeType?: string;
+  intent?: string;
+  suggestedChanges?: string;
 }
 
 interface CursorFrontmatter {
   name?: string;
   overview?: string;
   todos?: CursorTodo[];
+  fileTree?: string;
+  risks?: Array<{
+    description?: string;
+    severity?: string;
+    mitigation?: string;
+  }>;
+  tests?: string[];
+}
+
+/** Normalize risks from frontmatter to { description, severity, mitigation }[]. */
+function normalizeRisks(raw: CursorFrontmatter["risks"]): ParsedPlan["risks"] {
+  if (!raw || !Array.isArray(raw)) return null;
+  return raw
+    .filter(
+      (r): r is { description: string; severity: string; mitigation: string } =>
+        r != null &&
+        typeof r === "object" &&
+        typeof (r as { description?: unknown }).description === "string" &&
+        typeof (r as { severity?: unknown }).severity === "string" &&
+        typeof (r as { mitigation?: unknown }).mitigation === "string",
+    )
+    .map((r) => ({
+      description: r.description,
+      severity: r.severity,
+      mitigation: r.mitigation,
+    }));
 }
 
 /** Parses a Cursor Plan file (YAML frontmatter with todos). */
@@ -169,6 +223,8 @@ export function parseCursorPlan(
         ),
       );
     }
+
+    const body = content.slice(frontmatterMatch[0].length).trim() || null;
 
     const parsed = yaml.load(frontmatterMatch[1]) as CursorFrontmatter | null;
     if (!parsed || typeof parsed !== "object") {
@@ -205,22 +261,56 @@ export function parseCursorPlan(
           t.changeType != null && isChangeType(t.changeType)
             ? t.changeType
             : undefined;
+        const domains =
+          t.domain === undefined
+            ? undefined
+            : Array.isArray(t.domain)
+              ? t.domain.filter((x): x is string => typeof x === "string")
+              : typeof t.domain === "string"
+                ? [t.domain]
+                : undefined;
+        const skills =
+          t.skill === undefined
+            ? undefined
+            : Array.isArray(t.skill)
+              ? t.skill.filter((x): x is string => typeof x === "string")
+              : typeof t.skill === "string"
+                ? [t.skill]
+                : undefined;
         return {
           stableKey: t.id,
           title: t.content,
           blockedBy: Array.isArray(t.blockedBy) ? t.blockedBy : [],
           acceptance: [],
           status,
-          domain: typeof t.domain === "string" ? t.domain : undefined,
-          skill: typeof t.skill === "string" ? t.skill : undefined,
+          domains: domains?.length ? domains : undefined,
+          skills: skills?.length ? skills : undefined,
           changeType,
+          intent: typeof t.intent === "string" ? t.intent : undefined,
+          suggestedChanges:
+            typeof t.suggestedChanges === "string"
+              ? t.suggestedChanges
+              : undefined,
         };
       });
+
+    const fileTree =
+      typeof parsed.fileTree === "string" ? parsed.fileTree : null;
+    const risks = normalizeRisks(parsed.risks);
+    const tests =
+      Array.isArray(parsed.tests) &&
+      parsed.tests.every((x) => typeof x === "string")
+        ? parsed.tests
+        : null;
 
     return ok({
       planTitle: parsed.name ?? null,
       planIntent: parsed.overview ?? null,
       tasks,
+      fileTree: fileTree ?? undefined,
+      risks: risks ?? undefined,
+      tests: tests ?? undefined,
+      body: body ?? undefined,
     });
   } catch (e) {
     return err(

@@ -73,6 +73,9 @@ function initCommand(program) {
         (e) => (0, errors_1.buildError)(errors_1.ErrorCode.DB_QUERY_FAILED, "Failed to initialize Dolt repository", e))
             .andThen(() => (0, migrate_1.applyMigrations)(doltRepoPath, options.noCommit))
             .andThen(() => (0, migrate_1.applyTaskDimensionsMigration)(doltRepoPath, options.noCommit))
+            .andThen(() => (0, migrate_1.applyPlanRichFieldsMigration)(doltRepoPath, options.noCommit))
+            .andThen(() => (0, migrate_1.applyTaskSuggestedChangesMigration)(doltRepoPath, options.noCommit))
+            .andThen(() => (0, migrate_1.applyTaskDomainSkillJunctionMigration)(doltRepoPath, options.noCommit))
             .andThen(() => {
             const config = {
                 doltRepoPath: doltRepoPath,

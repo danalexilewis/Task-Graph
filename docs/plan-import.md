@@ -38,6 +38,8 @@ isProject: false
 | `content` | Task title |
 | `status` | `pending` → todo, `completed` → done |
 | `blockedBy` | Array of todo `id`s that block this task |
+| `domain` | Single domain slug or array of slugs → `docs/<domain>.md` (stored in `task_domain`) |
+| `skill` | Single skill slug or array of slugs → `docs/skills/<skill>.md` (stored in `task_skill`) |
 
 ## Legacy Format (Markdown Conventions)
 
@@ -73,6 +75,12 @@ Tasks are defined using specific keywords. Each task block starts with `TASK:` a
 
 -   **Blocked By**: `BLOCKED_BY: <stable-key>, <stable-key>, ...`
     -   A comma-separated list of `stable-key`s of other tasks that *this* task is blocked by. These will be translated into `blocks` edges in the database.
+
+-   **Domain**: `DOMAIN: <domain>` or multiple `DOMAIN:` lines (or comma-separated values).
+    -   Knowledge area(s) → `docs/<domain>.md`. Stored in `task_domain`.
+
+-   **Skill**: `SKILL: <skill>` or multiple `SKILL:` lines (or comma-separated values).
+    -   Technique(s) → `docs/skills/<skill>.md`. Stored in `task_skill`.
 
 -   **Acceptance Criteria**: `ACCEPTANCE:` followed by a bulleted list.
     -   Lists the conditions that must be met for the task to be considered complete.

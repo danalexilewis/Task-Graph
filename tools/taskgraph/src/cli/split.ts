@@ -50,6 +50,21 @@ export function splitCommand(program: Command) {
             }
             const originalTask = originalTasks[0];
 
+            const originalDomainsResult = await q.select<{ domain: string }>(
+              "task_domain",
+              { columns: ["domain"], where: { task_id: taskId } },
+            );
+            const originalSkillsResult = await q.select<{ skill: string }>(
+              "task_skill",
+              { columns: ["skill"], where: { task_id: taskId } },
+            );
+            const originalDomains = originalDomainsResult.isOk()
+              ? originalDomainsResult.value
+              : [];
+            const originalSkills = originalSkillsResult.isOk()
+              ? originalSkillsResult.value
+              : [];
+
             const newTitles = options.into
               .split("|")
               .map((s: string) => s.trim());
@@ -75,9 +90,8 @@ export function splitCommand(program: Command) {
                 created_at: currentTimestamp,
                 updated_at: currentTimestamp,
                 external_key: null,
-                domain: originalTask.domain ?? null,
-                skill: originalTask.skill ?? null,
                 change_type: originalTask.change_type ?? null,
+                suggested_changes: originalTask.suggested_changes ?? null,
               };
               newTasks.push(newTask);
               taskMappings.push({ original: taskId, new: newTaskId });
@@ -100,9 +114,9 @@ export function splitCommand(program: Command) {
                 estimate_mins: newTask.estimate_mins ?? null,
                 created_at: newTask.created_at,
                 updated_at: newTask.updated_at,
-                domain: newTask.domain ?? null,
-                skill: newTask.skill ?? null,
+                external_key: newTask.external_key ?? null,
                 change_type: newTask.change_type ?? null,
+                suggested_changes: newTask.suggested_changes ?? null,
               });
               if (insertTaskResult.isErr())
                 throw buildError(
@@ -124,6 +138,21 @@ export function splitCommand(program: Command) {
                   "Failed to insert new task event",
                   insertNewTaskEventResult.error,
                 );
+
+              for (const { domain } of originalDomains) {
+                const dr = await q.insert("task_domain", {
+                  task_id: newTask.task_id,
+                  domain,
+                });
+                if (dr.isErr()) throw dr.error;
+              }
+              for (const { skill } of originalSkills) {
+                const sr = await q.insert("task_skill", {
+                  task_id: newTask.task_id,
+                  skill,
+                });
+                if (sr.isErr()) throw sr.error;
+              }
 
               let fromId = taskId;
               let toId = newTask.task_id;

@@ -42,10 +42,10 @@ export function statusCommand(program: Command) {
         }
         const dimFilter =
           (options.domain
-            ? ` AND t.\`domain\` = '${sqlEscape(options.domain)}'`
+            ? ` AND EXISTS (SELECT 1 FROM \`task_domain\` td WHERE td.task_id = t.task_id AND td.domain = '${sqlEscape(options.domain)}')`
             : "") +
           (options.skill
-            ? ` AND t.\`skill\` = '${sqlEscape(options.skill)}'`
+            ? ` AND EXISTS (SELECT 1 FROM \`task_skill\` ts WHERE ts.task_id = t.task_id AND ts.skill = '${sqlEscape(options.skill)}')`
             : "") +
           (options.changeType
             ? ` AND t.\`change_type\` = '${sqlEscape(options.changeType)}'`

@@ -9,9 +9,18 @@ const fs_1 = require("fs");
 const js_yaml_1 = __importDefault(require("js-yaml"));
 const neverthrow_1 = require("neverthrow");
 const errors_1 = require("../domain/errors");
-const CHANGE_TYPES = ["create", "modify", "refactor", "fix", "investigate", "test", "document"];
+const CHANGE_TYPES = [
+    "create",
+    "modify",
+    "refactor",
+    "fix",
+    "investigate",
+    "test",
+    "document",
+];
 function isChangeType(s) {
-    return typeof s === "string" && CHANGE_TYPES.includes(s);
+    return (typeof s === "string" &&
+        CHANGE_TYPES.includes(s));
 }
 function parsePlanMarkdown(filePath) {
     try {
@@ -54,11 +63,21 @@ function parsePlanMarkdown(filePath) {
                 inAcceptanceBlock = false;
             }
             else if (currentTask && trimmedLine.startsWith("DOMAIN:")) {
-                currentTask.domain = trimmedLine.substring("DOMAIN:".length).trim();
+                const parts = trimmedLine
+                    .substring("DOMAIN:".length)
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                currentTask.domains = [...(currentTask.domains || []), ...parts];
                 inAcceptanceBlock = false;
             }
             else if (currentTask && trimmedLine.startsWith("SKILL:")) {
-                currentTask.skill = trimmedLine.substring("SKILL:".length).trim();
+                const parts = trimmedLine
+                    .substring("SKILL:".length)
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                currentTask.skills = [...(currentTask.skills || []), ...parts];
                 inAcceptanceBlock = false;
             }
             else if (currentTask && trimmedLine.startsWith("CHANGE_TYPE:")) {
@@ -100,6 +119,22 @@ function parsePlanMarkdown(filePath) {
         return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.FILE_READ_FAILED, `Failed to read or parse markdown file at ${filePath}`, e));
     }
 }
+/** Normalize risks from frontmatter to { description, severity, mitigation }[]. */
+function normalizeRisks(raw) {
+    if (!raw || !Array.isArray(raw))
+        return null;
+    return raw
+        .filter((r) => r != null &&
+        typeof r === "object" &&
+        typeof r.description === "string" &&
+        typeof r.severity === "string" &&
+        typeof r.mitigation === "string")
+        .map((r) => ({
+        description: r.description,
+        severity: r.severity,
+        mitigation: r.mitigation,
+    }));
+}
 /** Parses a Cursor Plan file (YAML frontmatter with todos). */
 function parseCursorPlan(filePath) {
     try {
@@ -108,6 +143,7 @@ function parseCursorPlan(filePath) {
         if (!frontmatterMatch) {
             return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.FILE_READ_FAILED, `File ${filePath} does not have YAML frontmatter (--- ... ---)`));
         }
+        const body = content.slice(frontmatterMatch[0].length).trim() || null;
         const parsed = js_yaml_1.default.load(frontmatterMatch[1]);
         if (!parsed || typeof parsed !== "object") {
             return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.FILE_READ_FAILED, `Invalid YAML frontmatter in ${filePath}`));
@@ -117,25 +153,58 @@ function parseCursorPlan(filePath) {
             return (0, neverthrow_1.err)((0, errors_1.buildError)(errors_1.ErrorCode.FILE_READ_FAILED, `Expected 'todos' to be an array in ${filePath}`));
         }
         const tasks = todos
-            .filter((t) => t != null && typeof t === "object" && typeof t.id === "string" && typeof t.content === "string")
+            .filter((t) => t != null &&
+            typeof t === "object" &&
+            typeof t.id === "string" &&
+            typeof t.content === "string")
             .map((t) => {
             const status = t.status === "completed" ? "done" : "todo";
-            const changeType = t.changeType != null && isChangeType(t.changeType) ? t.changeType : undefined;
+            const changeType = t.changeType != null && isChangeType(t.changeType)
+                ? t.changeType
+                : undefined;
+            const domains = t.domain === undefined
+                ? undefined
+                : Array.isArray(t.domain)
+                    ? t.domain.filter((x) => typeof x === "string")
+                    : typeof t.domain === "string"
+                        ? [t.domain]
+                        : undefined;
+            const skills = t.skill === undefined
+                ? undefined
+                : Array.isArray(t.skill)
+                    ? t.skill.filter((x) => typeof x === "string")
+                    : typeof t.skill === "string"
+                        ? [t.skill]
+                        : undefined;
             return {
                 stableKey: t.id,
                 title: t.content,
                 blockedBy: Array.isArray(t.blockedBy) ? t.blockedBy : [],
                 acceptance: [],
                 status,
-                domain: typeof t.domain === "string" ? t.domain : undefined,
-                skill: typeof t.skill === "string" ? t.skill : undefined,
+                domains: domains?.length ? domains : undefined,
+                skills: skills?.length ? skills : undefined,
                 changeType,
+                intent: typeof t.intent === "string" ? t.intent : undefined,
+                suggestedChanges: typeof t.suggestedChanges === "string"
+                    ? t.suggestedChanges
+                    : undefined,
             };
         });
+        const fileTree = typeof parsed.fileTree === "string" ? parsed.fileTree : null;
+        const risks = normalizeRisks(parsed.risks);
+        const tests = Array.isArray(parsed.tests) &&
+            parsed.tests.every((x) => typeof x === "string")
+            ? parsed.tests
+            : null;
         return (0, neverthrow_1.ok)({
             planTitle: parsed.name ?? null,
             planIntent: parsed.overview ?? null,
             tasks,
+            fileTree: fileTree ?? undefined,
+            risks: risks ?? undefined,
+            tests: tests ?? undefined,
+            body: body ?? undefined,
         });
     }
     catch (e) {

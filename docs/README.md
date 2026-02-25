@@ -34,6 +34,7 @@ For more detailed information, refer to the following documentation sections:
 
 -   [Architecture](architecture.md)
 -   [Dolt Schema](schema.md)
+-   [Skill guides](skills/README.md) — taskgraph-lifecycle-execution, dolt-schema-migration, cli-command-implementation, and more
 -   [CLI Reference](cli-reference.md)
 -   [Error Handling](error-handling.md)
 -   [Testing](testing.md)

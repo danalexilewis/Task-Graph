@@ -22,6 +22,37 @@ function taskColumnExists(
   return doltSql(q, repoPath).map((rows) => rows.length > 0);
 }
 
+/** Returns true if the plan table has the given column. */
+function planColumnExists(
+  repoPath: string,
+  columnName: string,
+): ResultAsync<boolean, AppError> {
+  const q = `SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'plan' AND COLUMN_NAME = '${columnName}' LIMIT 1`;
+  return doltSql(q, repoPath).map((rows) => rows.length > 0);
+}
+
+/** Add file_tree, risks, tests columns to plan table if missing (idempotent). */
+export function applyPlanRichFieldsMigration(
+  repoPath: string,
+  noCommit: boolean = false,
+): ResultAsync<void, AppError> {
+  return planColumnExists(repoPath, "file_tree").andThen((hasFileTree) => {
+    if (hasFileTree) return ResultAsync.fromSafePromise(Promise.resolve());
+    const alter =
+      "ALTER TABLE `plan` ADD COLUMN `file_tree` TEXT NULL, ADD COLUMN `risks` JSON NULL, ADD COLUMN `tests` JSON NULL";
+    return doltSql(alter, repoPath)
+      .map(() => undefined)
+      .andThen(() =>
+        doltCommit(
+          "db: add plan rich fields (file_tree, risks, tests)",
+          repoPath,
+          noCommit,
+        ),
+      )
+      .map(() => undefined);
+  });
+}
+
 /** Add domain, skill, change_type columns to task table if missing (idempotent). */
 export function applyTaskDimensionsMigration(
   repoPath: string,
@@ -36,6 +67,83 @@ export function applyTaskDimensionsMigration(
       .andThen(() =>
         doltCommit(
           "db: add task dimensions (domain, skill, change_type)",
+          repoPath,
+          noCommit,
+        ),
+      )
+      .map(() => undefined);
+  });
+}
+
+/** Add suggested_changes column to task table if missing (idempotent). */
+export function applyTaskSuggestedChangesMigration(
+  repoPath: string,
+  noCommit: boolean = false,
+): ResultAsync<void, AppError> {
+  return taskColumnExists(repoPath, "suggested_changes").andThen((hasCol) => {
+    if (hasCol) return ResultAsync.fromSafePromise(Promise.resolve());
+    const alter = "ALTER TABLE `task` ADD COLUMN `suggested_changes` TEXT NULL";
+    return doltSql(alter, repoPath)
+      .map(() => undefined)
+      .andThen(() =>
+        doltCommit("db: add task suggested_changes column", repoPath, noCommit),
+      )
+      .map(() => undefined);
+  });
+}
+
+/** Returns true if the table exists. */
+function tableExists(
+  repoPath: string,
+  tableName: string,
+): ResultAsync<boolean, AppError> {
+  const q = `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${tableName}' LIMIT 1`;
+  return doltSql(q, repoPath).map((rows) => rows.length > 0);
+}
+
+/** Replace task.domain/task.skill with task_domain and task_skill junction tables; migrate data and drop columns. */
+export function applyTaskDomainSkillJunctionMigration(
+  repoPath: string,
+  noCommit: boolean = false,
+): ResultAsync<void, AppError> {
+  return tableExists(repoPath, "task_domain").andThen((exists) => {
+    if (exists) return ResultAsync.fromSafePromise(Promise.resolve());
+    return doltSql(
+      `CREATE TABLE \`task_domain\` (task_id CHAR(36) NOT NULL, domain VARCHAR(64) NOT NULL, PRIMARY KEY (task_id, domain), FOREIGN KEY (task_id) REFERENCES \`task\`(task_id))`,
+      repoPath,
+    )
+      .andThen(() =>
+        doltSql(
+          `CREATE TABLE \`task_skill\` (task_id CHAR(36) NOT NULL, skill VARCHAR(64) NOT NULL, PRIMARY KEY (task_id, skill), FOREIGN KEY (task_id) REFERENCES \`task\`(task_id))`,
+          repoPath,
+        ),
+      )
+      .andThen(() =>
+        taskColumnExists(repoPath, "domain").andThen((hasDomain) => {
+          if (!hasDomain) return ResultAsync.fromSafePromise(Promise.resolve());
+          return doltSql(
+            "INSERT INTO `task_domain` (task_id, domain) SELECT task_id, domain FROM `task` WHERE domain IS NOT NULL",
+            repoPath,
+          ).andThen(() =>
+            doltSql(
+              "INSERT INTO `task_skill` (task_id, skill) SELECT task_id, skill FROM `task` WHERE skill IS NOT NULL",
+              repoPath,
+            ),
+          );
+        }),
+      )
+      .andThen(() =>
+        taskColumnExists(repoPath, "domain").andThen((hasDomain) => {
+          if (!hasDomain) return ResultAsync.fromSafePromise(Promise.resolve());
+          return doltSql(
+            "ALTER TABLE `task` DROP COLUMN `domain`, DROP COLUMN `skill`",
+            repoPath,
+          );
+        }),
+      )
+      .andThen(() =>
+        doltCommit(
+          "db: task_domain/task_skill junction tables; drop task.domain/task.skill",
           repoPath,
           noCommit,
         ),

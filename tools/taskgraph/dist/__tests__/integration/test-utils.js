@@ -58,9 +58,12 @@ async function setupIntegrationTest() {
     });
     // Write config
     (0, utils_1.writeConfig)({ doltRepoPath: doltRepoPath }, tempDir)._unsafeUnwrap(); // Corrected signature
-    // Apply migrations and task dimensions (domain, skill, change_type)
+    // Apply all migrations so test schema matches production
     (await (0, migrate_1.applyMigrations)(doltRepoPath))._unsafeUnwrap();
     (await (0, migrate_1.applyTaskDimensionsMigration)(doltRepoPath))._unsafeUnwrap();
+    (await (0, migrate_1.applyTaskDomainSkillJunctionMigration)(doltRepoPath))._unsafeUnwrap();
+    (await (0, migrate_1.applyPlanRichFieldsMigration)(doltRepoPath))._unsafeUnwrap();
+    (await (0, migrate_1.applyTaskSuggestedChangesMigration)(doltRepoPath))._unsafeUnwrap();
     return { tempDir, doltRepoPath, cliPath };
 }
 function teardownIntegrationTest(tempDir) {

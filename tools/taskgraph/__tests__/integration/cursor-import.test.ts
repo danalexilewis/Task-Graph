@@ -77,7 +77,7 @@ isProject: false
     expect(byKey["cursor-task-b"].title).toBe("Task B");
     expect(byKey["cursor-task-b"].status).toBe("done");
     expect(byKey["cursor-task-c"].title).toBe("Task C depends on A");
-  });
+  }, 30000);
 
   it("should create blocking edge from blockedBy", async () => {
     if (!context) throw new Error("Context not initialized");

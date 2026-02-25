@@ -5,6 +5,9 @@ import { execa, ExecaError } from "execa";
 import {
   applyMigrations,
   applyTaskDimensionsMigration,
+  applyTaskDomainSkillJunctionMigration,
+  applyPlanRichFieldsMigration,
+  applyTaskSuggestedChangesMigration,
 } from "../../src/db/migrate";
 import { writeConfig } from "../../src/cli/utils";
 import { Config } from "../../src/cli/utils";
@@ -36,9 +39,12 @@ export async function setupIntegrationTest(): Promise<IntegrationTestContext> {
   // Write config
   writeConfig({ doltRepoPath: doltRepoPath }, tempDir)._unsafeUnwrap(); // Corrected signature
 
-  // Apply migrations and task dimensions (domain, skill, change_type)
+  // Apply all migrations so test schema matches production
   (await applyMigrations(doltRepoPath))._unsafeUnwrap();
   (await applyTaskDimensionsMigration(doltRepoPath))._unsafeUnwrap();
+  (await applyTaskDomainSkillJunctionMigration(doltRepoPath))._unsafeUnwrap();
+  (await applyPlanRichFieldsMigration(doltRepoPath))._unsafeUnwrap();
+  (await applyTaskSuggestedChangesMigration(doltRepoPath))._unsafeUnwrap();
 
   return { tempDir, doltRepoPath, cliPath };
 }

@@ -22,7 +22,9 @@ function splitCommand(program) {
             const currentTimestamp = (0, query_1.now)();
             return neverthrow_1.ResultAsync.fromPromise((async () => {
                 const q = (0, query_1.query)(config.doltRepoPath);
-                const originalTaskQueryResult = await q.select("task", { where: { task_id: taskId } });
+                const originalTaskQueryResult = await q.select("task", {
+                    where: { task_id: taskId },
+                });
                 if (originalTaskQueryResult.isErr())
                     throw originalTaskQueryResult.error;
                 const originalTasks = originalTaskQueryResult.value;
@@ -30,6 +32,14 @@ function splitCommand(program) {
                     throw (0, errors_1.buildError)(errors_1.ErrorCode.TASK_NOT_FOUND, `Task with ID ${taskId} not found.`);
                 }
                 const originalTask = originalTasks[0];
+                const originalDomainsResult = await q.select("task_domain", { columns: ["domain"], where: { task_id: taskId } });
+                const originalSkillsResult = await q.select("task_skill", { columns: ["skill"], where: { task_id: taskId } });
+                const originalDomains = originalDomainsResult.isOk()
+                    ? originalDomainsResult.value
+                    : [];
+                const originalSkills = originalSkillsResult.isOk()
+                    ? originalSkillsResult.value
+                    : [];
                 const newTitles = options.into
                     .split("|")
                     .map((s) => s.trim());
@@ -54,9 +64,8 @@ function splitCommand(program) {
                         created_at: currentTimestamp,
                         updated_at: currentTimestamp,
                         external_key: null,
-                        domain: originalTask.domain ?? null,
-                        skill: originalTask.skill ?? null,
                         change_type: originalTask.change_type ?? null,
+                        suggested_changes: originalTask.suggested_changes ?? null,
                     };
                     newTasks.push(newTask);
                     taskMappings.push({ original: taskId, new: newTaskId });
@@ -68,7 +77,9 @@ function splitCommand(program) {
                         intent: newTask.intent ?? null,
                         scope_in: newTask.scope_in ?? null,
                         scope_out: newTask.scope_out ?? null,
-                        acceptance: newTask.acceptance ? (0, query_1.jsonObj)({ val: JSON.stringify(newTask.acceptance) }) : null,
+                        acceptance: newTask.acceptance
+                            ? (0, query_1.jsonObj)({ val: JSON.stringify(newTask.acceptance) })
+                            : null,
                         status: newTask.status,
                         owner: newTask.owner,
                         area: newTask.area ?? null,
@@ -76,9 +87,9 @@ function splitCommand(program) {
                         estimate_mins: newTask.estimate_mins ?? null,
                         created_at: newTask.created_at,
                         updated_at: newTask.updated_at,
-                        domain: newTask.domain ?? null,
-                        skill: newTask.skill ?? null,
+                        external_key: newTask.external_key ?? null,
                         change_type: newTask.change_type ?? null,
+                        suggested_changes: newTask.suggested_changes ?? null,
                     });
                     if (insertTaskResult.isErr())
                         throw (0, errors_1.buildError)(errors_1.ErrorCode.DB_QUERY_FAILED, "Failed to insert new task", insertTaskResult.error);
@@ -91,6 +102,22 @@ function splitCommand(program) {
                     });
                     if (insertNewTaskEventResult.isErr())
                         throw (0, errors_1.buildError)(errors_1.ErrorCode.DB_QUERY_FAILED, "Failed to insert new task event", insertNewTaskEventResult.error);
+                    for (const { domain } of originalDomains) {
+                        const dr = await q.insert("task_domain", {
+                            task_id: newTask.task_id,
+                            domain,
+                        });
+                        if (dr.isErr())
+                            throw dr.error;
+                    }
+                    for (const { skill } of originalSkills) {
+                        const sr = await q.insert("task_skill", {
+                            task_id: newTask.task_id,
+                            skill,
+                        });
+                        if (sr.isErr())
+                            throw sr.error;
+                    }
                     let fromId = taskId;
                     let toId = newTask.task_id;
                     if (options.linkDirection === "new-to-original") {
@@ -116,7 +143,10 @@ function splitCommand(program) {
                     task_id: taskId,
                     kind: "split",
                     body: (0, query_1.jsonObj)({
-                        newTasks: newTasks.map((t) => ({ id: t.task_id, title: t.title })),
+                        newTasks: newTasks.map((t) => ({
+                            id: t.task_id,
+                            title: t.title,
+                        })),
                         taskMappings,
                     }),
                     created_at: currentTimestamp,
