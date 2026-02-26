@@ -6,6 +6,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Export output (tg export markdown writes here by default)
+exports/
+
 # Test & coverage
 coverage/
 

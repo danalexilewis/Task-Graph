@@ -58,10 +58,10 @@ When executing N tasks in sequence, complete the full start→work→done cycle 
 After marking the last task in a plan as done, run:
 
 ```bash
-pnpm tg export markdown --plan <planId> --out plans/<date>_<name>.md
+pnpm tg export markdown --plan <planId>
 ```
 
-Use a filename that follows the convention (`yy-mm-dd_the_file_name.md`). This updates the plan file with final statuses, closing the round-trip.
+Export writes to `exports/<planId>.md` by default (gitignored). Plan files in `plans/` are never overwritten by export.
 
 ## Recovery (out-of-sync tasks)
 

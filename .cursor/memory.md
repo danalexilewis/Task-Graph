@@ -62,8 +62,14 @@
 
 - Toggle: `"learningMode": true` in `.taskgraph/config.json`. Orchestrator reads this before running the review protocol.
 
+## Build and on-stop hook
+
+- **Rebuild when src/ changes:** An on-stop hook (`.cursor/hooks/rebuild-if-src-changed.js`) runs at end of turn. If `git status` shows any changes under `src/`, it runs `pnpm build` so `dist/` is not stale for the next session or for integration tests. Rule: we rebuild when changes are detected in src at the end of a session/operation sequence; the hook implements that.
+- New hooks go in `.cursor/hooks/` and are registered in `.cursor/hooks.json`. Use the create-hook skill (`.cursor/skills/create-hook/SKILL.md`) to add or document hooks.
+
 ## tg export markdown
 
-- Export overwrites the plan file with frontmatter (todos + statuses) only; the original fileTree, risks, body, and `<original_prompt>` are not preserved. Restore them manually if the plan file should remain a full artifact.
+- Export writes to **exports/** by default (exports/<planId>.md). It **never** writes into plans/ — writing to plans/ is blocked to avoid overwriting plan files.
+- The exported content is frontmatter-only (todos + statuses); it is not a full round-trip of fileTree, risks, or body. Use exports/ as the destination; keep plan files in plans/ as the source of truth.
 - Review triggers after implementer, explorer, or planner-analyst completes — not after reviewer.
 - Learnings go in each agent's `## Learnings` section, injected as `{{LEARNINGS}}` placeholder. Consolidate into prompt template when >10 entries.

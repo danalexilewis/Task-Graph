@@ -57,7 +57,7 @@ isProject: false
     }
   });
 
-  it("should export markdown in Cursor format", async () => {
+  it("should export markdown to exports/ by default", async () => {
     if (!context) throw new Error("Context not initialized");
     const { exitCode, stdout } = await runTgCli(
       `export markdown --plan ${planId} --no-commit`,
@@ -65,22 +65,29 @@ isProject: false
     );
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("---");
-    expect(stdout).toContain("name: Round Trip Test");
-    expect(stdout).toContain("overview:");
-    expect(stdout).toContain("rt-task-1");
-    expect(stdout).toContain("rt-task-2");
-    expect(stdout).toContain("blockedBy");
+    const exportPath = path.join(context.tempDir, "exports", `${planId}.md`);
+    expect(stdout).toContain(exportPath);
+    expect(fs.existsSync(exportPath)).toBe(true);
+
+    const content = fs.readFileSync(exportPath, "utf-8");
+    expect(content).toContain("---");
+    expect(content).toContain("name: Round Trip Test");
+    expect(content).toContain("overview:");
+    expect(content).toContain("rt-task-1");
+    expect(content).toContain("rt-task-2");
+    expect(content).toContain("blockedBy");
   });
 
   it("should produce valid YAML that parses", async () => {
     if (!context) throw new Error("Context not initialized");
-    const { stdout } = await runTgCli(
+    await runTgCli(
       `export markdown --plan ${planId} --no-commit`,
       context.tempDir,
     );
 
-    const match = stdout.match(/^---\s*\n([\s\S]*?)\n---/);
+    const exportPath = path.join(context.tempDir, "exports", `${planId}.md`);
+    const content = fs.readFileSync(exportPath, "utf-8");
+    const match = content.match(/^---\s*\n([\s\S]*?)\n---/);
     expect(match).not.toBeNull();
     const parsed = yaml.load(match![1]) as Record<string, unknown>;
     expect(parsed.name).toBe("Round Trip Test");
@@ -93,5 +100,17 @@ isProject: false
     expect(todos.find((t) => t.id === "rt-task-2")?.blockedBy).toEqual([
       "rt-task-1",
     ]);
+  });
+
+  it("should reject --out under plans/", async () => {
+    if (!context) throw new Error("Context not initialized");
+    const { exitCode, stderr } = await runTgCli(
+      `export markdown --plan ${planId} --out plans/foo.md --no-commit`,
+      context.tempDir,
+      true,
+    );
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("cannot write to plans/");
   });
 });

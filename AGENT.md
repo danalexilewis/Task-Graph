@@ -47,7 +47,7 @@ Recovery (out-of-sync tasks)
 Plan completion
 
 After marking the last task in a plan as done, run:
-tg export markdown --plan <planId> --out plans/<file>
+tg export markdown --plan <planId>
 This updates the plan file with final statuses.
 
 When blocked

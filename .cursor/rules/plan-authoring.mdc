@@ -22,7 +22,7 @@ Plan filenames MUST include a date prefix so they sort chronologically. Use this
 - **Format**: `yy-mm-dd_the_file_name.md` (e.g. `26-02-26_restructure_src_npm_layout.md`). Two-digit year, then date, then underscore, then the plan slug.
 - **When to set the date**: Use the plan’s creation date or the date the plan was completed (e.g. when running `tg export markdown` after the last task is done).
 - **File name**: Lowercase, words separated by underscores; no spaces or colons (e.g. `multi_agent_centaur`, `fix_failing_tests_properly_4afac574`).
-- **New plans / export**: Use current date when creating; when exporting after completion, write to a path that follows this convention (e.g. `tg export markdown --plan <id> --out plans/26-02-26_my_plan.md`).
+- **New plans / export**: Use current date when creating. Export writes to `exports/<planId>.md` by default; do not write into `plans/` (blocked by CLI).
 
 **Always use the rich planning format** as defined in [docs/plan-format.md](../docs/plan-format.md). Plans are research artifacts: they must carry enough structure and analysis that `tg context` and the executing agent get file trees, risks, tests, and per-task intent/suggested changes.
 

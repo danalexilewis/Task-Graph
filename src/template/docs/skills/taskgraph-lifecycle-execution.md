@@ -26,7 +26,7 @@ Execute tasks from a taskgraph plan with correct status transitions so the graph
 - `tg done` without `tg start` fails: valid transitions are `todo` → `doing` → `done`. Use `tg done --force` only for legitimate out-of-band completion.
 - If the task is `doing` and work is already done: `tg done <taskId> --evidence "completed previously"` (no `--force`).
 - If blocked: `tg block <taskId> --on <blockerId> --reason "..."`. If blocker does not exist, create a task with owner=human, then block.
-- After the last task in a plan, run `tg export markdown --plan <planId> --out plans/<file>` to sync the plan file.
+- After the last task in a plan, run `tg export markdown --plan <planId>`; output goes to `exports/<planId>.md` (plan files in `plans/` are never overwritten).
 
 ## Definition of done
 

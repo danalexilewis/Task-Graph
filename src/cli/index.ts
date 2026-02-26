@@ -16,6 +16,7 @@ import { statusCommand } from "./status";
 import { contextCommand } from "./context";
 import { noteCommand } from "./note";
 import { setupCommand } from "./setup";
+import { crossplanCommand } from "./crossplan";
 import { readConfig, rootOpts } from "./utils";
 import { ensureMigrations } from "../db/migrate";
 import { ErrorCode } from "../domain/errors";
@@ -85,5 +86,6 @@ importCommand(program);
 statusCommand(program);
 noteCommand(program);
 contextCommand(program);
+crossplanCommand(program);
 
 program.parse(process.argv);

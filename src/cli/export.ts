@@ -1,11 +1,12 @@
 import { Command } from "commander";
-import { writeFileSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
+import { resolve, sep, dirname } from "path";
 import { generateMermaidGraph } from "../export/mermaid";
 import { generateDotGraph } from "../export/dot";
 import { generateMarkdown } from "../export/markdown";
 import { readConfig } from "./utils";
 import { ResultAsync } from "neverthrow";
-import { AppError } from "../domain/errors";
+import { AppError, buildError, ErrorCode } from "../domain/errors";
 import { Config } from "./utils";
 
 export function exportCommand(program: Command) {
@@ -86,19 +87,45 @@ function exportDotCommand(): Command {
 function exportMarkdownCommand(): Command {
   return new Command("markdown")
     .description(
-      "Output plan and tasks in Cursor format (for round-trip import)",
+      "Export plan and tasks in Cursor format to exports/ (never overwrites plans/)",
     )
     .requiredOption("--plan <planId>", "Plan ID to export")
-    .option("--out <path>", "Write to file instead of stdout")
+    .option(
+      "--out <path>",
+      "Write to this path (default: exports/<planId>.md). Cannot write into plans/.",
+    )
     .action(async (options, cmd) => {
+      const outPath = options.out
+        ? resolve(process.cwd(), options.out)
+        : resolve(process.cwd(), "exports", `${options.plan}.md`);
+      const plansDir = resolve(process.cwd(), "plans");
+      if (outPath.startsWith(plansDir + sep)) {
+        const err = buildError(
+          ErrorCode.VALIDATION_FAILED,
+          "Export cannot write to plans/; use exports/ or another directory to avoid overwriting plan files.",
+        );
+        console.error(`Error: ${err.message}`);
+        if (cmd.parent?.opts().json) {
+          console.log(
+            JSON.stringify({
+              status: "error",
+              code: err.code,
+              message: err.message,
+            }),
+          );
+          process.exit(1);
+          return;
+        }
+      }
+
       const result = await generateMarkdown(options.plan);
 
       result.match(
         (markdown: string) => {
-          if (options.out) {
-            writeFileSync(options.out, markdown);
-          } else {
-            console.log(markdown);
+          mkdirSync(dirname(outPath), { recursive: true });
+          writeFileSync(outPath, markdown);
+          if (!cmd.parent?.opts().json) {
+            console.log(`Exported to ${outPath}`);
           }
         },
         (error: AppError) => {

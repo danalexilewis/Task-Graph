@@ -5,6 +5,11 @@ alwaysApply: true
 
 # Task-Graph Workflow
 
+## Build and dist
+
+- **Integration tests** run the built CLI from `dist/`. After changing anything under `src/`, run `pnpm build` before `pnpm test:integration` if you need tests to see the latest code.
+- **On-stop hook:** `.cursor/hooks/rebuild-if-src-changed.js` runs when the agent stops. If there are uncommitted changes under `src/`, it runs `pnpm build` so dist stays in sync. Rely on this at end of session; no need to manually rebuild unless you are about to run integration tests mid-session.
+
 ## Orientation
 
 Before executing any plan, run `pnpm tg status` to see what's outstanding. **Multi-agent:** Check "Active work" for other agents' tasks; avoid overlapping on the same files/area. If overlap is detected, use `tg note <taskId> --msg "..."` to signal and pick a different task. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first (see Recovery below).
@@ -58,10 +63,10 @@ When executing N tasks in sequence, complete the full start→work→done cycle 
 After marking the last task in a plan as done, run:
 
 ```bash
-pnpm tg export markdown --plan <planId> --out plans/<date>_<name>.md
+pnpm tg export markdown --plan <planId>
 ```
 
-Use a filename that follows the convention (`yy-mm-dd_the_file_name.md`). This updates the plan file with final statuses, closing the round-trip.
+Export writes to `exports/<planId>.md` by default (gitignored). Plan files in `plans/` are never overwritten by export.
 
 ## Recovery (out-of-sync tasks)
 

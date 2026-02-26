@@ -423,7 +423,7 @@ tg export dot --feature auth
 
 ### `tg export markdown`
 
-Outputs a plan and its tasks in Cursor format (YAML frontmatter with todos). Enables round-trip: import → work → export updated plan.
+Exports a plan and its tasks in Cursor format (YAML frontmatter with todos) to **exports/** by default. Never writes into `plans/` (blocked to avoid overwriting plan files).
 
 ```bash
 tg export markdown --plan <planId> [--out <path>]
@@ -432,12 +432,13 @@ tg export markdown --plan <planId> [--out <path>]
 **Options:**
 
 - `--plan <planId>`: **(Required)** Plan ID to export.
-- `--out <path>`: Write to file instead of stdout.
+- `--out <path>`: Write to this path. Default: `exports/<planId>.md`. Cannot be under `plans/`.
 
 **Output:**
 
-- YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy).
-- Suitable for re-import via `tg import --format cursor`.
+- Writes to `exports/<planId>.md` when `--out` is omitted (creates `exports/` if needed).
+- YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy). Suitable for re-import via `tg import --format cursor`.
+- Prints the destination path to stdout (unless `--json`).
 
 ### `tg context <taskId>`
 
@@ -456,6 +457,55 @@ tg context <taskId>
 - `--json`: Output as JSON: `domains`, `skills` (arrays), `domain_docs`, `skill_docs` (paths), `related_done_by_domain`, `related_done_by_skill`, and when present: `suggested_changes`, `file_tree`, `risks` (plan-level).
 
 **Output (human):** Task title and ID; change type; domain doc path(s) (`docs/<domain>.md`); skill guide path(s) (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 by skill. If the task has `suggested_changes`, the plan has `file_tree`, or the plan has `risks`, those are printed as well.
+
+### `tg crossplan`
+
+Cross-plan analysis for domains, skills, file overlaps, and proposed cross-plan edges. Skills and tooling can use these subcommands to order or relate work across plans.
+
+```bash
+tg crossplan <subcommand> [options]
+# Subcommands: domains | skills | files | edges | summary
+tg crossplan domains [--json]
+tg crossplan skills [--json]
+tg crossplan files [--json]
+tg crossplan edges [--dry-run] [--json]
+tg crossplan summary [--json]
+```
+
+**Subcommands:**
+
+- **`domains`**: Domains shared by more than one plan, with task counts and which plans each domain appears in.
+- **`skills`**: Skills shared across multiple plans, with task counts and plan list.
+- **`files`**: Files touched by more than one plan (parsed from each plan’s `file_tree`). Useful for ordering: if Plan A and Plan B both modify the same file, one should typically go first.
+- **`edges`**: Proposes new cross-plan edges. **(1) Domain overlap:** tasks in different plans that share a domain → **relates**. **(2) File overlap:** plans that share `file_tree` entries → **blocks** between one representative task per plan (earliest task by `created_at`). Cycle check is applied before adding `blocks`. Use **`--dry-run`** to print proposals without writing; without it, writes edges to Dolt. When writing, the global **`--no-commit`** applies (no Dolt commit).
+- **`summary`**: Single JSON object combining `domains`, `skills`, `files`, and `proposed_edges` (same as `edges --dry-run`).
+
+**Options:**
+
+- `--json`: Machine-readable JSON (all subcommands).
+- `--dry-run`: (`edges` only) Show proposed edges without inserting into the database.
+
+**Output (human-readable when not `--json`):**
+
+- **domains** / **skills**: One block per domain/skill: name, plan count, task count, list of plan titles.
+- **files**: One block per file: path, plan count, list of plan titles.
+- **edges**: List of proposed edges (type, from_task_id, to_task_id, reason); if not `--dry-run`, also "Added to DB" with inserted edges.
+- **summary**: Always JSON (object with `domains`, `skills`, `files`, `proposed_edges`).
+
+**Example:**
+
+```bash
+tg crossplan domains
+# Output (example):
+# api: 2 plans, 5 tasks
+#   Plans: Plan A, Plan B
+
+tg crossplan edges --dry-run
+# Output (example):
+# Proposed edges:
+#   relates: task-1 -> task-2 (domain: api)
+#   blocks: task-1 -> task-3 (file overlap)
+```
 
 ### `tg status`
 

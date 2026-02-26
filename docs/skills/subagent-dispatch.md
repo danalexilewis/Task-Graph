@@ -49,4 +49,4 @@ Execute task-graph work by dispatching fast sub-agents instead of doing every ta
 - Tasks are done in taskgraph (`tg done` run by sub-agent or by you).
 - Evidence on each done task.
 - No orphaned doing tasks; if you used sub-agents, each ran tg start/done.
-- Plan file updated after last task (tg export markdown).
+- Export after last task: `tg export markdown --plan <planId>` (writes to exports/, not plans/).
