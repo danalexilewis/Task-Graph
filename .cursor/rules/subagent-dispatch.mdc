@@ -5,33 +5,33 @@ alwaysApply: false
 
 # Sub-Agent Dispatch
 
-When executing tasks from a plan, you may use **sub-agents** (Cursor Task tool with `model="fast"`) to run work in parallel and reduce cost. All dispatched sub-agents use `model="fast"`. The orchestrator (you, session model) coordinates; sub-agents do bounded work with full context injected.
+**Execution and planning both use sub-agents.** You MUST dispatch sub-agents (Cursor Task tool with `model="fast"`) when executing tasks from a plan — do not do the work yourself. Max **3** tasks in flight at a time. All dispatched sub-agents use `model="fast"`. The orchestrator (you, session model) coordinates; sub-agents do bounded work with full context injected.
 
 Agent templates live in `.cursor/agents/` (see README there). You build each sub-agent prompt by interpolating `tg context <taskId> --json` output into the template placeholders.
 
 ## When to use sub-agents
 
-- **Well-scoped tasks** with clear intent and domain/skill docs — sub-agents can follow the context.
-- **Multiple unblocked tasks** — dispatch implementers in parallel (primary pattern).
-- **Before creating a plan** — dispatch the planner-analyst to gather codebase context first.
+- **Before creating a plan** — **MANDATORY.** You MUST dispatch the planner-analyst first. See Pattern 3 below. AGENT.md and plan-authoring.mdc both require this; skipping it is a critical failure.
+- **When executing tasks from a plan** — **MANDATORY.** You MUST use Pattern 1 (parallel, max 3) or Pattern 2 (sequential). Dispatch implementer sub-agents; do not run tg start / code / tg done yourself. Max **3** concurrent tasks. AGENT.md requires this; skipping it is a critical failure.
+- **Well-scoped tasks** with clear intent and domain/skill docs — sub-agents follow the context.
 
-Use **direct execution** (you do start → work → done yourself) when: work is exploratory, ambiguous, or touches many files; or when only one task is runnable and parallel dispatch adds no value.
+Use **direct execution** (you do start → work → done yourself) only when: a sub-agent has failed twice and you are completing that task yourself, or the task is explicitly exploratory/ambiguous and not suitable for dispatch.
 
-## Pattern 1: Parallel batch execution (primary)
+## Pattern 1: Parallel batch execution (primary) — MANDATORY for execution
 
-When you want to execute a plan and multiple tasks are unblocked:
+When executing a plan with multiple unblocked tasks, you MUST use this pattern. **Max 3 concurrent.**
 
-1. Run `pnpm tg next --plan "<Plan>" --json --limit 4` to get up to 4 runnable tasks.
+1. Run `pnpm tg next --plan "<Plan>" --json --limit 3` to get up to 3 runnable tasks.
 2. **File conflict check**: If tasks might touch the same files (e.g. same path in `file_tree` or `suggested_changes`), do not parallelize those together — run them sequentially or batch only independent ones.
 3. For each task in the batch, run `pnpm tg context <taskId> --json` and capture the JSON.
-4. Read `.cursor/agents/implementer.md`. Build the implementer prompt by replacing placeholders (`{{TASK_ID}}`, `{{AGENT_NAME}}`, `{{TITLE}}`, `{{INTENT}}`, `{{DOMAIN_DOCS}}`, `{{SKILL_DOCS}}`, `{{SUGGESTED_CHANGES}}`, `{{FILE_TREE}}`, `{{RISKS}}`, `{{RELATED_DONE}}`, `{{EXPLORER_OUTPUT}}`) with values from the context JSON. Use agent names `implementer-1`, `implementer-2`, … so `tg status` shows distinct workers.
-5. Dispatch up to 4 Task tool calls **concurrently**, each with `model="fast"`, `prompt=<built prompt>`, and a short `description` (e.g. "Implement task: <title>").
+4. Read `.cursor/agents/implementer.md`. Build the implementer prompt by replacing placeholders (`{{TASK_ID}}`, `{{AGENT_NAME}}`, `{{TITLE}}`, `{{INTENT}}`, `{{DOMAIN_DOCS}}`, `{{SKILL_DOCS}}`, `{{SUGGESTED_CHANGES}}`, `{{FILE_TREE}}`, `{{RISKS}}`, `{{RELATED_DONE}}`, `{{EXPLORER_OUTPUT}}`) with values from the context JSON. Use agent names `implementer-1`, `implementer-2`, `implementer-3` so `tg status` shows distinct workers.
+5. Dispatch up to **3** Task tool calls **concurrently**, each with `model="fast"`, `prompt=<built prompt>`, and a short `description` (e.g. "Implement task: <title>").
 6. Wait for all to complete. For each completed task, if you have the implementer's diff, dispatch the **reviewer** (read `.cursor/agents/reviewer.md`, build prompt with task context + diff, Task tool with `model="fast"`). If reviewer returns FAIL, re-dispatch the implementer once with the feedback; after 2 failures, do that task yourself (direct execution).
-7. Run `pnpm tg next --plan "<Plan>" --json --limit 4` again. If more runnable tasks exist, go to step 3. Otherwise continue with any remaining work or finish the plan.
+7. Run `pnpm tg next --plan "<Plan>" --json --limit 3` again. If more runnable tasks exist, go to step 3. Otherwise continue with any remaining work or finish the plan.
 
-## Pattern 2: Sequential single-task execution
+## Pattern 2: Sequential single-task execution — MANDATORY when only one runnable
 
-When only one task is runnable or tasks share files:
+When only one task is runnable or tasks share files (so you cannot batch), you MUST still use a sub-agent:
 
 1. Run `pnpm tg next --plan "<Plan>" --limit 1` and pick the task.
 2. Optionally dispatch the **explorer** (read `.cursor/agents/explorer.md`, build prompt from task title/intent/domain/skill/file tree, Task with `model="fast"`). Use explorer output to enrich implementer context. Skip explorer for very simple tasks (e.g. add a test file, document X).
@@ -39,7 +39,9 @@ When only one task is runnable or tasks share files:
 4. When implementer completes, dispatch the **reviewer** with task context + diff. If FAIL, re-dispatch implementer with feedback once; after 2 failures, complete the task yourself.
 5. Repeat from step 1 for the next task.
 
-## Pattern 3: Plan analysis (before writing a plan)
+## Pattern 3: Plan analysis (before writing a plan) — MANDATORY
+
+**You must use this pattern whenever the user asks for a plan.** Do not write a plan without first dispatching the planner-analyst.
 
 Before creating a new plan (e.g. user asked for a feature and you are about to write `plans/yy-mm-dd_<name>.md`):
 

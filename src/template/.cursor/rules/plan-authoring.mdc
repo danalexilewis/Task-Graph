@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Plan Authoring (Cursor Format)
 
+**Before writing a plan you MUST use the planner-analyst sub-agent.** See `.cursor/rules/subagent-dispatch.mdc` → Pattern 3. Dispatch the planner-analyst with the user's request, wait for its structured analysis (relevant files, existing data, patterns, risks, rough task breakdown), then write the plan using that output. Do not create a plan from scratch without analyst context.
+
 Create plans as `plans/<name>.md` (not .plan.md). Plans use Cursor format for import into taskgraph via `tg import --format cursor`.
 
 ## Plan file naming (timestamp convention)

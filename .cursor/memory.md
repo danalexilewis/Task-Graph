@@ -30,6 +30,14 @@
 
 - **Always use rich planning.** Plans must include fileTree, risks, tests, per-task intent, suggestedChanges when helpful, and markdown body ending with `<original_prompt>`. See docs/plan-format.md and .cursor/rules/plan-authoring.mdc. When creating plans, follow the rule — do not default to minimal/spartan format.
 
+## Plan creation — planner-analyst required
+
+- **Planning MUST use the planner-analyst sub-agent first.** AGENT.md and plan-authoring.mdc state this explicitly. Skipping the analyst when the user asks for a plan is a critical failure. The agent in consuming projects gets AGENT.md from the template; it must see the mandatory two-step flow (1. dispatch analyst, 2. write plan from analyst output).
+
+## Execution — sub-agents mandatory, max 3
+
+- **Task execution MUST use implementer (and reviewer) sub-agents.** AGENT.md and subagent-dispatch.mdc require it; max 3 tasks in flight. Direct execution only after 2 sub-agent failures or when task is explicitly exploratory. Skipping dispatch during execution is a critical failure.
+
 ## Plan filename convention
 
 - Plan filenames: `yy-mm-dd_the_file_name.md` (e.g. `26-02-26_restructure_src_npm_layout.md`). Two-digit year, date, then underscore and slug. See plan-authoring.mdc.
