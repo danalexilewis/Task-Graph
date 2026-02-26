@@ -1,6 +1,6 @@
 ---
 name: Dolt Replication
-overview: Enable Dolt push/pull for multi-machine task graph sync, inspired by Beads' replication model.
+overview: Enable Dolt push/pull for multi-machine task graph sync, inspired by Beads replication model.
 fileTree: |
   src/cli/sync.ts               (create)
   src/cli/init.ts               (modify)

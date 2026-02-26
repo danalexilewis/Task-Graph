@@ -53,7 +53,7 @@ todos:
       Test determinism, uniqueness across sample UUIDs, correct prefix and length.
       Test isHashId correctly distinguishes hash IDs from UUIDs.
     changeType: test
-  - id: schema-migration
+  - id: hashid-schema-migration
     content: "Add hash_id column to task table and backfill existing rows"
     intent: |
       Idempotent migration in db/migrate.ts: ALTER TABLE task ADD COLUMN hash_id VARCHAR(10) NULL UNIQUE.
@@ -75,7 +75,7 @@ todos:
         if (UUID_REGEX.test(input)) return okAsync(input);
         if (isHashId(input)) return query(repoPath).select('task', { where: { hash_id: input } })...
       }
-    blockedBy: [schema-migration]
+    blockedBy: [hashid-schema-migration]
     changeType: modify
     domain: [cli]
     skill: [cli-command-implementation]
@@ -94,7 +94,7 @@ todos:
     intent: |
       Update status.ts, next.ts, and show.ts to display hash_id alongside or instead of
       full UUID in human-readable output. JSON output should include both fields.
-    blockedBy: [schema-migration]
+    blockedBy: [hashid-schema-migration]
     changeType: modify
     domain: [cli]
   - id: hashid-integration-tests
@@ -140,7 +140,7 @@ hash_id: tg-a1b2c3
 
 ```mermaid
 graph TD
-  A[hash-id-module] --> C[schema-migration]
+  A[hash-id-module] --> C[hashid-schema-migration]
   A --> B[hash-id-tests]
   C --> D[resolver-function]
   C --> F[display-hash-ids]
