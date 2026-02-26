@@ -1,38 +1,35 @@
-# plan-authoring
+# Skill: Plan authoring
 
-Use this guide when writing plans in Cursor format for import into TaskGraph.
+## Purpose
 
-## File location
+Write Cursor-format plans in `plans/` that import cleanly into taskgraph: clear dependencies, stable keys, and useful metadata (domain, skill, changeType) so agents know what to read and how to approach each task.
 
-- Store plans in `plans/` as `plans/<name>.md`
+## Inputs
 
-## Minimal Cursor-format frontmatter
+- Feature or initiative to break down
+- Reference: `.cursor/rules/plan-authoring.mdc` (YAML structure, todo fields)
+- Existing docs/skills slugs if tasks map to them
 
-```yaml
----
-name: My Plan
-overview: "What this plan accomplishes."
-todos:
-  - id: stable-key
-    content: "A small task"
-    status: pending
-  - id: depends-on-first
-    content: "Another small task"
-    blockedBy: [stable-key]
----
-```
+## Steps
 
-## Optional task dimensions
+1. Create `plans/<name>.md` with YAML frontmatter: `name`, `overview`, `todos`.
+2. For each task: set `id` (kebab-case, stable key), `content` (task title), and optionally `blockedBy`, `domain`, `skill`, `changeType`.
+3. Design the dependency graph: use `blockedBy` with other todos' `id` values; avoid cycles.
+4. Keep tasks scoped (~90 min or less); split large work into multiple todos.
+5. Order todos so the list reflects dependency order where possible (helps readability).
+6. Add domain when the task touches a specific area (e.g. `schema`, `cli`); add skill when a technique applies (e.g. `dolt-schema-migration`); add changeType when approach matters (`create`, `refactor`, `fix`, etc.).
+7. Validate: run `tg import plans/<file> --plan "Test" --format cursor` in a test repo and confirm tasks and edges match expectations.
 
-- `domain`: string or array of strings → `docs/<domain>.md`
-- `skill`: string or array of strings → `docs/skills/<skill>.md`
-- `changeType`: one of `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`
+## Gotchas
 
-Pick dimensions that help an agent load the right conventions and choose the right approach.
+- `id` must be unique and stable; it becomes `external_key`. Changing it on re-import creates a new task instead of updating.
+- `blockedBy` references are resolved at import time; only reference `id`s that exist in the same plan (or were previously imported with that external_key).
+- Task titles are truncated at 255 characters in the DB; keep `content` concise.
+- If the plan has many tasks, consider grouping by phase or feature in the overview so reviewers can follow.
 
-## Import command
+## Definition of done
 
-```bash
-tg import plans/<file> --plan "<Plan Name>" --format cursor
-```
-
+- Plan file has valid YAML frontmatter and a non-empty `todos` array.
+- All `blockedBy` values reference existing todo `id`s in the plan.
+- Import succeeds and `tg next` / `tg show` reflect the intended graph.
+- Domain/skill/changeType set where they add value for the agent.

@@ -1,11 +1,50 @@
 ---
-description: Maintain repo-specific persistent memory at .cursor/memory.md
+description: Mandatory read/update of project's persistent dev & architecture memory
 alwaysApply: true
 ---
 
-# Persistent Memory
+# Persistent Memory (Dev & Architecture)
 
-Every request should start by reading `.cursor/memory.md` to learn repo-specific conventions and prior decisions.
+Maintains project-wide persistent memory for **development, tooling, and system architecture** learnings. This is NOT for document content corrections — those belong in `src/sources/corrections.md` (ingest normalization) and `.cursor/corrections.md` (content generation). This rule tracks agent mistakes, environment surprises, and engineering patterns.
 
-When you discover a tooling quirk, fix a recurring mistake, or establish a useful pattern, update `.cursor/memory.md` at the end of the session.
+## 1. Read First
 
+Every request MUST start by reading `.cursor/memory.md`. Internalize corrections, preferences, and patterns. Do not announce that you are reading it.
+
+## 2. Update Last (mandatory hook)
+
+**Trigger**: You MUST update `.cursor/memory.md` in the same response when any of the following happened in that response:
+
+- You fixed a bug or addressed a failure.
+- You added or changed a pattern, convention, or rule (including when the user asked you to).
+- You discovered an environment/tooling quirk (e.g. DB returns object not string).
+- **The user corrected you** or asked you to do something differently regarding dev workflow or architecture (e.g. "always use X", "update the rule to Y").
+
+**Before you consider your response complete**: If any trigger above applied, perform a write or search_replace to `.cursor/memory.md` before ending. Do not skip this step.
+
+### What to log
+
+- **Mistakes**: Wrong assumptions, misread code, failed commands.
+- **User corrections**: Anything the user told you to do differently regarding dev workflow or architecture.
+- **Tool / environment surprises**: Unexpected repo patterns, CLI behaviors, dependency quirks.
+- **Dev preferences**: Build conventions, naming rules, framework idioms the user enforces.
+- **Successes**: Non-obvious approaches that worked well.
+
+### What NOT to log
+
+- Routine operations that worked as expected.
+- Information already captured in the memory.
+- **Document content corrections** — those go in `src/sources/corrections.md` or `.cursor/corrections.md`.
+- Verbose restatements — keep entries terse and actionable.
+
+## 3. First-run: domain docs scaffold (one-time)
+
+**Trigger**: When you read `.cursor/memory.md` and it does **not** contain the marker `Initial domain docs scaffold: done`, you MUST in this response:
+
+1. **Update** `docs/backend.md`, `docs/frontend.md`, and `docs/infra.md` with repo-specific content. Infer from the codebase: entrypoints, stack, testing, local dev. Keep the existing section structure in each file (Purpose, Key entrypoints, Data/State, Local dev, Testing, Decisions/gotchas). If a domain has no relevance to this repo, add a one-line note in that doc (e.g. "No backend in this repo") or leave the template and note in memory.
+2. **Then** append to `.cursor/memory.md` under a small "Scaffold" or "First-run" section the line: `Initial domain docs scaffold: done`. Subsequent reads will then skip this step.
+
+## 4. Maintenance
+
+- **Consolidate**: When the Corrections table exceeds ~50 entries, merge redundant ones into Preferences or Patterns.
+- **Target**: Keep total length under 300 lines for high-signal context.
