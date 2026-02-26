@@ -29,6 +29,10 @@ export function importCommand(program: Command) {
       "Plan format: 'legacy' (TASK:/TITLE:/BLOCKED_BY:) or 'cursor' (YAML frontmatter with todos). Default: legacy",
       "legacy",
     )
+    .option(
+      "--external-key-prefix <prefix>",
+      "Optional prefix for task external_key to avoid collisions (e.g. when importing historical plans that share todo ids)",
+    )
     .action(async (filePath, options, cmd) => {
       const result = await readConfig().asyncAndThen((config: Config) => {
         const currentTimestamp = now();
@@ -58,7 +62,10 @@ export function importCommand(program: Command) {
                   options.plan,
                 )
               ) {
-                const planResult = await q.select<{ plan_id: string }>("plan", { columns: ["plan_id"], where: { plan_id: options.plan } });
+                const planResult = await q.select<{ plan_id: string }>("plan", {
+                  columns: ["plan_id"],
+                  where: { plan_id: options.plan },
+                });
                 if (planResult.isOk() && planResult.value.length > 0) {
                   planId = planResult.value[0].plan_id;
                 }
@@ -66,7 +73,10 @@ export function importCommand(program: Command) {
 
               // If not found by ID, try to find by title
               if (!planId) {
-                const planResult = await q.select<{ plan_id: string }>("plan", { columns: ["plan_id"], where: { title: options.plan } });
+                const planResult = await q.select<{ plan_id: string }>("plan", {
+                  columns: ["plan_id"],
+                  where: { title: options.plan },
+                });
                 if (planResult.isOk() && planResult.value.length > 0) {
                   planId = planResult.value[0].plan_id;
                 }
@@ -113,13 +123,18 @@ export function importCommand(program: Command) {
                 );
               }
 
-              if (options.format === "cursor" && (fileTree != null || risks != null || tests != null)) {
+              if (
+                options.format === "cursor" &&
+                (fileTree != null || risks != null || tests != null)
+              ) {
                 const planUpdatePayload: Record<string, SqlValue> = {
                   updated_at: currentTimestamp,
                 };
                 if (fileTree != null) planUpdatePayload.file_tree = fileTree;
-                if (risks != null) planUpdatePayload.risks = JSON.stringify(risks);
-                if (tests != null) planUpdatePayload.tests = JSON.stringify(tests);
+                if (risks != null)
+                  planUpdatePayload.risks = JSON.stringify(risks);
+                if (tests != null)
+                  planUpdatePayload.tests = JSON.stringify(tests);
                 const planUpdateResult = await q.update(
                   "plan",
                   planUpdatePayload,
@@ -133,6 +148,7 @@ export function importCommand(program: Command) {
                 parsedTasks,
                 config.doltRepoPath,
                 cmd.parent?.opts().noCommit,
+                options.externalKeyPrefix,
               );
               if (upsertResult.isErr()) throw upsertResult.error;
 

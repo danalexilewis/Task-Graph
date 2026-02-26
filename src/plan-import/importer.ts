@@ -38,6 +38,7 @@ export function upsertTasksAndEdges(
   parsedTasks: ParsedTask[],
   repoPath: string,
   noCommit: boolean = false,
+  externalKeyPrefix?: string,
 ): ResultAsync<ImportResult, AppError> {
   const currentTimestamp = now();
   const q = query(repoPath);
@@ -54,7 +55,12 @@ export function upsertTasksAndEdges(
           const externalKeyToTaskId = new Map<string, string>();
           existingTasks.forEach((task) => {
             if (task.external_key) {
-              externalKeyToTaskId.set(task.external_key, task.task_id);
+              const normalizedKey =
+                externalKeyPrefix &&
+                task.external_key.startsWith(externalKeyPrefix + "-")
+                  ? task.external_key.slice(externalKeyPrefix.length + 1)
+                  : task.external_key;
+              externalKeyToTaskId.set(normalizedKey, task.task_id);
             }
           });
 
@@ -94,10 +100,13 @@ export function upsertTasksAndEdges(
               taskId = uuidv4();
               importedTasksCount++;
               const taskStatus = parsedTask.status ?? "todo";
+              const externalKey = externalKeyPrefix
+                ? `${externalKeyPrefix}-${parsedTask.stableKey}`
+                : parsedTask.stableKey;
               const insertResult = await q.insert("task", {
                 task_id: taskId,
                 plan_id: planId,
-                external_key: parsedTask.stableKey,
+                external_key: externalKey,
                 title: parsedTask.title,
                 feature_key: parsedTask.feature ?? null,
                 area: parsedTask.area ?? null,
@@ -123,7 +132,7 @@ export function upsertTasksAndEdges(
                 kind: "created",
                 body: jsonObj({
                   title: parsedTask.title,
-                  externalKey: parsedTask.stableKey,
+                  externalKey: externalKey,
                 }),
                 created_at: currentTimestamp,
               });
