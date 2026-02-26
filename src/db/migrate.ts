@@ -2,7 +2,7 @@ import { doltSql } from "./connection";
 import { doltCommit } from "./commit";
 import * as fs from "fs";
 import { execa } from "execa";
-import { ResultAsync } from "neverthrow";
+import { ResultAsync, ok } from "neverthrow";
 import { AppError, buildError, ErrorCode } from "../domain/errors";
 
 const SCHEMA = [
@@ -104,6 +104,83 @@ function tableExists(
   return doltSql(q, repoPath).map((rows) => rows.length > 0);
 }
 
+/** Returns true if a trigger with the given name exists in the current schema. */
+function triggerExists(
+  repoPath: string,
+  triggerName: string,
+): ResultAsync<boolean, AppError> {
+  const q = `SELECT 1 FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = '${triggerName}' LIMIT 1`;
+  return doltSql(q, repoPath).map((rows) => rows.length > 0);
+}
+
+const NO_DELETE_MESSAGE =
+  "Hard deletes forbidden. Use tg cancel for soft-delete.";
+
+const NO_DELETE_TRIGGERS_MIGRATION = "no_delete_triggers";
+
+/** True if we have already attempted the no-delete triggers migration (so we don't retry on every command when Dolt doesn't support SIGNAL). */
+function noDeleteTriggersMigrationApplied(
+  repoPath: string,
+): ResultAsync<boolean, AppError> {
+  return tableExists(repoPath, "_taskgraph_migrations").andThen((exists) => {
+    if (!exists) return ok(false);
+    const q = `SELECT 1 FROM _taskgraph_migrations WHERE name = '${NO_DELETE_TRIGGERS_MIGRATION}' LIMIT 1`;
+    return doltSql(q, repoPath).map((rows) => rows.length > 0);
+  });
+}
+
+/** Add BEFORE DELETE triggers on plan, task, edge, event to block hard deletes. Idempotent.
+ * If Dolt does not support SIGNAL in triggers (syntax error), we record that we attempted the migration
+ * so we do not retry on every command; application-layer guard in connection.ts still blocks deletes.
+ */
+export function applyNoDeleteTriggersMigration(
+  repoPath: string,
+  noCommit: boolean = false,
+): ResultAsync<void, AppError> {
+  return noDeleteTriggersMigrationApplied(repoPath).andThen((alreadyApplied) => {
+    if (alreadyApplied) return ResultAsync.fromSafePromise(Promise.resolve());
+
+    return ensureSentinelTable(repoPath).andThen(() => {
+      const tables = ["plan", "task", "edge", "event"] as const;
+      let chain: ResultAsync<void, AppError> =
+        ResultAsync.fromSafePromise(Promise.resolve(undefined));
+      for (const table of tables) {
+        const triggerName = `no_delete_${table}`;
+        chain = chain.andThen(() =>
+          triggerExists(repoPath, triggerName).andThen((exists) => {
+            if (exists) return ResultAsync.fromSafePromise(Promise.resolve());
+            const createTrigger = `CREATE TRIGGER \`${triggerName}\` BEFORE DELETE ON \`${table}\` FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '${NO_DELETE_MESSAGE}'`;
+            return doltSql(createTrigger, repoPath).orElse(() => ok([])).map(() => undefined);
+          }),
+        );
+      }
+      return chain
+        .andThen(() => markNoDeleteTriggersApplied(repoPath))
+        .andThen(() =>
+          doltCommit(
+            "db: add BEFORE DELETE triggers (no hard deletes)",
+            repoPath,
+            noCommit,
+          ),
+        )
+        .map(() => undefined);
+    });
+  });
+}
+
+function ensureSentinelTable(repoPath: string): ResultAsync<void, AppError> {
+  const create =
+    "CREATE TABLE IF NOT EXISTS _taskgraph_migrations (name VARCHAR(64) PRIMARY KEY, applied_at DATETIME NOT NULL)";
+  return doltSql(create, repoPath).map(() => undefined);
+}
+
+function markNoDeleteTriggersApplied(
+  repoPath: string,
+): ResultAsync<void, AppError> {
+  const insert = `INSERT IGNORE INTO _taskgraph_migrations (name, applied_at) VALUES ('${NO_DELETE_TRIGGERS_MIGRATION}', NOW())`;
+  return doltSql(insert, repoPath).map(() => undefined);
+}
+
 /** Replace task.domain/task.skill with task_domain and task_skill junction tables; migrate data and drop columns. */
 export function applyTaskDomainSkillJunctionMigration(
   repoPath: string,
@@ -164,6 +241,7 @@ export function ensureMigrations(
     .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit))
     .andThen(() => applyTaskSuggestedChangesMigration(repoPath, noCommit))
     .andThen(() => applyTaskDomainSkillJunctionMigration(repoPath, noCommit))
+    .andThen(() => applyNoDeleteTriggersMigration(repoPath, noCommit))
     .map(() => undefined);
 }
 

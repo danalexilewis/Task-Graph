@@ -23,6 +23,7 @@ export function nextCommand(program: Command) {
       "Filter by change type: create, modify, refactor, fix, investigate, test, document",
     )
     .option("--limit <limit>", "Limit the number of tasks returned", "10")
+    .option("--all", "Include canceled tasks and abandoned plans")
     .action(async (options, cmd) => {
       const result = await readConfig().asyncAndThen((config: Config) => {
         const limit = parseInt(options.limit, 10);
@@ -62,6 +63,10 @@ export function nextCommand(program: Command) {
           changeTypeFilter = `AND t.\`change_type\` = '${sqlEscape(options.changeType)}'`;
         }
 
+        const excludeCanceledAbandoned = options.all
+          ? ""
+          : " AND t.status != 'canceled' AND p.status != 'abandoned' ";
+
         const nextTasksQuery = `
           SELECT t.task_id, t.title, p.title as plan_title, t.risk, t.estimate_mins,
             (SELECT COUNT(*) FROM \`edge\` e 
@@ -75,6 +80,7 @@ export function nextCommand(program: Command) {
           ${domainFilter}
           ${skillFilter}
           ${changeTypeFilter}
+          ${excludeCanceledAbandoned}
           HAVING unmet_blockers = 0
           ORDER BY p.priority DESC, t.risk ASC, 
             CASE WHEN t.estimate_mins IS NULL THEN 1 ELSE 0 END,

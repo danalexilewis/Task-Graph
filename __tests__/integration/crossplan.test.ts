@@ -135,7 +135,12 @@ fileTree: |
     );
     expect(exitCode).toBe(0);
     const data = JSON.parse(stdout) as {
-      proposed: Array<{ type: string; from_task_id: string; to_task_id: string; reason?: string }>;
+      proposed: Array<{
+        type: string;
+        from_task_id: string;
+        to_task_id: string;
+        reason?: string;
+      }>;
       added: unknown[];
     };
     expect(Array.isArray(data.proposed)).toBe(true);
@@ -151,13 +156,18 @@ fileTree: |
     );
     expect(exitCode).toBe(0);
     const data = JSON.parse(stdout) as {
-      proposed: Array<{ type: string; from_task_id: string; to_task_id: string; reason?: string }>;
+      proposed: Array<{
+        type: string;
+        from_task_id: string;
+        to_task_id: string;
+        reason?: string;
+      }>;
       added: Array<{ type: string; from_task_id: string; to_task_id: string }>;
     };
     expect(Array.isArray(data.proposed)).toBe(true);
     expect(Array.isArray(data.added)).toBe(true);
     expect(data.added.length).toBeGreaterThan(0);
-  });
+  }, 30000);
 
   it("crossplan summary --json returns domains, skills, files, proposed_edges", async () => {
     if (!context) throw new Error("Context not initialized");

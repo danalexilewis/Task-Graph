@@ -140,10 +140,12 @@ export function upsertTasksAndEdges(
             externalKeyToTaskId.set(parsedTask.stableKey, taskId);
 
             // Sync task_domain and task_skill junction tables
+            // Junction sync: delete existing task_domain rows for this task before re-inserting; whitelisted in doltSql guard (not core data).
             const delDomainResult = await q.raw(
               `DELETE FROM \`task_domain\` WHERE task_id = '${sqlEscape(taskId)}'`,
             );
             if (delDomainResult.isErr()) throw delDomainResult.error;
+            // Junction sync: delete existing task_skill rows for this task before re-inserting; whitelisted in doltSql guard (not core data).
             const delSkillResult = await q.raw(
               `DELETE FROM \`task_skill\` WHERE task_id = '${sqlEscape(taskId)}'`,
             );

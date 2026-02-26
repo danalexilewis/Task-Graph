@@ -31,6 +31,10 @@ The orchestrator must pass:
 - Run `tg done <taskId> --evidence "..."` with a short evidence string (tests run, commands, or git ref).
 - Return a brief completion message to the orchestrator (e.g. "Task X done. Evidence: ...").
 
+## Task graph data safety
+
+- Do not run destructive SQL (DELETE, DROP TABLE, TRUNCATE) or raw dolt sql that modifies/deletes data. To remove a plan or task, use `tg cancel <planId|taskId> --reason "..."` (soft-delete). See `.cursor/rules/no-hard-deletes.mdc`.
+
 ## Prompt template
 
 ```

@@ -7,6 +7,7 @@ import {
   applyPlanRichFieldsMigration,
   applyTaskSuggestedChangesMigration,
   applyTaskDomainSkillJunctionMigration,
+  applyNoDeleteTriggersMigration,
 } from "../db/migrate";
 import * as path from "path";
 import { readConfig, writeConfig } from "./utils";
@@ -77,6 +78,9 @@ export function initCommand(program: Command) {
         )
         .andThen(() =>
           applyTaskDomainSkillJunctionMigration(doltRepoPath, options.noCommit),
+        )
+        .andThen(() =>
+          applyNoDeleteTriggersMigration(doltRepoPath, options.noCommit),
         )
         .andThen(() => {
           const config = {

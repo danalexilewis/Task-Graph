@@ -22,6 +22,7 @@ export function statusCommand(program: Command) {
       "--change-type <type>",
       "Filter by change type: create, modify, refactor, fix, investigate, test, document",
     )
+    .option("--all", "Include canceled tasks and abandoned plans")
     .action(async (options, cmd) => {
       const result = await readConfig().asyncAndThen((config: Config) => {
         const q = query(config.doltRepoPath);
@@ -51,15 +52,20 @@ export function statusCommand(program: Command) {
             ? ` AND t.\`change_type\` = '${sqlEscape(options.changeType)}'`
             : "");
 
+        const excludeCanceledAbandoned = options.all
+          ? ""
+          : " AND t.status != 'canceled' AND p.status != 'abandoned' ";
+        const planAbandonedFilter = options.all ? "" : " AND `status` != 'abandoned' ";
+
         const planFilter = options.plan
           ? isUUID
             ? `WHERE p.plan_id = '${sqlEscape(options.plan)}'`
             : `WHERE p.title = '${sqlEscape(options.plan)}'`
           : "";
         const plansCountSql = dimFilter
-          ? `SELECT COUNT(DISTINCT p.plan_id) AS count FROM \`plan\` p JOIN \`task\` t ON t.plan_id = p.plan_id ${planFilter || "WHERE 1=1"} ${dimFilter}`
-          : `SELECT COUNT(*) AS count FROM \`plan\` ${planWhere}`;
-        const statusCountsSql = `SELECT t.status, COUNT(*) AS count FROM \`task\` t JOIN \`plan\` p ON t.plan_id = p.plan_id ${planFilter || "WHERE 1=1"} ${dimFilter} GROUP BY t.status`;
+          ? `SELECT COUNT(DISTINCT p.plan_id) AS count FROM \`plan\` p JOIN \`task\` t ON t.plan_id = p.plan_id ${planFilter || "WHERE 1=1"} ${dimFilter}${excludeCanceledAbandoned}`
+          : `SELECT COUNT(*) AS count FROM \`plan\` ${planWhere || "WHERE 1=1"}${planAbandonedFilter}`;
+        const statusCountsSql = `SELECT t.status, COUNT(*) AS count FROM \`task\` t JOIN \`plan\` p ON t.plan_id = p.plan_id ${planFilter || "WHERE 1=1"} ${dimFilter}${excludeCanceledAbandoned} GROUP BY t.status`;
         const actionableCountSql = `
           SELECT COUNT(*) AS count FROM \`task\` t
           JOIN \`plan\` p ON t.plan_id = p.plan_id
@@ -70,6 +76,7 @@ export function statusCommand(program: Command) {
                AND bt.status NOT IN ('done','canceled')) = 0
           ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
           ${dimFilter}
+          ${excludeCanceledAbandoned}
         `;
         const nextSql = `
           SELECT t.task_id, t.title, p.title as plan_title
@@ -82,6 +89,7 @@ export function statusCommand(program: Command) {
                AND bt.status NOT IN ('done','canceled')) = 0
           ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
           ${dimFilter}
+          ${excludeCanceledAbandoned}
           ORDER BY p.priority DESC, t.created_at ASC
           LIMIT 2
         `;
@@ -98,6 +106,7 @@ export function statusCommand(program: Command) {
           )
           ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
           ${dimFilter}
+          ${excludeCanceledAbandoned}
           ORDER BY e.created_at DESC
         `;
 

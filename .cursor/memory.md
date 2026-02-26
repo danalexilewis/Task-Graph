@@ -25,6 +25,7 @@
 ## Migration idempotency
 
 - `applyTaskDimensionsMigration` must skip when `task_domain` exists (junction migration has run and dropped domain/skill from task). Otherwise re-adding columns conflicts with existing `change_type`.
+- **No-delete triggers:** Dolt does not support `SIGNAL SQLSTATE` inside triggers (syntax error at SIGNAL). The no-delete migration creates triggers when supported; on failure it records the attempt in `_taskgraph_migrations` so we don’t retry every command. Application-layer guard in `connection.ts` still blocks DELETE on protected tables.
 
 ## Plan authoring (user correction)
 

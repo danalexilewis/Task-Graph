@@ -57,6 +57,10 @@ When blocked
 - If blocker does not exist:
   - create a new task with owner=human and status todo, then block on it.
 
+Data safety (task graph)
+
+- Never run DELETE, DROP TABLE, or TRUNCATE on the task graph database. Use `tg cancel <planId|taskId> --reason "..."` for soft-delete (plan→abandoned, task→canceled). See `.cursor/rules/no-hard-deletes.mdc`.
+
 Decisions
 
 - If a decision is required to proceed:

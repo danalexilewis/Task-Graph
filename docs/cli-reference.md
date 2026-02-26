@@ -342,6 +342,12 @@ tg block d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --on c0eebc99-9c0b-4ef8-bb6d-6bb9b
 # Task d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 blocked by c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11.
 ```
 
+### `tg cancel <id> [--type plan|task] [--reason <text>]`
+
+Soft-deletes a plan (sets status to `abandoned`) or a task (sets status to `canceled`). ID is resolved by trying plan first (by `plan_id` or `title`), then task by `task_id`. Use `--type plan` or `--type task` to force resolution. Refuses to cancel plans in `done` or `abandoned`, or tasks in `done` or `canceled`. For tasks, inserts a `note` event with body `{ type: 'cancel', reason }`.
+
+**Options:** `--type <plan|task>`, `--reason <reason>`.
+
 ### `tg split <taskId> --into <t1>|<t2>|...`
 
 Decomposes a single task into multiple new subtasks. The original task can optionally be kept as a parent or marked as canceled.
