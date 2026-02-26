@@ -1,4 +1,4 @@
-# Task-Graph
+# Taskgraph
 
 Inspired by [Beads](https://github.com/steveyegge/beads) and [Gastown.dev](https://gastown.dev) — Task Graph is for **Centaur Development** (human + agent).
 
