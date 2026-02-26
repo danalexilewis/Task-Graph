@@ -5,9 +5,14 @@ alwaysApply: false
 
 # Sub-Agent Dispatch
 
-**Execution and planning both use sub-agents.** You MUST dispatch sub-agents (Cursor Task tool with `model="fast"`) when executing tasks from a plan — do not do the work yourself. Max **3** tasks in flight at a time. All dispatched sub-agents use `model="fast"`. The orchestrator (you, session model) coordinates; sub-agents do bounded work with full context injected.
+**Execution and planning both use sub-agents.** You MUST dispatch sub-agents when executing tasks from a plan — do not do the work yourself. Max **3** tasks in flight at a time. The orchestrator coordinates; sub-agents do bounded work with full context injected. **Dispatch** is the same prompt and workflow; choose the mechanism by what is available (see below).
 
 Agent templates live in `.cursor/agents/` (see README there). You build each sub-agent prompt by interpolating `tg context <taskId> --json` output into the template placeholders.
+
+## Dispatch mechanisms (choose by environment)
+
+- **In-IDE or terminal**: Use the Cursor Task tool (with `model="fast"`) or the **agent CLI** (`agent --model <fast-model> --print --trust ...`). See [docs/cursor-agent-cli.md](../docs/cursor-agent-cli.md) for CLI options and usage.
+- **This environment** (when the Task tool or agent CLI is not available): Use **mcp_task** with the same built prompt and a short `description` (e.g. "Implement task: &lt;title&gt;" or "Planner analyst: gather context for plan"). Use `subagent_type` generalPurpose or explore as appropriate (e.g. explore for planner-analyst, generalPurpose for implementer/reviewer). The prompt and workflow are unchanged; only the invocation differs. Do not skip dispatch because the Task tool is not visible — use mcp_task.
 
 ## When to use sub-agents
 
@@ -25,8 +30,8 @@ When executing a plan with multiple unblocked tasks, you MUST use this pattern. 
 2. **File conflict check**: If tasks might touch the same files (e.g. same path in `file_tree` or `suggested_changes`), do not parallelize those together — run them sequentially or batch only independent ones.
 3. For each task in the batch, run `pnpm tg context <taskId> --json` and capture the JSON.
 4. Read `.cursor/agents/implementer.md`. Build the implementer prompt by replacing placeholders (`{{TASK_ID}}`, `{{AGENT_NAME}}`, `{{TITLE}}`, `{{INTENT}}`, `{{DOMAIN_DOCS}}`, `{{SKILL_DOCS}}`, `{{SUGGESTED_CHANGES}}`, `{{FILE_TREE}}`, `{{RISKS}}`, `{{RELATED_DONE}}`, `{{EXPLORER_OUTPUT}}`) with values from the context JSON. Use agent names `implementer-1`, `implementer-2`, `implementer-3` so `tg status` shows distinct workers.
-5. Dispatch up to **3** Task tool calls **concurrently**, each with `model="fast"`, `prompt=<built prompt>`, and a short `description` (e.g. "Implement task: <title>").
-6. Wait for all to complete. For each completed task, if you have the implementer's diff, dispatch the **reviewer** (read `.cursor/agents/reviewer.md`, build prompt with task context + diff, Task tool with `model="fast"`). If reviewer returns FAIL, re-dispatch the implementer once with the feedback; after 2 failures, do that task yourself (direct execution).
+5. **Dispatch** up to **3** sub-agents **concurrently**: use the Task tool, agent CLI, or mcp_task (see Dispatch mechanisms above). Same built prompt and a short description (e.g. "Implement task: <title>").
+6. Wait for all to complete. For each completed task, if you have the implementer's diff, dispatch the **reviewer** (read `.cursor/agents/reviewer.md`, build prompt with task context + diff; use Task tool, agent CLI, or mcp_task). If reviewer returns FAIL, re-dispatch the implementer once with the feedback; after 2 failures, do that task yourself (direct execution).
 7. Run `pnpm tg next --plan "<Plan>" --json --limit 3` again. If more runnable tasks exist, go to step 3. Otherwise continue with any remaining work or finish the plan.
 
 ## Pattern 2: Sequential single-task execution — MANDATORY when only one runnable
@@ -34,9 +39,9 @@ When executing a plan with multiple unblocked tasks, you MUST use this pattern. 
 When only one task is runnable or tasks share files (so you cannot batch), you MUST still use a sub-agent:
 
 1. Run `pnpm tg next --plan "<Plan>" --limit 1` and pick the task.
-2. Optionally dispatch the **explorer** (read `.cursor/agents/explorer.md`, build prompt from task title/intent/domain/skill/file tree, Task with `model="fast"`). Use explorer output to enrich implementer context. Skip explorer for very simple tasks (e.g. add a test file, document X).
-3. Run `pnpm tg context <taskId> --json`. Build the implementer prompt from the template and context (and explorer output if present). Dispatch one Task with `model="fast"`, `prompt=<built prompt>`, `description="Implement: <title>"`.
-4. When implementer completes, dispatch the **reviewer** with task context + diff. If FAIL, re-dispatch implementer with feedback once; after 2 failures, complete the task yourself.
+2. Optionally dispatch the **explorer** (read `.cursor/agents/explorer.md`, build prompt; use Task tool, agent CLI, or mcp_task). Use explorer output to enrich implementer context. Skip explorer for very simple tasks (e.g. add a test file, document X).
+3. Run `pnpm tg context <taskId> --json`. Build the implementer prompt from the template and context (and explorer output if present). **Dispatch** one implementer (Task tool, agent CLI, or mcp_task) with the built prompt and description "Implement: <title>".
+4. When implementer completes, dispatch the **reviewer** with task context + diff (same mechanism). If FAIL, re-dispatch implementer with feedback once; after 2 failures, complete the task yourself.
 5. Repeat from step 1 for the next task.
 
 ## Pattern 3: Plan analysis (before writing a plan) — MANDATORY
@@ -46,7 +51,7 @@ When only one task is runnable or tasks share files (so you cannot batch), you M
 Before creating a new plan (e.g. user asked for a feature and you are about to write `plans/yy-mm-dd_<name>.md`):
 
 1. Read `.cursor/agents/planner-analyst.md`. Build the prompt with `{{REQUEST}}` = user's feature/request. Optionally run `pnpm tg status` and pass the output so the analyst can reference current plans and done tasks.
-2. Dispatch one Task with `model="fast"`, `prompt=<built prompt>`, `description="Planner analyst: gather context for plan"`.
+2. **Dispatch** the planner-analyst (Task tool, agent CLI, or mcp_task with subagent_type explore) with the built prompt and description "Planner analyst: gather context for plan".
 3. Use the analyst's output as input when you write the plan. **You own architecture, dependencies, and task design** — the analyst gathers facts, you do the reasoning.
 
 ### Orchestrator critique checklist (after receiving analyst output)

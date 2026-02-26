@@ -313,10 +313,12 @@ export function parseCursorPlan(
       body: body ?? undefined,
     });
   } catch (e) {
+    const causeMessage =
+      e instanceof Error ? e.message : String(e ?? "unknown error");
     return err(
       buildError(
         ErrorCode.FILE_READ_FAILED,
-        `Failed to read or parse Cursor plan at ${filePath}`,
+        `Failed to read or parse Cursor plan at ${filePath}: ${causeMessage}`,
         e,
       ),
     );

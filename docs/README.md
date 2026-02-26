@@ -45,3 +45,4 @@ For more detailed information, refer to the following documentation sections:
 -   [Testing](testing.md)
 -   [Agent Contract](agent-contract.md)
 -   [Plan Import](plan-import.md)
+-   [Cursor Agent CLI](cursor-agent-cli.md) — run sub-agents from the terminal (`agent --print --trust`)

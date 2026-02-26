@@ -249,4 +249,23 @@ todos: []
     expect(tasks).toEqual([]);
     unlinkSync(testFilePath);
   });
+
+  it("should surface underlying YAML parse error in message when frontmatter is invalid", () => {
+    const content = `---
+name: Bad Plan
+overview: "Unclosed quote
+todos:
+  - id: a
+    content: "Task"
+---
+`;
+    writeFileSync(testFilePath, content);
+    const result = parseCursorPlan(testFilePath);
+    expect(result.isErr()).toBe(true);
+    const err = result._unsafeUnwrapErr();
+    expect(err.code).toBe(ErrorCode.FILE_READ_FAILED);
+    expect(err.message).toContain(testFilePath);
+    expect(err.message).toMatch(/unclosed|quote|expected|line|column|YAML/i);
+    unlinkSync(testFilePath);
+  });
 });

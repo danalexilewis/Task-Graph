@@ -38,6 +38,10 @@
 
 - **Task execution MUST use implementer (and reviewer) sub-agents.** AGENT.md and subagent-dispatch.mdc require it; max 3 tasks in flight. Direct execution only after 2 sub-agent failures or when task is explicitly exploratory. Skipping dispatch during execution is a critical failure.
 
+## Dispatch mechanisms (choose by environment)
+
+- **In-IDE / terminal**: Task tool or `agent` CLI (see docs/cursor-agent-cli.md). **This environment** (no Task tool): use **mcp_task** with the same built prompt and short description (e.g. "Implement task: &lt;title&gt;"); subagent_type generalPurpose or explore. Same prompt and workflow; only invocation differs. Do not skip dispatch because the Task tool is not visible — use mcp_task.
+
 ## Plan filename convention
 
 - Plan filenames: `yy-mm-dd_the_file_name.md` (e.g. `26-02-26_restructure_src_npm_layout.md`). Two-digit year, date, then underscore and slug. See plan-authoring.mdc.

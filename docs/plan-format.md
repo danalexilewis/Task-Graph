@@ -20,29 +20,29 @@ All new fields are **optional**. Existing plans without these fields continue to
 
 ### Required and Existing Fields
 
-| Field      | Required | Description |
-|-----------|----------|-------------|
-| `name`    | yes      | Plan title. |
-| `overview`| yes      | Brief description; can be multi-line. |
-| `todos`   | yes      | Array of task objects (see below). |
-| `isProject` | no    | Boolean; default false. |
+| Field       | Required | Description                           |
+| ----------- | -------- | ------------------------------------- |
+| `name`      | yes      | Plan title.                           |
+| `overview`  | yes      | Brief description; can be multi-line. |
+| `todos`     | yes      | Array of task objects (see below).    |
+| `isProject` | no       | Boolean; default false.               |
 
 ### Plan-Level Optional Fields (Rich Planning)
 
-| Field       | Type   | Stored in Dolt | Description |
-|------------|--------|----------------|-------------|
-| `fileTree` | string | `plan.file_tree` | Tree of files affected by the plan (e.g. paths with `(create)` / `(modify)`). |
-| `risks`    | array  | `plan.risks`    | List of `{description, severity, mitigation}`. `severity`: `low`, `medium`, `high`. |
-| `tests`    | array  | `plan.tests`    | List of strings describing tests that should be created. |
+| Field      | Type   | Stored in Dolt   | Description                                                                         |
+| ---------- | ------ | ---------------- | ----------------------------------------------------------------------------------- |
+| `fileTree` | string | `plan.file_tree` | Tree of files affected by the plan (e.g. paths with `(create)` / `(modify)`).       |
+| `risks`    | array  | `plan.risks`     | List of `{description, severity, mitigation}`. `severity`: `low`, `medium`, `high`. |
+| `tests`    | array  | `plan.tests`     | List of strings describing tests that should be created.                            |
 
 ### Todo (Task) Fields
 
 Base fields (see [Plan Import](plan-import.md)): `id`, `content`, `status`, `blockedBy`, `domain`, `skill`, `changeType`.
 
-| Field             | Type   | Stored in Dolt        | Description |
-|-------------------|--------|------------------------|-------------|
-| `intent`          | string | `task.intent`         | Detailed description of what this task involves and why. Can reference files, functions, or constraints. |
-| `suggestedChanges`| string | `task.suggested_changes` | Proposed code snippets or diffs as a starting point for the agent. Directional, not prescriptive. |
+| Field              | Type   | Stored in Dolt           | Description                                                                                              |
+| ------------------ | ------ | ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `intent`           | string | `task.intent`            | Detailed description of what this task involves and why. Can reference files, functions, or constraints. |
+| `suggestedChanges` | string | `task.suggested_changes` | Proposed code snippets or diffs as a starting point for the agent. Directional, not prescriptive.        |
 
 **Note:** `content` is used as the task title and must fit in the DB `title` column (VARCHAR(255)). Keep titles concise; put long descriptions in `intent`.
 
@@ -199,6 +199,95 @@ file trees and risk registers into Dolt and agents can see them via `tg context`
 
 - Whether to support markdown body storage in a plan column for round-trip export.
 ```
+
+---
+
+## Plan Import Robustness
+
+When agents create Cursor-format plans for `pnpm tg import`, the **taskgraph parser** uses `js-yaml` on the frontmatter. Certain YAML constructs cause parse failures; the error message includes the underlying cause. This section explains **how to make plans robust** so they import reliably, especially when using lower-capability (simple) models.
+
+### Why Plans Fail to Import
+
+- **Em dash in unquoted string**: `name: System review — Dolt` — `—` can confuse scalar parsing.
+- **Multiline `|` with colons**: Colons in multiline content can be parsed as new keys.
+- **Multiline `|` indentation**: Indent must be strict; mis-indent causes parse errors.
+- **Nested objects in arrays**: e.g. `risks:` with long `mitigation` containing colons, quotes, parens.
+- **Arrays of strings with colons**: `tests: - "Run X: verify Y"` can trip some parsers.
+
+When import fails, the error message includes the js-yaml reason (e.g. "unclosed quote" or "expected"). Fix the frontmatter or move rich content to the body.
+
+### Robust Plan Rules
+
+**Rule 1: Use minimal, import-safe frontmatter when needed.**
+
+Guaranteed to work:
+
+```yaml
+---
+name: Plan Name Here
+overview: Single line description, no pipes or colons in tricky places.
+todos:
+  - id: task-1
+    content: Task title under 255 chars.
+    status: pending
+  - id: task-2
+    content: Another task.
+    status: pending
+    blockedBy: [task-1]
+isProject: false
+---
+```
+
+- **name**: Short; no em dashes (—). Use hyphens or "and".
+- **overview**: **Single line.** Avoid `|` multiline. Avoid arrows (→); use "to" or "->".
+- **todos**: Only `id`, `content`, `status`. Add `blockedBy: [id1, id2]` with simple array syntax.
+- Optional: `domain`, `skill`, `changeType`. Omit `fileTree`, `risks`, `tests`, `intent`, `suggestedChanges` from YAML if you hit parse errors.
+
+**Rule 2: Put rich content in the markdown body.**
+
+The body (below `---`) is **not** parsed by the importer. Put everything else there:
+
+- **Intent per task**: `## Task: task-id` then the intent.
+- **File tree**: As a list or code block.
+- **Risks and tests**: As markdown lists.
+- **Dependencies**: Mermaid or list so humans see them even if `blockedBy` is lost.
+- **Suggested changes**: Under each task section.
+
+Implementers can read the plan file when `tg context` lacks intent/fileTree.
+
+**Rule 3: Keep blockedBy simple.**
+
+```yaml
+blockedBy: [decide-dolt-location]
+```
+
+Use task `id` values (kebab-case). Single line; no multiline arrays.
+
+**Rule 4: Validate before committing.**
+
+Run before considering the plan done:
+
+```bash
+pnpm tg import plans/yy-mm-dd_plan_slug.md --plan "Plan Name" --format cursor
+```
+
+If it fails, the error message includes the parse cause. Strip frontmatter down to the minimal schema (Rule 1) and move rich content to the body (Rule 2).
+
+### Checklist for Plan Authors
+
+- [ ] `name` has no em dash (—); use hyphen or "and".
+- [ ] `overview` is a single line.
+- [ ] `todos` have only `id`, `content`, `status`; optionally `blockedBy: [id]` on one line.
+- [ ] No `fileTree`, `risks`, `tests`, `intent`, `suggestedChanges` in YAML if import has failed before (or keep them simple).
+- [ ] Rich content (intent, risks, file tree, deps) is in the **markdown body**.
+- [ ] Run `pnpm tg import plans/... --plan "..." --format cursor` to verify.
+
+| Goal                     | Approach                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------- |
+| Plan always imports      | Minimal frontmatter: name, single-line overview, todos (id, content, status, optional blockedBy). |
+| Dependencies respected   | `blockedBy: [id]` in minimal form; document deps in body as backup.                               |
+| Implementers get context | Put intent, file tree, suggested changes in **body**; link plan file when needed.                 |
+| Parse errors debuggable  | Parser surfaces js-yaml error in the message so agents can fix the YAML.                          |
 
 ---
 

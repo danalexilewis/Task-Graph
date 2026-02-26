@@ -1,6 +1,6 @@
 # Sub-Agent Definitions
 
-This directory contains **prompt templates** for specialized sub-agents dispatched via Cursor's Task tool. The orchestrating agent (session model) reads these templates, interpolates them with task-specific data from `tg context --json`, and dispatches sub-agents with `model="fast"` for cost-effective parallel execution.
+This directory contains **prompt templates** for specialized sub-agents. The orchestrating agent reads these templates, interpolates them with task-specific data from `tg context --json`, and dispatches sub-agents via the Cursor Task tool, the `agent` CLI, or mcp_task (same prompt; mechanism chosen by what's available). See [docs/cursor-agent-cli.md](../docs/cursor-agent-cli.md) and `.cursor/rules/subagent-dispatch.mdc`.
 
 ## Directory layout
 
@@ -23,7 +23,7 @@ Each agent file (e.g. `implementer.md`) should include:
 5. **Prompt template** — The body of the prompt. Use placeholders the orchestrator will replace, e.g. `{{TASK_ID}}`, `{{CONTEXT_JSON}}`, `{{INTENT}}`.
 6. **Learnings** (optional, grows over time) — Accumulated corrections from the orchestrator's learning-mode reviews. See below.
 
-The orchestrator builds the final prompt by substituting these placeholders, then calls the Task tool with `prompt=<built prompt>` and `model="fast"`.
+The orchestrator builds the final prompt by substituting these placeholders, then dispatches (Task tool, agent CLI, or mcp_task) with the built prompt; use `model="fast"` when using the Task tool or CLI.
 
 ## Learnings section
 
@@ -63,7 +63,7 @@ Example:
 1. Orchestrator runs `tg next --json --limit 4` to get unblocked tasks.
 2. For each task, orchestrator runs `tg context <taskId> --json` and optionally runs the explorer.
 3. Orchestrator reads the appropriate agent template (e.g. `implementer.md`), replaces placeholders with the task's context.
-4. Orchestrator calls the Task tool: `Task(description="...", prompt=<interpolated prompt>, model="fast")`.
+4. Orchestrator dispatches the sub-agent: Task tool, `agent` CLI, or mcp_task with the same description and interpolated prompt (see docs/cursor-agent-cli.md).
 5. Sub-agent runs in its own context, runs `tg start <taskId> --agent <name>`, does the work, runs `tg done <taskId> --evidence "..."`.
 
 Placeholders commonly used:

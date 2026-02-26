@@ -10,6 +10,11 @@ alwaysApply: false
 
 Create plans as `plans/<name>.md` (not .plan.md). Plans use Cursor format for import into taskgraph via `tg import --format cursor`.
 
+## Import robustness and validation
+
+- **Validate before done**: Run `pnpm tg import plans/<file> --plan "<Plan Name>" --format cursor` to verify the plan imports. If it fails, the CLI now surfaces the underlying YAML parse cause; fix the frontmatter or use a minimal frontmatter and put rich content in the body.
+- **Minimal frontmatter (when import fails)**: See [Plan Import Robustness](docs/plan-format.md#plan-import-robustness) in docs/plan-format.md. Use only `name`, single-line `overview`, `todos` with `id`, `content`, `status`, and optional `blockedBy: [id]`. Put intent, fileTree, risks, tests, and suggestedChanges in the **markdown body** so the file still imports. Checklist: no em dash in name; single-line overview; run `tg import` to verify.
+
 ## Plan file naming (timestamp convention)
 
 Plan filenames MUST include a date prefix so they sort chronologically. Use this format:
@@ -25,14 +30,14 @@ Plan filenames MUST include a date prefix so they sort chronologically. Use this
 
 Every plan MUST align with the enhanced format in docs/plan-format.md:
 
-| Element | Required | Description |
-|--------|----------|-------------|
-| **fileTree** | yes | Plan-level. Tree of files the plan touches, with `(create)` / `(modify)`. Stored on plan, shown in `tg context`. |
-| **risks** | yes | Plan-level array of `{ description, severity, mitigation }`. `severity`: `low`, `medium`, `high`. |
-| **tests** | yes | Plan-level array of strings describing tests to add. |
-| **intent** | yes (per todo) | Detailed description of what the task involves and why. Stored on task, shown in `tg context`. |
-| **suggestedChanges** | when helpful | Per todo. Directional code snippets or pointers for the agent; not prescriptive. |
-| **Markdown body** | yes | Below the closing `---`: Analysis, proposed changes, mermaid (e.g. dependency graph), risks/testing/open questions. End with `<original_prompt>...</original_prompt>`. |
+| Element              | Required       | Description                                                                                                                                                            |
+| -------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **fileTree**         | yes            | Plan-level. Tree of files the plan touches, with `(create)` / `(modify)`. Stored on plan, shown in `tg context`.                                                       |
+| **risks**            | yes            | Plan-level array of `{ description, severity, mitigation }`. `severity`: `low`, `medium`, `high`.                                                                      |
+| **tests**            | yes            | Plan-level array of strings describing tests to add.                                                                                                                   |
+| **intent**           | yes (per todo) | Detailed description of what the task involves and why. Stored on task, shown in `tg context`.                                                                         |
+| **suggestedChanges** | when helpful   | Per todo. Directional code snippets or pointers for the agent; not prescriptive.                                                                                       |
+| **Markdown body**    | yes            | Below the closing `---`: Analysis, proposed changes, mermaid (e.g. dependency graph), risks/testing/open questions. End with `<original_prompt>...</original_prompt>`. |
 
 - **Mermaid**: Use for data flows, state machines, dependency graphs, or any logic that benefits from a diagram.
 - **suggestedChanges**: Add when a task touches a specific file/function; a short snippet speeds the agent up.
@@ -73,17 +78,17 @@ Below the closing `---`, add the markdown body: **Analysis**, **Proposed changes
 
 ## Todo Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | yes | Stable key → maps to `external_key`. Use kebab-case. |
-| `content` | yes | Task title (maps to task title; VARCHAR(255) — keep under 255 chars). |
-| `intent` | yes | Detailed scope and rationale; stored on task, shown in `tg context`. |
-| `status` | no | `pending` → todo, `completed` → done |
-| `blockedBy` | no | Array of todo `id`s that block this task. Creates `blocks` edges on import. |
-| `domain` | no | Single slug or array → `docs/<domain>.md`. Agent reads these before starting. |
-| `skill` | no | Single slug or array → `docs/skills/<skill>.md`. Use kebab-case. |
-| `changeType` | no | `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`. |
-| `suggestedChanges` | no | Directional snippets for the agent when the task touches specific code. |
+| Field              | Required | Description                                                                   |
+| ------------------ | -------- | ----------------------------------------------------------------------------- |
+| `id`               | yes      | Stable key → maps to `external_key`. Use kebab-case.                          |
+| `content`          | yes      | Task title (maps to task title; VARCHAR(255) — keep under 255 chars).         |
+| `intent`           | yes      | Detailed scope and rationale; stored on task, shown in `tg context`.          |
+| `status`           | no       | `pending` → todo, `completed` → done                                          |
+| `blockedBy`        | no       | Array of todo `id`s that block this task. Creates `blocks` edges on import.   |
+| `domain`           | no       | Single slug or array → `docs/<domain>.md`. Agent reads these before starting. |
+| `skill`            | no       | Single slug or array → `docs/skills/<skill>.md`. Use kebab-case.              |
+| `changeType`       | no       | `create`, `modify`, `refactor`, `fix`, `investigate`, `test`, `document`.     |
+| `suggestedChanges` | no       | Directional snippets for the agent when the task touches specific code.       |
 
 ## Dependency and scope
 

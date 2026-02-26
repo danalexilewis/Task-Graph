@@ -2,7 +2,7 @@ Plan creation and review
 
 **Planning uses the planner-analyst sub-agent first. Do not skip this.**
 
-1. **Before writing any plan**: You MUST dispatch the planner-analyst sub-agent to gather codebase context. Read `.cursor/agents/planner-analyst.md`, build a prompt with the user's request (and optionally `tg status` output), and dispatch one Task with `model="fast"` and description e.g. "Planner analyst: gather context for plan". Wait for the analyst's output (relevant files, existing data, patterns, risks, related prior work, rough task breakdown).
+1. **Before writing any plan**: You MUST dispatch the planner-analyst sub-agent to gather codebase context. Read `.cursor/agents/planner-analyst.md`, build a prompt with the user's request (and optionally `tg status` output). Dispatch via the Task tool, agent CLI, or mcp_task (when the Task tool is not available) with the same prompt and description e.g. "Planner analyst: gather context for plan". See `docs/cursor-agent-cli.md` and `.cursor/rules/subagent-dispatch.mdc`. Wait for the analyst's output (relevant files, existing data, patterns, risks, related prior work, rough task breakdown).
 2. **Then** write the plan: use the analyst's output as input. Create `plans/yy-mm-dd_<name>.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`, plus fileTree, risks, tests, per-task intent per `.cursor/rules/plan-authoring.mdc`). You own architecture and task design; the analyst already did the exploration. Summarize the plan, then pause and ask for review.
 3. Do not import or execute until the user responds. Interpret the response using this table:
 
@@ -18,7 +18,7 @@ Agent operating loop
 
 - Always begin with: tg status to orient — surface stale tasks, plan state, and other agents' active work (if any).
 - Then: tg next --plan "<Plan>" --limit 3 (or tg next --limit 3). Get up to 3 runnable tasks. Follow Pattern 1 (parallel, max 3) or Pattern 2 (sequential) in subagent-dispatch.mdc.
-- For each task: build implementer prompt from tg context and `.cursor/agents/implementer.md`, dispatch Task with model="fast". After implementer completes, dispatch reviewer with task context + diff; if FAIL, re-dispatch implementer once; after 2 failures, do that task yourself.
+- For each task: build implementer prompt from tg context and `.cursor/agents/implementer.md`; dispatch implementer (Task tool, agent CLI, or mcp_task per subagent-dispatch). After implementer completes, dispatch reviewer with task context + diff; if FAIL, re-dispatch implementer once; after 2 failures, do that task yourself.
 - Sub-agents run tg start and tg done; you coordinate. Do not run tg start / tg done yourself for a task you delegated.
 - Evidence (tests run, commands, git ref) is supplied by the implementer in tg done; you verify via reviewer.
 
