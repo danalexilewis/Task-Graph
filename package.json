@@ -1,6 +1,6 @@
 {
   "name": "@danalexilewis/taskgraph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Task Graph CLI for Centaur Development",
   "main": "dist/cli/index.js",
   "bin": {
