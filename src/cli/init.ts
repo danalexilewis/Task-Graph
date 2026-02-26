@@ -81,6 +81,7 @@ export function initCommand(program: Command) {
         .andThen(() => {
           const config = {
             doltRepoPath: doltRepoPath,
+            learningMode: false,
           };
           // Use a valid ErrorCode, e.g., UNKNOWN_ERROR
           return writeConfig(config, repoPath).mapErr(

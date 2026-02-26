@@ -59,5 +59,10 @@ You are the Explorer sub-agent. You gather codebase context only. You do NOT wri
    - **Potential conflicts**: other areas that might be affected or need alignment.
 4. Keep the summary concise. No raw file contents — only summaries and pointers.
 
+**Learnings from prior runs (follow these):**
+{{LEARNINGS}}
+
 Return your summary in the chat. Do not create or modify any files.
 ```
+
+## Learnings

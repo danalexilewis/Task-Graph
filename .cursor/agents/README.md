@@ -21,8 +21,36 @@ Each agent file (e.g. `implementer.md`) should include:
 3. **Input contract** — What the orchestrator must pass: e.g. task_id, tg context JSON, optional explorer output.
 4. **Output contract** — What the agent returns: e.g. "completed + evidence", "PASS/FAIL + issues", "structured analysis document".
 5. **Prompt template** — The body of the prompt. Use placeholders the orchestrator will replace, e.g. `{{TASK_ID}}`, `{{CONTEXT_JSON}}`, `{{INTENT}}`.
+6. **Learnings** (optional, grows over time) — Accumulated corrections from the orchestrator's learning-mode reviews. See below.
 
 The orchestrator builds the final prompt by substituting these placeholders, then calls the Task tool with `prompt=<built prompt>` and `model="fast"`.
+
+## Learnings section
+
+When **learning mode** is enabled (`"learningMode": true` in `.taskgraph/config.json`), the orchestrator reviews sub-agent output after each run and may append learnings to the agent file. These are concrete, reusable corrections — not praise or generic advice.
+
+### Format
+
+Each agent file may have a `## Learnings` section at the bottom. Entries use this format:
+
+```
+- **[YYYY-MM-DD]** <one-line summary>. <directive: "Instead, do X" or "Always check Y before Z".>
+```
+
+Example:
+
+```
+## Learnings
+
+- **[2026-02-26]** Ignored suggested_changes and wrote implementation from scratch. Always read and follow suggested_changes as a starting point — deviate only when the suggestion is clearly wrong.
+- **[2026-02-26]** Added unused import for a utility function. Run the project linter before completing the task.
+```
+
+### How learnings are used
+
+- **Injection**: When building a sub-agent prompt, the orchestrator reads the `## Learnings` section and injects it as `{{LEARNINGS}}` in the prompt (after instructions, before task context).
+- **Consolidation**: When learnings exceed ~10 entries, the orchestrator folds recurring patterns into the main prompt template and prunes the individual entries. This keeps the section high-signal.
+- **Scope**: Learnings are per-agent (implementer learnings stay in implementer.md). Cross-cutting patterns that apply to all agents go into `.cursor/rules/subagent-dispatch.mdc` or `.cursor/memory.md` instead.
 
 ## Naming conventions
 

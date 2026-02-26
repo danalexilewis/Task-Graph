@@ -45,7 +45,56 @@ Before creating a new plan (e.g. user asked for a feature and you are about to w
 
 1. Read `.cursor/agents/planner-analyst.md`. Build the prompt with `{{REQUEST}}` = user's feature/request. Optionally run `pnpm tg status` and pass the output so the analyst can reference current plans and done tasks.
 2. Dispatch one Task with `model="fast"`, `prompt=<built prompt>`, `description="Planner analyst: gather context for plan"`.
-3. Use the analyst's output (relevant files, patterns, risks, related prior work, rough task breakdown) as input when you write the plan. You focus on architecture, dependencies, and task design; the analyst already did the codebase exploration.
+3. Use the analyst's output as input when you write the plan. **You own architecture, dependencies, and task design** — the analyst gathers facts, you do the reasoning.
+
+### Orchestrator critique checklist (after receiving analyst output)
+
+Do not transcribe the analyst's suggested breakdown into tasks verbatim. Before writing the plan, work through this checklist:
+
+- **Existing data first**: What metrics or insights can be derived from data already in the system (timestamps, event counts, existing fields) before designing new data capture? The analyst should have surfaced this; if not, identify it yourself.
+- **Dependency minimization**: For each proposed dependency between tasks, ask: "Can the downstream task work (even partially) without the upstream?" Decouple data-capture features from features that can function without that data. Prefer a wide graph over a deep chain.
+- **Concrete metrics**: When the user asks for something qualitative ("efficiency", "performance", "improvements"), define it in measurable terms in the plan. What exactly gets measured? What thresholds or comparisons make it actionable? If the analyst left this vague, sharpen it.
+- **Task specificity**: Each task must be concrete enough that a fast sub-agent can implement it without making design decisions. If intent says "heuristics e.g. ..." or "optionally ...", the task needs more design work from you before it's ready.
+- **Resolve open questions**: Architectural choices (e.g. "same command or separate?") should be decided in the plan, not left as open questions for implementers. If you genuinely can't decide, create an explicit investigate task.
+- **Test coverage**: Either include test expectations in each task's intent, or create a dedicated test task. Don't list tests in plan-level `tests` without assigning them to a task.
+
+## Learning Mode
+
+**Toggle**: Check `"learningMode"` in `.taskgraph/config.json`. If `true`, learning mode is ON — run the review protocol below after each sub-agent completes. If `false` or absent, skip this section entirely.
+
+### When it triggers
+
+After every **implementer**, **explorer**, or **planner-analyst** sub-agent completes. Not after the reviewer (its job is already evaluation).
+
+### Review protocol (orchestrator only)
+
+When learning mode is ON and a sub-agent has completed:
+
+1. **Gather the sub-agent's output**: the returned message, and for implementers also the git diff (`git diff HEAD~1` or similar).
+2. **Evaluate**: Would you (the orchestrator) have done the same thing? Consider:
+   - **Scope**: Did the sub-agent stay within the task's intent, or drift?
+   - **Approach**: Was the implementation approach what you'd have chosen? If not, what's better and why?
+   - **Quality**: Missing error handling, unnecessary complexity, wrong abstractions, missed patterns from the codebase?
+   - **Context use**: Did the sub-agent make good use of the domain docs, skill guides, and suggested changes it was given? Or did it ignore them?
+3. **Decide**: Is there a constructive, reusable learning here? Skip if the sub-agent did fine — only write learnings when there's a concrete improvement to encode. Not every task produces a learning.
+4. **Write the learning**: Append to the `## Learnings` section of the relevant agent file (e.g. `.cursor/agents/implementer.md`). Use this format:
+
+```
+- **[YYYY-MM-DD]** <one-line summary>. <concrete directive: "Instead, do X" or "Always check Y before Z".>
+```
+
+5. **Consolidate** (periodically): When `## Learnings` exceeds ~10 entries, fold recurring patterns into the agent's main prompt template and remove the individual entries. This keeps the learnings section high-signal and prevents prompt bloat.
+
+### Injecting learnings into prompts
+
+When building a sub-agent prompt, if the agent file has a non-empty `## Learnings` section, include it in the prompt as a `{{LEARNINGS}}` block:
+
+```
+**Learnings from prior runs (follow these):**
+{{LEARNINGS}}
+```
+
+Place this after the main instructions and before any task-specific context. The sub-agent should treat learnings as corrections to its default behavior.
 
 ## Lifecycle and errors
 
@@ -56,3 +105,5 @@ Before creating a new plan (e.g. user asked for a feature and you are about to w
 ## Building prompts from context JSON
 
 `pnpm tg context <taskId> --json` returns an object with: `task_id`, `title`, `domains`, `skills`, `change_type`, `suggested_changes`, `file_tree`, `risks`, `domain_docs`, `skill_docs`, `related_done_by_domain`, `related_done_by_skill`. Map these to the placeholders in each agent template (see `.cursor/agents/README.md`). For the reviewer you also need the implementer's git diff (e.g. `git diff` or `git show` after the implementer's run).
+
+Additionally, for every agent: read the agent file's `## Learnings` section (if non-empty) and inject it as `{{LEARNINGS}}`. See Learning Mode above.

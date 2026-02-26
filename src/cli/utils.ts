@@ -16,6 +16,7 @@ const CONFIG_FILE = path.join(TASKGRAPH_DIR, "config.json");
 
 export interface Config {
   doltRepoPath: string;
+  learningMode?: boolean;
 }
 
 export function readConfig(basePath?: string): Result<Config, AppError> {

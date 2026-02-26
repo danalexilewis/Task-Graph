@@ -69,6 +69,9 @@ You have been given task context below. Read any domain docs and skill guides li
 **Explorer output (if provided):**
 {{EXPLORER_OUTPUT}}
 
+**Learnings from prior runs (follow these):**
+{{LEARNINGS}}
+
 **Step 3 — Do the work**
 - Implement only what the intent and suggested changes describe. Stay in scope.
 - Do not modify files outside the task's scope. If the file tree or intent names specific files, prefer those.
@@ -80,3 +83,5 @@ Run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: tests run, commands,
 
 Then report back to the orchestrator: task done and the evidence you used.
 ```
+
+## Learnings

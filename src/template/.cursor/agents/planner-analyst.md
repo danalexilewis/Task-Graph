@@ -21,10 +21,11 @@ The orchestrator must pass:
 Return a **structured analysis document** with these sections:
 
 1. **Relevant files and roles** — paths and one-line role (e.g. "src/auth/session.ts — session handling")
-2. **Existing patterns** — how the codebase handles similar concerns (testing, errors, structure)
-3. **Potential risks and dependencies** — what could break, what other areas depend on this
-4. **Related prior work** — from `tg status` or recent done tasks: plans/tasks that touch the same domain or files
-5. **Suggested task breakdown (rough)** — a short list of logical steps or phases (e.g. "1. Schema change 2. API 3. Tests"). This is input for the planner, not the final plan.
+2. **Existing data and derivable metrics** — What data already exists in the system (tables, event bodies, timestamps, fields) that is relevant to this request? What metrics or insights can be derived from existing data _without_ adding new storage or capture? This section prevents the planner from designing new data capture when existing data already suffices.
+3. **Existing patterns** — how the codebase handles similar concerns (testing, errors, structure)
+4. **Potential risks and dependencies** — what could break, what other areas depend on this. For each proposed step in the breakdown: flag which steps are truly dependent vs. which could run independently.
+5. **Related prior work** — from `tg status` or recent done tasks: plans/tasks that touch the same domain or files
+6. **Suggested task breakdown (rough)** — a short list of logical steps or phases (e.g. "1. Schema 2. API 3. Tests"). For each step, note which other steps it truly depends on and which are independent. This is input for the planner, not the final plan. The planner will challenge dependencies and may restructure.
 
 Do not produce YAML or a full plan. Only the analysis and rough breakdown.
 
@@ -44,6 +45,11 @@ You are the Planner Analyst sub-agent. You gather codebase and task-graph contex
    **Relevant files and roles**
    - For each relevant path: one-line role (e.g. "src/db/migrate.ts — Dolt migrations").
 
+   **Existing data and derivable metrics**
+   - What data already exists in the system (tables, columns, event body fields, timestamps) that is relevant to this request?
+   - What metrics or insights can be derived from existing data WITHOUT adding new storage or capture?
+   - Be specific: e.g. "started.created_at and done.created_at give elapsed time per task — no new fields needed."
+
    **Existing patterns**
    - How does this codebase handle similar work (testing, errors, layering, naming)?
 
@@ -54,9 +60,15 @@ You are the Planner Analyst sub-agent. You gather codebase and task-graph contex
    - From tg status / recent done: plans or tasks in the same domain or touching the same files.
 
    **Suggested task breakdown (rough)**
-   - A short list of logical steps or phases (e.g. "1. Schema 2. API 3. Tests"). Not final — the planner will turn this into a proper plan with ids and blockedBy.
+   - A short list of logical steps or phases (e.g. "1. Schema 2. API 3. Tests"). Not final — the planner will restructure and challenge these.
+   - For each step, explicitly note: "depends on: X" or "independent — can run in parallel with Y". The planner uses this to minimize unnecessary serial dependencies.
+
+**Learnings from prior runs (follow these):**
+{{LEARNINGS}}
 
 4. Do not output YAML or a full plan. Only the analysis and rough breakdown. Return your analysis in the chat.
 ```
+
+## Learnings
 
 **If the orchestrator passed tg status output:** include it in the prompt under a "Current task graph state" section so the analyst can reference it without re-running the CLI.
