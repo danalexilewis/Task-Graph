@@ -15,11 +15,6 @@ type CopyResult = {
   skipped: string[];
 };
 
-function packageRootFromCliDir(cliDir: string): string {
-  // At runtime, this file is compiled to dist/cli/*.js.
-  // ../.. from dist/cli => package root.
-  return path.resolve(cliDir, "../..");
-}
 
 function copyTree(
   srcDir: string,
@@ -75,11 +70,8 @@ export function setupCommand(program: Command) {
         force: raw.force ?? false,
       };
       const repoRoot = process.cwd();
-      const templateRoot = path.join(
-        packageRootFromCliDir(__dirname),
-        "templates",
-        "repo-setup",
-      );
+      // At runtime this file is at dist/cli/setup.js; templates live at dist/template.
+      const templateRoot = path.join(__dirname, "..", "template");
 
       const run = (): void => {
         const result: CopyResult = { created: [], skipped: [] };

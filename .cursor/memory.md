@@ -9,7 +9,7 @@
 ## CLI scaffolding (`tg setup`)
 - Commander `--no-<flag>` options default to `true`; don’t pass `false` as the default value or you’ll invert behavior (setup will do nothing).
 - Package entrypoints should match build output: `package.json` `bin`/`main` point at `dist/cli/index.js`.
-- `tg setup` resolves templates via `packageRootFromCliDir(__dirname)`: from `dist/cli/` use `../..` to get package root (not `../../..`).
+- `tg setup` resolves templates from `path.join(__dirname, '..', 'template')`: at runtime dist/cli → dist/template; in dev (tsx) src/cli → src/template. Templates live in `src/template/` and are copied to `dist/template/` by the build.
 
 ## Dolt JSON columns
 - `event.body` may be returned as object or string by doltSql depending on driver. Handle both: `typeof raw === 'string' ? JSON.parse(raw) : raw`.
