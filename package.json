@@ -19,6 +19,7 @@
     "test": "vitest run --dir __tests__",
     "test:e2e": "vitest run --dir __tests__/e2e",
     "test:integration": "vitest run --dir __tests__/integration",
+    "precommit": "node scripts/pre-commit.js",
     "publish": "npm publish"
   },
   "keywords": [
@@ -55,6 +56,7 @@
     "@types/uuid": "^9.0.8",
     "tsx": "^4.7.1",
     "typescript": "^5.3.3",
-    "vitest": "^1.0.0"
+    "vitest": "^1.0.0",
+    "prettier": "^3.2.0"
   }
 }

@@ -22,9 +22,9 @@ function main() {
   if (staged.length === 0) process.exit(0);
 
   const root = path.resolve(__dirname, '..');
-  const files = staged.map((f) => path.join(root, f)).join(' ');
-  execSync(`npx prettier --write ${files}`, { stdio: 'inherit', cwd: root });
-  execSync(`git add ${staged.join(' ')}`, { stdio: 'inherit', cwd: root });
+  const files = staged.map((f) => path.join(root, f));
+  execSync('npx', ['prettier', '--write', ...files], { stdio: 'inherit', cwd: root });
+  execSync('git', ['add', ...staged], { stdio: 'inherit', cwd: root });
 }
 
 main();
