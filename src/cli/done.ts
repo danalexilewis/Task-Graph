@@ -1,18 +1,25 @@
 import { Command } from "commander";
 import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
-import { readConfig, Config } from "./utils"; // Import Config
+import { readConfig, Config, parseIdList } from "./utils";
 import { checkValidTransition } from "../domain/invariants";
 import { TaskStatus } from "../domain/types";
-import { ResultAsync, ok, err } from "neverthrow";
+import { ok, err } from "neverthrow";
 import { AppError, buildError, ErrorCode } from "../domain/errors";
 import { query, now, jsonObj, JsonValue } from "../db/query";
+
+type DoneResult =
+  | { id: string; status: "done" }
+  | { id: string; error: string };
 
 export function doneCommand(program: Command) {
   program
     .command("done")
     .description("Mark a task as done")
-    .argument("<taskId>", "ID of the task to mark as done")
+    .argument(
+      "<taskIds...>",
+      "One or more task IDs (space- or comma-separated)",
+    )
     .option("--evidence <text>", "Evidence of completion", "")
     .option("--checks <json>", "JSON array of acceptance checks")
     .option(
@@ -20,14 +27,28 @@ export function doneCommand(program: Command) {
       "Allow marking as done even if not in 'doing' status",
       false,
     )
-    .action(async (taskId, options, cmd) => {
-      const result = await readConfig().asyncAndThen((config: Config) => {
-        // Removed async, added type
-        const currentTimestamp = now();
+    .action(async (taskIds: string[], options, cmd) => {
+      const ids = parseIdList(taskIds);
+      if (ids.length === 0) {
+        console.error("At least one task ID required.");
+        process.exit(1);
+      }
 
+      const configResult = await readConfig();
+      if (configResult.isErr()) {
+        console.error(configResult.error.message);
+        process.exit(1);
+      }
+      const config = configResult.value;
+      const json = cmd.parent?.opts().json;
+      const results: DoneResult[] = [];
+      let anyFailed = false;
+
+      for (const taskId of ids) {
+        const currentTimestamp = now();
         const q = query(config.doltRepoPath);
 
-        return q
+        const singleResult = await q
           .select<{ status: TaskStatus }>("task", {
             columns: ["status"],
             where: { task_id: taskId },
@@ -99,44 +120,30 @@ export function doneCommand(program: Command) {
               cmd.parent?.opts().noCommit,
             ),
           )
-          .map(() => ({
-            task_id: taskId,
-            status: "done",
-            evidence: options.evidence,
-            checks: options.checks,
-          }));
-      });
+          .map(() => ({ task_id: taskId, status: "done" as const }));
 
-      result.match(
-        (data: unknown) => {
-          const resultData = data as {
-            task_id: string;
-            status: TaskStatus;
-            evidence: string;
-            checks: string;
-          };
-          if (!cmd.parent?.opts().json) {
-            console.log(`Task ${resultData.task_id} marked as done.`);
+        singleResult.match(
+          () => results.push({ id: taskId, status: "done" }),
+          (error: AppError) => {
+            results.push({ id: taskId, error: error.message });
+            anyFailed = true;
+            return 0;
+          },
+        );
+      }
+
+      if (!json) {
+        for (const r of results) {
+          if ("error" in r) {
+            console.error(`Task ${r.id}: ${r.error}`);
           } else {
-            console.log(JSON.stringify(resultData, null, 2));
+            console.log(`Task ${r.id} done.`);
           }
-        },
-        (error: AppError) => {
-          console.error(
-            `Error marking task ${taskId} as done: ${error.message}`,
-          );
-          if (cmd.parent?.opts().json) {
-            console.log(
-              JSON.stringify({
-                status: "error",
-                code: error.code,
-                message: error.message,
-                cause: error.cause,
-              }),
-            );
-          }
-          process.exit(1);
-        },
-      );
+        }
+      } else {
+        console.log(JSON.stringify(results));
+      }
+
+      if (anyFailed) process.exit(1);
     });
 }

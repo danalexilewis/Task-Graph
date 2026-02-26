@@ -6,6 +6,20 @@ import { AppError, ErrorCode, buildError } from "../domain/errors";
 
 const TASKGRAPH_DIR = ".taskgraph";
 
+/**
+ * Normalize raw string[] from Commander (variadic args) into a flat list of IDs.
+ * Splits each element on comma, trims, drops empty strings.
+ * Callers should exit with a clear error if the result is empty.
+ */
+export function parseIdList(raw: string[]): string[] {
+  return raw.flatMap((s) =>
+    s
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+  );
+}
+
 /** Walk to root command to access global options like --json */
 export function rootOpts(cmd: Command): { json?: boolean; noCommit?: boolean } {
   let c: Command | undefined = cmd;

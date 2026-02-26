@@ -202,17 +202,17 @@ tg next --plan "User Onboarding Flow"
 #   ID: b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11, Title: Develop Signup Form, Plan: User Onboarding Flow, Risk: low, Estimate: N/A
 ```
 
-### `tg note <taskId> --msg <text>`
+### `tg note <taskIds...> --msg <text>`
 
-Appends a note event to a task. Useful for breadcrumbs between agents (e.g., "Changed parser signature, heads up").
+Appends a note event to one or more tasks. Useful for breadcrumbs between agents (e.g., "Changed parser signature, heads up"). Same message and agent apply to all IDs. Exit code is 1 if any task fails. With `--json`, outputs an array of `{ id, status? }` or `{ id, error? }`.
 
 ```bash
-tg note <taskId> --msg "<text>" [--agent <name>]
+tg note <taskIds...> --msg "<text>" [--agent <name>]
 ```
 
 **Arguments:**
 
-- `<taskId>`: The ID of the task to annotate.
+- `<taskIds...>`: One or more task IDs (space- or comma-separated).
 
 **Options:**
 
@@ -225,6 +225,9 @@ tg note <taskId> --msg "<text>" [--agent <name>]
 tg note b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --msg "Schema in flux, support both until migration lands" --agent alice
 # Output:
 # Note added to task b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11.
+
+tg note id1,id2 id3 --msg "Heads up" --json
+# Output: [{"id":"id1","status":"ok"},{"id":"id2","status":"ok"},{"id":"id3","status":"ok"}]
 ```
 
 ### `tg show <taskId>`
@@ -266,22 +269,22 @@ tg show b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 #   - Kind: created, Actor: agent, Created: 2026-02-25 10:00:00, Body: {"title":"Develop Signup Form"}
 ```
 
-### `tg start <taskId>`
+### `tg start <taskIds...>`
 
-Moves a task from `todo` to `doing` status, indicating active work has begun. This is only allowed if the task is runnable (i.e., it has no unmet blockers). If the task is already `doing`, returns `TASK_ALREADY_CLAIMED` unless `--force` is used.
+Moves one or more tasks from `todo` to `doing` status, indicating active work has begun. Each task is only allowed if runnable (no unmet blockers). If a task is already `doing`, returns `TASK_ALREADY_CLAIMED` unless `--force` is used. Options (e.g. `--agent`, `--force`) apply to all IDs. Exit code is 1 if any task fails. With `--json`, outputs an array of `{ id, status? }` or `{ id, error? }`.
 
 ```bash
-tg start <taskId> [--agent <name>] [--force]
+tg start <taskIds...> [--agent <name>] [--force]
 ```
 
 **Arguments:**
 
-- `<taskId>`: The ID of the task to start.
+- `<taskIds...>`: One or more task IDs (space- or comma-separated in one token).
 
 **Options:**
 
-- `--agent <name>`: Agent identifier for multi-agent visibility. Recorded in the started event body.
-- `--force`: Override claim when task is already being worked by another agent (human override).
+- `--agent <name>`: Agent identifier for multi-agent visibility. Recorded in the started event body. Applies to all IDs.
+- `--force`: Override claim when a task is already being worked by another agent (human override). Applies to all IDs.
 
 **Example:**
 
@@ -289,25 +292,28 @@ tg start <taskId> [--agent <name>] [--force]
 tg start b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --agent alice
 # Output:
 # Task b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 started.
+
+tg start id1 id2 --agent bob --json
+# Output: [{"id":"id1","status":"doing"},{"id":"id2","status":"doing"}]
 ```
 
-### `tg done <taskId> --evidence <text>`
+### `tg done <taskIds...> --evidence <text>`
 
-Marks a task as `done`. Requires evidence of completion.
+Marks one or more tasks as `done`. Requires evidence of completion. Multiple IDs can be passed space-separated or comma-separated in one token. Options (e.g. `--evidence`, `--checks`) apply to all IDs. Exit code is 1 if any operation fails. With `--json`, outputs an array of `{ id, status? }` or `{ id, error? }`.
 
 ```bash
-tg done <taskId> --evidence "<text>"
+tg done <taskIds...> --evidence "<text>"
 ```
 
 **Arguments:**
 
-- `<taskId>`: The ID of the task to mark as done.
+- `<taskIds...>`: One or more task IDs (space- or comma-separated).
 
 **Options:**
 
-- `--evidence <text>`: **(Required)** A description of the evidence of completion (e.g., tests run, commands output summary, git commit hash).
-- `--checks <json>`: An optional JSON array of acceptance checks that were verified.
-- `--force`: Force the task to `done` status even if it's not currently `doing` (discouraged).
+- `--evidence <text>`: **(Required)** A description of the evidence of completion (e.g., tests run, commands output summary, git commit hash). Applies to all IDs.
+- `--checks <json>`: An optional JSON array of acceptance checks that were verified. Applies to all IDs.
+- `--force`: Force the task to `done` status even if it's not currently `doing` (discouraged). Applies to all IDs.
 
 **Example:**
 
@@ -315,6 +321,9 @@ tg done <taskId> --evidence "<text>"
 tg done b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --evidence "All frontend components implemented and reviewed, tests passed." --checks '["UI looks good", "API integrated"]'
 # Output:
 # Task b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 marked as done.
+
+tg done id1 id2 --evidence "batch" --json
+# Output: [{"id":"id1","status":"done"},{"id":"id2","status":"done"}]
 ```
 
 ### `tg block <taskId> --on <blockerTaskId> --reason <text>`
@@ -342,11 +351,15 @@ tg block d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --on c0eebc99-9c0b-4ef8-bb6d-6bb9b
 # Task d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 blocked by c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11.
 ```
 
-### `tg cancel <id> [--type plan|task] [--reason <text>]`
+### `tg cancel <ids...> [--type plan|task] [--reason <text>]`
 
-Soft-deletes a plan (sets status to `abandoned`) or a task (sets status to `canceled`). ID is resolved by trying plan first (by `plan_id` or `title`), then task by `task_id`. Use `--type plan` or `--type task` to force resolution. Refuses to cancel plans in `done` or `abandoned`, or tasks in `done` or `canceled`. For tasks, inserts a `note` event with body `{ type: 'cancel', reason }`.
+Soft-deletes one or more plans (sets status to `abandoned`) or tasks (sets status to `canceled`). IDs can be space- or comma-separated. Each ID is resolved by trying plan first (by `plan_id` or `title`), then task by `task_id`. Use `--type plan` or `--type task` to force resolution. Refuses to cancel plans in `done` or `abandoned`, or tasks in `done` or `canceled`. For tasks, inserts a `note` event with body `{ type: 'cancel', reason }`. Exit code is 1 if any ID fails.
+
+**Arguments:** `<ids...>` — One or more plan or task IDs (space- or comma-separated).
 
 **Options:** `--type <plan|task>`, `--reason <reason>`.
+
+**Output:** Human: one line per ID (e.g. `Plan <id> abandoned.` or `Task <id> canceled.`). With `--json`: array of `{ id, type?, status?, error? }`.
 
 ### `tg split <taskId> --into <t1>|<t2>|...`
 
