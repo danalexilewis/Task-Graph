@@ -15,7 +15,8 @@
     "start": "node dist/cli/index.js",
     "test": "vitest run --dir __tests__",
     "test:e2e": "vitest run --dir __tests__/e2e",
-    "test:integration": "vitest run --dir __tests__/integration"
+    "test:integration": "vitest run --dir __tests__/integration",
+    "publish": "npm run build && npm publish"
   },
   "keywords": ["cli", "tasks", "plans", "dolt", "cursor", "centaur", "taskgraph", "agent-workflow"],
   "author": "danalexilewis",

@@ -16,6 +16,19 @@ import { AppError, buildError, ErrorCode } from "../domain/errors";
 const TASKGRAPH_DIR = ".taskgraph";
 const CONFIG_FILE = path.join(TASKGRAPH_DIR, "config.json");
 
+/** Build a user-friendly hint when init fails (e.g. dolt not found). */
+function initFailureHint(cause: unknown): string {
+  if (cause instanceof Error) {
+    const code = (cause as NodeJS.ErrnoException).code;
+    const msg = cause.message ?? String(cause);
+    if (code === "ENOENT" || /not found|command not found/i.test(msg)) {
+      return " Dolt may not be installed or not on PATH. Install it (e.g. brew install dolt) and ensure you run tg from your repo (e.g. npx tg init or pnpm exec tg init).";
+    }
+    return ` Cause: ${msg}`;
+  }
+  return ` Cause: ${String(cause)}`;
+}
+
 export function initCommand(program: Command) {
   program
     .command("init")
@@ -88,7 +101,10 @@ export function initCommand(program: Command) {
         },
         (error: unknown) => {
           const appError = error as AppError;
-          console.error(`Error initializing Task Graph: ${appError.message}`); // Used appError.message
+          console.error(`Error initializing Task Graph: ${appError.message}`);
+          if (!cmd.parent?.opts().json && appError.cause != null) {
+            console.error(initFailureHint(appError.cause));
+          }
           if (cmd.parent?.opts().json) {
             console.log(
               JSON.stringify({

@@ -12,18 +12,35 @@ TaskGraph is a small CLI (`tg`) + Dolt-backed schema for managing **plans, tasks
 
 ## Quick start
 
-1. Install Dolt (`brew install dolt`)
-2. Initialize TaskGraph in your repo:
+1. **Install Dolt** (required for the local DB): `brew install dolt`
+2. **Install TaskGraph** in your repo:
 
-```bash
-tg init
-```
+   ```bash
+   pnpm add -D @danalexilewis/taskgraph
+   ```
 
-1. Scaffold recommended conventions (example domain docs, skill guides, and Cursor rules):
+3. **Register the command** in your repo so `tg` runs the installed CLI. In `package.json`, add a script:
 
-```bash
-tg setup
-```
+   ```json
+   "scripts": {
+     "tg": "tg"
+   }
+   ```
+
+   Then use `pnpm tg` (or `npm run tg`) for all commands; the script runs the binary from `node_modules/.bin`.
+4. **Initialize** from your repo root (creates `.taskgraph/` and Dolt DB):
+
+   ```bash
+   pnpm tg init
+   ```
+
+5. **Scaffold** (optional; domain docs, skill guides, Cursor rules):
+
+   ```bash
+   pnpm tg setup
+   ```
+
+Without the script, the shell can't find `tg`; `npx tg init` also works if you prefer not to add the script.
 
 ## Conventions (domain + skill guides)
 
@@ -33,15 +50,3 @@ Tasks can optionally declare:
 - `skill`: slug(s) that map to `docs/skills/<skill>.md`
 
 Agents can read the docs printed by `tg context <taskId>` to load repo-specific conventions before making changes.
-
-## Publishing the CLI to npm
-
-The repo root is the publishable package. **Run from the repo root**:
-
-1. **Package name**: The name `taskgraph` is available. If it were taken, use a scoped name in `package.json` (e.g. `@yourname/taskgraph`).
-2. **Build**: `pnpm build`
-3. **Dry-run** (see what will be in the tarball): `npm pack --dry-run`
-4. **Publish**: `npm publish`  
-   (Requires `npm login` and 2FA if enabled.)
-
-The `prepublishOnly` script runs `npm run build` when you publish, so `dist/` is built before packing. The tarball includes only `dist`, `templates`, and `README.md` (see `files` in package.json).
