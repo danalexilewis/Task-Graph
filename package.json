@@ -6,28 +6,28 @@
   "bin": {
     "tg": "dist/cli/index.js"
   },
-  "files": ["dist", "templates", "README.md"],
+  "files": ["dist", "README.md"],
   "scripts": {
     "tg": "node dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').cpSync('src/template','dist/template',{recursive:true})\"",
     "prepublishOnly": "npm run build",
     "start": "node dist/cli/index.js",
     "test": "vitest run --dir __tests__",
     "test:e2e": "vitest run --dir __tests__/e2e",
     "test:integration": "vitest run --dir __tests__/integration"
   },
-  "keywords": [],
-  "author": "Cursor",
+  "keywords": ["cli", "tasks", "plans", "dolt", "cursor", "centaur", "taskgraph", "agent-workflow"],
+  "author": "danalexilewis",
   "license": "MIT",
   "engines": {
     "node": ">=18"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/dan/Task-Graph.git"
+    "url": "https://github.com/danalexilewis/taskgraph"
   },
-  "homepage": "https://github.com/dan/Task-Graph#readme",
+  "homepage": "https://github.com/danalexilewis/taskgraph",
   "dependencies": {
     "commander": "^12.0.0",
     "execa": "^9.0.0",
