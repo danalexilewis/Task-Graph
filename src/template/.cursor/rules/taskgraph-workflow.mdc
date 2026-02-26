@@ -16,11 +16,11 @@ Before executing any plan, run `pnpm tg status` to see what's outstanding. **Mul
 
 ### Interpreting User Response
 
-| User says | Action |
-|-----------|--------|
-| proceed, go ahead, execute, run it, let's do it | Import plan to taskgraph, then execute tasks |
-| just add the tasks, add to taskgraph only | Import only; do not execute |
-| thanks, that's good, looks good, ok, don't do anything | Do nothing (acknowledgement only) |
+| User says                                              | Action                                       |
+| ------------------------------------------------------ | -------------------------------------------- |
+| proceed, go ahead, execute, run it, let's do it        | Import plan to taskgraph, then execute tasks |
+| just add the tasks, add to taskgraph only              | Import only; do not execute                  |
+| thanks, that's good, looks good, ok, don't do anything | Do nothing (acknowledgement only)            |
 
 ### Import Command
 
@@ -39,6 +39,10 @@ For EACH task, follow ALL steps in order. Never skip start, never defer done.
 
 Evidence should include: tests run, commands, git hashes.
 
+### Sub-agent dispatch (optional)
+
+You may execute tasks by **dispatching fast sub-agents** instead of doing every step yourself: use `.cursor/rules/subagent-dispatch.mdc` for parallel batch execution (multiple unblocked tasks) or sequential implementer → reviewer. Prefer sub-agents when tasks are well-scoped with clear intent; use direct execution (steps 1–4 above) for exploratory or ambiguous work.
+
 ### Multi-task discipline
 
 When executing N tasks in sequence, complete the full start→work→done cycle for each one individually. Never batch-skip transitions.
@@ -46,9 +50,11 @@ When executing N tasks in sequence, complete the full start→work→done cycle 
 ### Plan completion
 
 After marking the last task in a plan as done, run:
+
 ```bash
 pnpm tg export markdown --plan <planId> --out plans/<date>_<name>.md
 ```
+
 Use a filename that follows the convention (`yy-mm-dd_the_file_name.md`). This updates the plan file with final statuses, closing the round-trip.
 
 ## Recovery (out-of-sync tasks)

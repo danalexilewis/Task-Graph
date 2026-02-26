@@ -1,0 +1,58 @@
+---
+description: Dispatch fast sub-agents for task execution and plan analysis; parallel batch execution when multiple unblocked tasks exist
+alwaysApply: false
+---
+
+# Sub-Agent Dispatch
+
+When executing tasks from a plan, you may use **sub-agents** (Cursor Task tool with `model="fast"`) to run work in parallel and reduce cost. All dispatched sub-agents use `model="fast"`. The orchestrator (you, session model) coordinates; sub-agents do bounded work with full context injected.
+
+Agent templates live in `.cursor/agents/` (see README there). You build each sub-agent prompt by interpolating `tg context <taskId> --json` output into the template placeholders.
+
+## When to use sub-agents
+
+- **Well-scoped tasks** with clear intent and domain/skill docs — sub-agents can follow the context.
+- **Multiple unblocked tasks** — dispatch implementers in parallel (primary pattern).
+- **Before creating a plan** — dispatch the planner-analyst to gather codebase context first.
+
+Use **direct execution** (you do start → work → done yourself) when: work is exploratory, ambiguous, or touches many files; or when only one task is runnable and parallel dispatch adds no value.
+
+## Pattern 1: Parallel batch execution (primary)
+
+When you want to execute a plan and multiple tasks are unblocked:
+
+1. Run `pnpm tg next --plan "<Plan>" --json --limit 4` to get up to 4 runnable tasks.
+2. **File conflict check**: If tasks might touch the same files (e.g. same path in `file_tree` or `suggested_changes`), do not parallelize those together — run them sequentially or batch only independent ones.
+3. For each task in the batch, run `pnpm tg context <taskId> --json` and capture the JSON.
+4. Read `.cursor/agents/implementer.md`. Build the implementer prompt by replacing placeholders (`{{TASK_ID}}`, `{{AGENT_NAME}}`, `{{TITLE}}`, `{{INTENT}}`, `{{DOMAIN_DOCS}}`, `{{SKILL_DOCS}}`, `{{SUGGESTED_CHANGES}}`, `{{FILE_TREE}}`, `{{RISKS}}`, `{{RELATED_DONE}}`, `{{EXPLORER_OUTPUT}}`) with values from the context JSON. Use agent names `implementer-1`, `implementer-2`, … so `tg status` shows distinct workers.
+5. Dispatch up to 4 Task tool calls **concurrently**, each with `model="fast"`, `prompt=<built prompt>`, and a short `description` (e.g. "Implement task: <title>").
+6. Wait for all to complete. For each completed task, if you have the implementer's diff, dispatch the **reviewer** (read `.cursor/agents/reviewer.md`, build prompt with task context + diff, Task tool with `model="fast"`). If reviewer returns FAIL, re-dispatch the implementer once with the feedback; after 2 failures, do that task yourself (direct execution).
+7. Run `pnpm tg next --plan "<Plan>" --json --limit 4` again. If more runnable tasks exist, go to step 3. Otherwise continue with any remaining work or finish the plan.
+
+## Pattern 2: Sequential single-task execution
+
+When only one task is runnable or tasks share files:
+
+1. Run `pnpm tg next --plan "<Plan>" --limit 1` and pick the task.
+2. Optionally dispatch the **explorer** (read `.cursor/agents/explorer.md`, build prompt from task title/intent/domain/skill/file tree, Task with `model="fast"`). Use explorer output to enrich implementer context. Skip explorer for very simple tasks (e.g. add a test file, document X).
+3. Run `pnpm tg context <taskId> --json`. Build the implementer prompt from the template and context (and explorer output if present). Dispatch one Task with `model="fast"`, `prompt=<built prompt>`, `description="Implement: <title>"`.
+4. When implementer completes, dispatch the **reviewer** with task context + diff. If FAIL, re-dispatch implementer with feedback once; after 2 failures, complete the task yourself.
+5. Repeat from step 1 for the next task.
+
+## Pattern 3: Plan analysis (before writing a plan)
+
+Before creating a new plan (e.g. user asked for a feature and you are about to write `plans/yy-mm-dd_<name>.md`):
+
+1. Read `.cursor/agents/planner-analyst.md`. Build the prompt with `{{REQUEST}}` = user's feature/request. Optionally run `pnpm tg status` and pass the output so the analyst can reference current plans and done tasks.
+2. Dispatch one Task with `model="fast"`, `prompt=<built prompt>`, `description="Planner analyst: gather context for plan"`.
+3. Use the analyst's output (relevant files, patterns, risks, related prior work, rough task breakdown) as input when you write the plan. You focus on architecture, dependencies, and task design; the analyst already did the codebase exploration.
+
+## Lifecycle and errors
+
+- Every implementer sub-agent must run `pnpm tg start <taskId> --agent <name>` at the start and `pnpm tg done <taskId> --evidence "..."` at the end. Do not skip — the task graph is the source of truth.
+- If a fast sub-agent fails (error, wrong result, or reviewer FAIL): re-dispatch once with clearer context or feedback. If it fails again, complete that task yourself with direct execution (session model).
+- When dispatching in parallel, ensure each task has a distinct agent name (`implementer-1`, etc.) so `tg status` and events stay clear.
+
+## Building prompts from context JSON
+
+`pnpm tg context <taskId> --json` returns an object with: `task_id`, `title`, `domains`, `skills`, `change_type`, `suggested_changes`, `file_tree`, `risks`, `domain_docs`, `skill_docs`, `related_done_by_domain`, `related_done_by_skill`. Map these to the placeholders in each agent template (see `.cursor/agents/README.md`). For the reviewer you also need the implementer's git diff (e.g. `git diff` or `git show` after the implementer's run).

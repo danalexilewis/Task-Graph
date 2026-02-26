@@ -6,7 +6,10 @@
   "bin": {
     "tg": "dist/cli/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "tg": "node dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
@@ -18,7 +21,16 @@
     "test:integration": "vitest run --dir __tests__/integration",
     "publish": "npm publish"
   },
-  "keywords": ["cli", "tasks", "plans", "dolt", "cursor", "centaur", "taskgraph", "agent-workflow"],
+  "keywords": [
+    "cli",
+    "tasks",
+    "plans",
+    "dolt",
+    "cursor",
+    "centaur",
+    "taskgraph",
+    "agent-workflow"
+  ],
   "author": "danalexilewis",
   "license": "MIT",
   "engines": {
