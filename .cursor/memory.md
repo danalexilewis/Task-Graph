@@ -6,6 +6,9 @@
 ## tg context
 - Context command reads domain/skill from **task_domain** and **task_skill** junction tables (when present). Repos that have run the full migration suite use these; older repos may have `task.domain` / `task.skill` columns instead.
 
+## Using tg in another repo
+- No script in package.json needed: `pnpm tg` runs the CLI from node_modules/.bin. Same for `npx tg` with npm.
+
 ## CLI scaffolding (`tg setup`)
 - Commander `--no-<flag>` options default to `true`; don’t pass `false` as the default value or you’ll invert behavior (setup will do nothing).
 - Package entrypoints should match build output: `package.json` `bin`/`main` point at `dist/cli/index.js`.

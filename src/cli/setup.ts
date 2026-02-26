@@ -15,7 +15,6 @@ type CopyResult = {
   skipped: string[];
 };
 
-
 function copyTree(
   srcDir: string,
   destDir: string,
@@ -23,6 +22,9 @@ function copyTree(
   options: SetupOptions,
   result: CopyResult,
 ): void {
+  if (!fs.existsSync(srcDir)) return;
+  // Ensure destination exists so we merge contents side-by-side with existing files
+  fs.mkdirSync(destDir, { recursive: true });
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
   for (const entry of entries) {
     const srcPath = path.join(srcDir, entry.name);
@@ -85,6 +87,7 @@ export function setupCommand(program: Command) {
 
         if (options.docs) {
           const docsSrc = path.join(templateRoot, "docs");
+          // Merges into existing docs/ and docs/skills/; adds template files that don't exist
           copyTree(
             docsSrc,
             path.join(repoRoot, "docs"),
@@ -96,6 +99,7 @@ export function setupCommand(program: Command) {
 
         if (options.cursor) {
           const cursorSrc = path.join(templateRoot, ".cursor");
+          // Merges into existing .cursor/ and .cursor/rules/; adds template files that don't exist
           copyTree(
             cursorSrc,
             path.join(repoRoot, ".cursor"),

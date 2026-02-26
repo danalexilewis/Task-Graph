@@ -19,28 +19,18 @@ TaskGraph is a small CLI (`tg`) + Dolt-backed schema for managing **plans, tasks
    pnpm add -D @danalexilewis/taskgraph
    ```
 
-3. **Register the command** in your repo so `tg` runs the installed CLI. In `package.json`, add a script:
-
-   ```json
-   "scripts": {
-     "tg": "tg"
-   }
-   ```
-
-   Then use `pnpm tg` (or `npm run tg`) for all commands; the script runs the binary from `node_modules/.bin`.
+3. **Run the CLI** with `pnpm tg` (pnpm runs the binary from `node_modules/.bin`; no script in `package.json` needed). Or use `npx tg` with npm.
 4. **Initialize** from your repo root (creates `.taskgraph/` and Dolt DB):
 
    ```bash
    pnpm tg init
    ```
 
-5. **Scaffold** (optional; domain docs, skill guides, Cursor rules):
+5. **Scaffold** (optional; domain docs, skill guides, Cursor rules). If `docs/` or `.cursor/` (including `.cursor/rules/`) already exist, setup adds template files alongside your existing ones and skips files that already exist:
 
    ```bash
    pnpm tg setup
    ```
-
-Without the script, the shell can't find `tg`; `npx tg init` also works if you prefer not to add the script.
 
 ## Conventions (domain + skill guides)
 
