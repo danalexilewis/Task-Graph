@@ -7,7 +7,7 @@ Add or extend integration tests that run the real `tg` CLI against a temporary D
 ## Inputs
 
 - Behavior to test (e.g. import with domain/skill, `tg context` output)
-- `tools/taskgraph/__tests__/integration/test-utils.ts` (setup, teardown, runTgCli)
+- `__tests__/integration/test-utils.ts` (setup, teardown, runTgCli)
 - Existing tests in `__tests__/integration/*.test.ts` as reference
 
 ## Steps
@@ -21,7 +21,7 @@ Add or extend integration tests that run the real `tg` CLI against a temporary D
 
 ## Gotchas
 
-- The CLI runs from `dist/`; run `pnpm run build` in `tools/taskgraph` before tests if you changed CLI code.
+- The CLI runs from `dist/`; run `pnpm run build` at repo root before tests if you changed CLI code.
 - Integration tests are excluded from default `vitest run`; use `pnpm run test:integration` (or `vitest run --dir __tests__/integration`).
 - Temp dir is under `os.tmpdir()`; avoid relying on cwd. All paths in commands are relative to `context.tempDir`.
 - DOLT_PATH is set in test-utils; CI and local should both have `dolt` available.

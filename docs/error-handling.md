@@ -13,7 +13,7 @@ This pattern forces callers to acknowledge and handle potential failures, leadin
 
 ## `AppError` Interface and `ErrorCode` Enum
 
-All errors within the Task Graph system conform to the `AppError` interface and are categorized by an `ErrorCode` enum, defined in [`tools/taskgraph/src/domain/errors.ts`](tools/taskgraph/src/domain/errors.ts).
+All errors within the Task Graph system conform to the `AppError` interface and are categorized by an `ErrorCode` enum, defined in [`src/domain/errors.ts`](src/domain/errors.ts).
 
 ```typescript
 export enum ErrorCode {

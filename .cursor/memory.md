@@ -8,7 +8,8 @@
 
 ## CLI scaffolding (`tg setup`)
 - Commander `--no-<flag>` options default to `true`; don’t pass `false` as the default value or you’ll invert behavior (setup will do nothing).
-- Package entrypoints should match build output: `tools/taskgraph/package.json` `bin`/`main` must point at `dist/src/cli/index.js` (not `dist/cli/index.js`).
+- Package entrypoints should match build output: `package.json` `bin`/`main` point at `dist/cli/index.js`.
+- `tg setup` resolves templates via `packageRootFromCliDir(__dirname)`: from `dist/cli/` use `../..` to get package root (not `../../..`).
 
 ## Dolt JSON columns
 - `event.body` may be returned as object or string by doltSql depending on driver. Handle both: `typeof raw === 'string' ? JSON.parse(raw) : raw`.
@@ -18,6 +19,9 @@
 
 ## Plan authoring (user correction)
 - **Always use rich planning.** Plans must include fileTree, risks, tests, per-task intent, suggestedChanges when helpful, and markdown body ending with `<original_prompt>`. See docs/plan-format.md and .cursor/rules/plan-authoring.mdc. When creating plans, follow the rule — do not default to minimal/spartan format.
+
+## Plan filename convention
+- Plan filenames: `yy-mm-dd_the_file_name.md` (e.g. `26-02-26_restructure_src_npm_layout.md`). Two-digit year, date, then underscore and slug. See plan-authoring.mdc.
 
 ## Memory rule (for agents)
 - memory.mdc includes an explicit trigger list and a "Before you consider your response complete" checklist. If any trigger applied (bug fix, pattern/rule change, user correction, tooling quirk), the last edit in that response must be to .cursor/memory.md — do not skip.

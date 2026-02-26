@@ -7,7 +7,7 @@ Add or extend a `tg` subcommand in a way that matches existing patterns: config,
 ## Inputs
 
 - Command spec (name, args, options, behavior)
-- Access to `tools/taskgraph/src/cli/`
+- Access to `src/cli/`
 - Reference implementations (e.g. `next.ts`, `context.ts`)
 
 ## Steps
@@ -25,7 +25,7 @@ Add or extend a `tg` subcommand in a way that matches existing patterns: config,
 ## Gotchas
 
 - Never interpolate user input into SQL without `sqlEscape`. Use `sqlEscape` from `db/escape.ts`.
-- CLI runs from `dist/`; changes require `pnpm run build` in `tools/taskgraph`.
+- CLI runs from `dist/`; changes require `pnpm run build` at repo root.
 - Use `q.raw(sql)` when you need custom SQL; use `q.select`/`q.insert`/`q.update` when the query builder fits.
 - For new task columns, update `split.ts` and any other code that constructs or inserts tasks (domain types, importer, etc.).
 

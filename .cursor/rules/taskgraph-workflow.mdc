@@ -11,7 +11,7 @@ Before executing any plan, run `pnpm tg status` to see what's outstanding. **Mul
 
 ## Plan Creation and Review
 
-- **Plans** live in `plans/<name>.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`).
+- **Plans** live in `plans/<date>_<name>.md` in Cursor format (YAML frontmatter with `name`, `overview`, `todos`). Filenames use the convention `yy-mm-dd_the_file_name.md` (see plan-authoring.mdc).
 - After creating a plan: summarize it, then **pause** and ask for review. Do not import or execute until the user responds.
 
 ### Interpreting User Response
@@ -47,9 +47,9 @@ When executing N tasks in sequence, complete the full start→work→done cycle 
 
 After marking the last task in a plan as done, run:
 ```bash
-pnpm tg export markdown --plan <planId> --out plans/<file>
+pnpm tg export markdown --plan <planId> --out plans/<date>_<name>.md
 ```
-This updates the plan file with final statuses, closing the round-trip.
+Use a filename that follows the convention (`yy-mm-dd_the_file_name.md`). This updates the plan file with final statuses, closing the round-trip.
 
 ## Recovery (out-of-sync tasks)
 

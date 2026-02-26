@@ -36,11 +36,12 @@ Agents can read the docs printed by `tg context <taskId>` to load repo-specific 
 
 ## Publishing the CLI to npm
 
-The installable package lives in `tools/taskgraph/`. To publish:
+The repo root is the publishable package. **Run from the repo root**:
 
-1. **Check package name**: `npm view taskgraph` — if the name is taken, use a scoped name in `tools/taskgraph/package.json` (e.g. `@yourname/taskgraph`).
-2. **From repo root**: `cd tools/taskgraph && pnpm build`
+1. **Package name**: The name `taskgraph` is available. If it were taken, use a scoped name in `package.json` (e.g. `@yourname/taskgraph`).
+2. **Build**: `pnpm build`
 3. **Dry-run** (see what will be in the tarball): `npm pack --dry-run`
-4. **Publish**: `npm publish` (from `tools/taskgraph/`; requires npm login and 2FA if enabled).
+4. **Publish**: `npm publish`  
+   (Requires `npm login` and 2FA if enabled.)
 
-The `prepublishOnly` script runs `npm run build` automatically when you run `npm publish`, so `dist/` is built before packing. The published tarball includes only `dist`, `templates`, and `README.md` (see `files` in package.json).
+The `prepublishOnly` script runs `npm run build` when you publish, so `dist/` is built before packing. The tarball includes only `dist`, `templates`, and `README.md` (see `files` in package.json).

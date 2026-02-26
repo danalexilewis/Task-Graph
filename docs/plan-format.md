@@ -58,14 +58,13 @@ Plain-text tree of files touched by the plan. Annotations like `(create)` or `(m
 fileTree: |
   docs/
     plan-format.md           (create)
-  tools/taskgraph/
-    src/
-      db/migrate.ts          (modify)
-      domain/types.ts        (modify)
-      plan-import/parser.ts  (modify)
-    __tests__/
-      integration/
-        rich-plan.test.ts    (create)
+  src/
+    db/migrate.ts            (modify)
+    domain/types.ts          (modify)
+    plan-import/parser.ts    (modify)
+  __tests__/
+    integration/
+      rich-plan.test.ts      (create)
 ```
 
 ### risks

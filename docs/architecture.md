@@ -17,7 +17,6 @@ The agent interacts with the Task Graph system through a small, safe CLI, `tg`. 
 The project adheres to a structured repository layout to separate concerns and improve maintainability:
 
 ```
-tools/taskgraph/
   src/
     cli/           # Commander.js commands and CLI utilities
     db/            # Dolt connection, commit, and migration logic
@@ -26,10 +25,10 @@ tools/taskgraph/
     plan-import/   # Markdown plan parsing and database import logic
   package.json
   tsconfig.json
-plans/               # Directory for Cursor Plan docs (narrative layer)
-AGENT.md             # Agent contract and operating protocol
-.taskgraph/
-  config.json        # Local configuration for the Task Graph system
+  plans/             # Directory for Cursor Plan docs (narrative layer)
+  AGENT.md           # Agent contract and operating protocol
+  .taskgraph/
+    config.json      # Local configuration for the Task Graph system
 ```
 
 ## Data Flow and Error Handling

@@ -7,7 +7,7 @@ Add or change columns/tables in the Dolt-backed taskgraph schema in a way that i
 ## Inputs
 
 - Target change (e.g. new `domain` column on `task`)
-- Access to `tools/taskgraph/src/db/migrate.ts`
+- Access to `src/db/migrate.ts`
 - Knowledge of current schema (see `docs/schema.md`)
 
 ## Steps

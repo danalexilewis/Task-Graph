@@ -7,7 +7,7 @@ Use `Result` and `ResultAsync` from neverthrow so errors are explicit and propag
 ## Inputs
 
 - Operation that can fail (DB, file, parse, validation)
-- `tools/taskgraph/src/domain/errors.ts` (ErrorCode, AppError, buildError)
+- `src/domain/errors.ts` (ErrorCode, AppError, buildError)
 - Existing code in `db/`, `domain/`, `plan-import/`, `cli/` as reference
 
 ## Steps
