@@ -282,7 +282,7 @@ todos:
     docs: [cli]
     changeType: modify
 
-  - id: integration-tests
+  - id: agent-docs-integration-tests
     content: Add integration tests for agent field and domain-to-docs rename
     agent: implementer
     intent: |
