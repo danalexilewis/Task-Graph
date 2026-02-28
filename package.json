@@ -4,7 +4,8 @@
   "description": "Task Graph CLI for Centaur Development",
   "main": "dist/cli/index.js",
   "bin": {
-    "tg": "dist/cli/index.js"
+    "tg": "dist/cli/index.js",
+    "tg-mcp": "dist/mcp/index.js"
   },
   "files": [
     "dist",
@@ -25,7 +26,7 @@
     "test": "bun test __tests__/db __tests__/domain __tests__/export __tests__/plan-import",
     "test:integration": "bun test __tests__/integration",
     "test:e2e": "bun test __tests__/e2e",
-    "test:all": "bun test __tests__",
+    "test:all": "bun test __tests__ --concurrent",
     "precommit": "node scripts/pre-commit.js",
     "publish": "npm publish"
   },
@@ -51,6 +52,7 @@
   },
   "homepage": "https://github.com/danalexilewis/taskgraph",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
     "@opentui/core": "^0.1.84",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",

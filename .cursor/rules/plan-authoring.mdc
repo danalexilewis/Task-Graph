@@ -153,3 +153,25 @@ Use the `skill` field to specify a specialized Cursor skill for the task, refere
 - Keep tasks scoped (~90 min or less); split large ones.
 - **Parallel-ready**: Plans MUST have ≥2 tasks with no `blockedBy` so the orchestrator can dispatch in parallel. If all tasks are serial, restructure: docs, tests, and independent features rarely need to block on each other. For each `blockedBy`, ask "can this task work without the upstream?" — if yes, remove the dependency.
 - Order todos to reflect dependency graph when possible.
+
+## Required end-of-plan structure
+
+Every plan MUST end with:
+
+1. **Add-tests task(s)** — One or more tasks that create tests for the new features, or assign plan-level tests (from the plan’s `tests` array) to such tasks. These tasks validate that the implemented behavior is covered by tests.
+
+2. **Run-full-suite task** — A final task that runs the full test suite (e.g. `pnpm gate:full` or `bash scripts/cheap-gate.sh --full`). This task:
+   - Records the result in **evidence** (e.g. "gate:full passed" or "gate:full failed: ...").
+   - On **failure**: the agent adds `tg note <taskId> --msg "<failure reason>"` and either does not mark the task done, or marks it done with failure described in evidence so the lead can create fix tasks.
+
+**Dependency graph:** The add-tests and run-full-suite tasks must be **blocked by all feature work**. In the dependency graph (tree format above), they appear in a final wave, e.g.:
+
+```text
+After all feature work:
+  ├── add-tests (or multiple add-tests tasks)
+  └── run-full-suite   # blocked by add-tests / last feature tasks
+```
+
+Use `blockedBy: [id1, id2, ...]` so the run-full-suite task (and add-tests tasks if they depend on feature tasks) cannot run until the preceding work is done.
+
+**Note:** This is authoring guidance only. Import logic is unchanged; the parser does not enforce this structure.

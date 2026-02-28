@@ -28,6 +28,14 @@ describe("renderTable responsive layout", () => {
     }
   });
 
+  it("renderTable strict maxWidth: every line <= 45 when minWidths [12,4,5,7,4,5] and maxWidth 45", () => {
+    const output = renderTable({ headers, rows, maxWidth: 45, minWidths });
+    const plain = stripAnsi(output);
+    for (const line of plain.split("\n")) {
+      expect(line.length).toBeLessThanOrEqual(45);
+    }
+  });
+
   it("table shrinks flex column at narrow width", () => {
     const output = renderTable({ headers, rows, maxWidth: 50, minWidths });
     const plainNarrow = stripAnsi(output);
@@ -191,14 +199,24 @@ isProject: false
     expect(stdout).toContain("Ready");
   }, 30000);
 
-  it("tg status outputs Next Runnable table with tasks", async () => {
+  it("tg status outputs Active & next section with Id, Task, Plan, Status, Agent columns", async () => {
     if (!context) throw new Error("Context not initialized");
 
     const { exitCode, stdout } = await runTgCli("status", context.tempDir);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Next Runnable");
+    expect(stdout).toContain("Active & next");
+    expect(stdout).toContain("Id");
+    expect(stdout).toContain("Task");
+    expect(stdout).toContain("Plan");
+    expect(stdout).toContain("Status");
+    expect(stdout).toContain("Agent");
     expect(stdout).toContain("Runnable task 1");
     expect(stdout).toContain("Status Test Plan A");
+    // Id column must not show a full UUID (either hash_id or truncated)
+    const plain = stripAnsi(stdout);
+    expect(plain).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    );
   }, 30000);
 
   it("tg status --json returns JSON with completedPlans, completedTasks, canceledTasks, activePlans, staleTasks, nextTasks fields", async () => {
@@ -312,7 +330,7 @@ isProject: false
     expect(stdout).not.toContain("Status Test Plan C (To Complete)");
   }, 30000);
 
-  it("tg status Active Work section shows table with Task, Plan, Agent columns", async () => {
+  it("tg status Active & next shows doing tasks first with agent, then todo with —", async () => {
     if (!context) throw new Error("Context not initialized");
 
     const tasksResult = await doltSql(
@@ -330,11 +348,19 @@ isProject: false
 
     const { exitCode, stdout } = await runTgCli("status", context.tempDir);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Active Work");
+    expect(stdout).toContain("Active & next");
+    expect(stdout).toContain("Id");
     expect(stdout).toContain("Task");
     expect(stdout).toContain("Plan");
+    expect(stdout).toContain("Status");
     expect(stdout).toContain("Agent");
+    expect(stdout).toContain("doing");
+    expect(stdout).toMatch(/implemente/);
     expect(stdout).toContain("│");
+    const plain = stripAnsi(stdout);
+    expect(plain).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    );
   }, 30000);
 
   it("tg status --projects shows single Projects table with Project, Status, Todo, Doing, Blocked, Done", async () => {
@@ -408,7 +434,9 @@ isProject: false
     expect(stdout).toContain("Plan");
     expect(stdout).toContain("Status");
     expect(stdout).toContain("Owner");
-    expect(stdout).toContain("Status Test Plan A");
+    // Plan name may wrap in table; assert key parts
+    expect(stdout).toContain("Status Test");
+    expect(stdout).toContain("Plan A");
   }, 30000);
 
   it("tg status --tasks --json returns array of task rows with task_id, hash_id, title, plan_title, status, owner", async () => {
@@ -458,7 +486,7 @@ isProject: false
     expect(stderr).toContain("only one of");
   }, 10000);
 
-  it("tg status Next Runnable section shows at most 3 tasks", async () => {
+  it("tg status Active & next section shows at most 3 runnable (todo) tasks", async () => {
     if (!context) throw new Error("Context not initialized");
 
     const plansDir = path.join(context.tempDir, "plans");
@@ -494,7 +522,7 @@ isProject: false
 
     const { exitCode, stdout } = await runTgCli("status", context.tempDir);
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("Next Runnable");
+    expect(stdout).toContain("Active & next");
 
     const { stdout: jsonOut } = await runTgCli(
       "status --json",
@@ -523,8 +551,12 @@ describe("fetchStatusData", () => {
     const config: Config = { doltRepoPath: context.doltRepoPath };
     const result = await fetchStatusData(config, {});
 
-    expect(result.isOk()).toBe(true);
-    const data = result._unsafeUnwrap();
+    if (!result.isOk()) {
+      throw new Error(
+        `fetchStatusData failed: ${JSON.stringify(result.error)}`,
+      );
+    }
+    const data = result.value;
     expect(data).toHaveProperty("completedPlans");
     expect(data).toHaveProperty("completedTasks");
     expect(data).toHaveProperty("canceledTasks");

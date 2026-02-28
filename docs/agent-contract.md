@@ -113,7 +113,7 @@ To allow for efficient autonomous operation, the agent is permitted to make the 
 When 2–3 agents work alongside the human on the same task graph:
 
 1.  **Always pass `--agent`**: Use `tg start <taskId> --agent <session-name>` so other agents see who claimed each task.
-2.  **Read Active Work**: Before picking a task, run `tg status` and check the "Active work" section. Avoid tasks that touch the same files/area as another agent's doing task.
+2.  **Read Active & next**: Before picking a task, run `tg status` and check the "Active & next" section (doing tasks then next runnable; short Id, Task, Plan, Status, Agent). Avoid tasks that touch the same files/area as another agent's doing task.
 3.  **Leave Notes**: Use `tg note <taskId> --msg "..."` when changing shared interfaces (types, schema, parser) so other agents are aware.
 4.  **Conflict Avoidance**: Do not pick a task in the same area as another agent's doing task without human approval.
 

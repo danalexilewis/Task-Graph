@@ -9,7 +9,8 @@ import {
   teardownIntegrationTest,
 } from "./test-utils";
 
-describe("No hard deletes: guard and cancel", () => {
+// Serial: flaky under concurrency (DB-dependent; Dolt "read only" / commit conflicts when parallel).
+describe.serial("No hard deletes: guard and cancel", () => {
   let context: Awaited<ReturnType<typeof setupIntegrationTest>> | undefined;
   let planId: string;
   let taskId1: string;

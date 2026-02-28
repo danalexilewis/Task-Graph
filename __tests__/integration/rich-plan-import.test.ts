@@ -77,7 +77,9 @@ todos:
       (t) => t.title === "Task with suggested changes",
     );
     expect(suggestedTask).toBeDefined();
-    taskIdWithSuggested = suggestedTask!.task_id;
+    const id = suggestedTask?.task_id;
+    if (id == null) throw new Error("expected suggested task task_id");
+    taskIdWithSuggested = id;
   }, 60000);
 
   afterAll(() => {

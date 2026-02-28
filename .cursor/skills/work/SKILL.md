@@ -50,7 +50,7 @@ while true:
   7. wait for all sub-agents to complete
   8. for each completed sub-agent:
        a. TodoWrite merge=true to update progress (e.g. mark that task complete in the todo list).
-       b. if SUCCESS → check return message and task notes; if implementer reported environment/gate issues or follow-up, run **Follow-up from notes/evidence** (subagent-dispatch.mdc): orchestrator decides whether to create task(s) with `tg task new ... --plan <planId>` and delegate.
+       b. if SUCCESS → check return message and task notes (including after the final task in a plan, e.g. full-suite run); if implementer reported environment/gate issues or follow-up, run **Follow-up from notes/evidence** (subagent-dispatch.mdc): orchestrator decides whether to create task(s) with `tg task new ... --plan <planId>` and delegate.
        c. if FAIL → re-dispatch once with feedback
        d. if FAIL again → escalate (see Escalation below)
   9. loop back to step 1
@@ -107,12 +107,8 @@ At the end of the loop (plan complete or all tasks done), emit a full summary:
 
 If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 20` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency.
 
-## Combining with Cheap Gate
+## Per-batch gate vs full test suite
 
-If `scripts/cheap-gate.sh` exists, run it after each batch to catch regressions early:
-
-```bash
-bash scripts/cheap-gate.sh
-```
-
-If the gate fails, stop and fix before continuing to the next batch.
+- **Per-batch gate (optional/lightweight):** If `scripts/cheap-gate.sh` exists, you may run it after each batch to catch regressions early (`bash scripts/cheap-gate.sh`). This is optional or lightweight; the orchestrator does not run the full test suite after every batch.
+- **Full test suite:** The full test suite is run only as the **dedicated final plan task** (the run-full-suite task), not by the orchestrator after every batch.
+- **When the final run-full-suite task fails:** Follow **Follow-up from notes/evidence** in `.cursor/rules/subagent-dispatch.mdc`: the implementer marks the task done with evidence (e.g. `gate:full failed: <reason>`) and adds a `tg note`; the orchestrator evaluates and creates fix tasks or escalates (lead-informed protocol).

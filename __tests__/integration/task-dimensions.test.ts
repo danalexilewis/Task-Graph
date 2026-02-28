@@ -70,7 +70,9 @@ todos:
     }>;
     const schemaTask = nextTasks.find((t) => t.title === "Schema task");
     expect(schemaTask).toBeDefined();
-    taskIdWithDimensions = schemaTask!.task_id;
+    const id = schemaTask?.task_id;
+    if (id == null) throw new Error("expected schema task task_id");
+    taskIdWithDimensions = id;
   }, 60000);
 
   afterAll(() => {

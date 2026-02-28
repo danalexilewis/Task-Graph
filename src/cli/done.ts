@@ -8,7 +8,7 @@ import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { checkValidTransition } from "../domain/invariants";
 import { autoCompletePlanIfDone } from "../domain/plan-completion";
 import type { TaskStatus } from "../domain/types";
-import { parseIdList, readConfig } from "./utils";
+import { parseIdList, readConfig, resolveTaskId } from "./utils";
 
 type DoneResult =
   | { id: string; status: "done"; plan_completed?: boolean }
@@ -47,6 +47,13 @@ export function doneCommand(program: Command) {
       let anyFailed = false;
 
       for (const taskId of ids) {
+        const resolvedResult = await resolveTaskId(taskId, config.doltRepoPath);
+        if (resolvedResult.isErr()) {
+          results.push({ id: taskId, error: resolvedResult.error.message });
+          anyFailed = true;
+          continue;
+        }
+        const resolved = resolvedResult.value;
         const currentTimestamp = now();
         const q = query(config.doltRepoPath);
 
@@ -54,7 +61,7 @@ export function doneCommand(program: Command) {
         const singleResult = await q
           .select<{ status: TaskStatus; plan_id: string }>("task", {
             columns: ["status", "plan_id"],
-            where: { task_id: taskId },
+            where: { task_id: resolved },
           })
           .andThen((currentStatusResult) => {
             if (currentStatusResult.length === 0) {
@@ -81,7 +88,7 @@ export function doneCommand(program: Command) {
             q.update(
               "task",
               { status: "done", updated_at: currentTimestamp },
-              { task_id: taskId },
+              { task_id: resolved },
             ),
           )
           .andThen(() => {
@@ -107,7 +114,7 @@ export function doneCommand(program: Command) {
 
             return q.insert("event", {
               event_id: uuidv4(),
-              task_id: taskId,
+              task_id: resolved,
               kind: "done",
               body: jsonObj({
                 evidence: eventBody.evidence,
@@ -119,7 +126,7 @@ export function doneCommand(program: Command) {
           })
           .andThen(() =>
             doltCommit(
-              `task: done ${taskId}`,
+              `task: done ${resolved}`,
               config.doltRepoPath,
               cmd.parent?.opts().noCommit,
             ),
@@ -128,7 +135,7 @@ export function doneCommand(program: Command) {
             q
               .select<{ to_task_id: string }>("edge", {
                 columns: ["to_task_id"],
-                where: { from_task_id: taskId, type: "blocks" },
+                where: { from_task_id: resolved, type: "blocks" },
               })
               .andThen((dependentRows) => {
                 const syncs = dependentRows.map((r) =>
@@ -140,7 +147,7 @@ export function doneCommand(program: Command) {
           .andThen(() => {
             if (!planId) {
               return ok({
-                task_id: taskId,
+                task_id: resolved,
                 status: "done" as const,
                 plan_completed: false,
               });
@@ -153,13 +160,13 @@ export function doneCommand(program: Command) {
                     config.doltRepoPath,
                     cmd.parent?.opts().noCommit,
                   ).map(() => ({
-                    task_id: taskId,
+                    task_id: resolved,
                     status: "done" as const,
                     plan_completed: true,
                   }));
                 }
                 return ok({
-                  task_id: taskId,
+                  task_id: resolved,
                   status: "done" as const,
                   plan_completed: false,
                 });

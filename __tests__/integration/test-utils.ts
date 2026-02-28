@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { type ExecaError, execa } from "execa";
 import { writeConfig } from "../../src/cli/utils";
+import { ensureMigrations } from "../../src/db/migrate";
 import { GOLDEN_TEMPLATE_PATH_FILE } from "./global-setup";
 
 export interface IntegrationTestContext {
@@ -32,6 +33,7 @@ export async function setupIntegrationTest(): Promise<IntegrationTestContext> {
 
   fs.cpSync(templatePath, tempDir, { recursive: true });
   writeConfig({ doltRepoPath }, tempDir)._unsafeUnwrap();
+  (await ensureMigrations(doltRepoPath))._unsafeUnwrap();
 
   return { tempDir, doltRepoPath, cliPath };
 }

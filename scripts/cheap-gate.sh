@@ -39,7 +39,7 @@ fi
 
 if [[ -n "$FULL" ]]; then
   echo "=== [TEST:full] bun test __tests__ ==="
-  bun test __tests__
+  bun test __tests__ --concurrent
 else
   echo "=== [TEST:targeted] affected tests ==="
   AFFECTED=$(echo "$CHANGED" | bun scripts/affected-tests.ts 2>/dev/null || true)

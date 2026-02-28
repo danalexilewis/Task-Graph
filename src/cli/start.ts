@@ -8,7 +8,7 @@ import { jsonObj, now, query } from "../db/query";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { checkRunnable, checkValidTransition } from "../domain/invariants";
 import type { TaskStatus } from "../domain/types";
-import { type Config, parseIdList, readConfig } from "./utils";
+import { type Config, parseIdList, readConfig, resolveTaskId } from "./utils";
 
 function startOne(
   config: Config,
@@ -127,9 +127,15 @@ export function startCommand(program: Command) {
       const results: ResultItem[] = [];
 
       for (const taskId of ids) {
+        const resolvedResult = await resolveTaskId(taskId, config.doltRepoPath);
+        if (resolvedResult.isErr()) {
+          results.push({ id: taskId, error: resolvedResult.error.message });
+          continue;
+        }
+        const resolved = resolvedResult.value;
         const result = await startOne(
           config,
-          taskId,
+          resolved,
           agentName,
           force,
           noCommit,

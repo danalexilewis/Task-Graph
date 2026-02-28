@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
 import { jsonObj, now, query } from "../db/query";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
-import { parseIdList, readConfig } from "./utils";
+import { parseIdList, readConfig, resolveTaskId } from "./utils";
 
 type NoteResult =
   | { id: string; status?: string }
@@ -46,13 +46,20 @@ export function noteCommand(program: Command) {
       let anyFailed = false;
 
       for (const taskId of ids) {
+        const resolvedResult = await resolveTaskId(taskId, config.doltRepoPath);
+        if (resolvedResult.isErr()) {
+          results.push({ id: taskId, error: resolvedResult.error.message });
+          anyFailed = true;
+          continue;
+        }
+        const resolved = resolvedResult.value;
         const currentTimestamp = now();
         const q = query(config.doltRepoPath);
 
         const result = await q
           .select<{ task_id: string }>("task", {
             columns: ["task_id"],
-            where: { task_id: taskId },
+            where: { task_id: resolved },
           })
           .andThen((rows) => {
             if (rows.length === 0) {
@@ -66,7 +73,7 @@ export function noteCommand(program: Command) {
             return q
               .insert("event", {
                 event_id: uuidv4(),
-                task_id: taskId,
+                task_id: resolved,
                 kind: "note",
                 body: jsonObj({
                   message: msg,
@@ -77,12 +84,12 @@ export function noteCommand(program: Command) {
               })
               .andThen(() =>
                 doltCommit(
-                  `task: note ${taskId}`,
+                  `task: note ${resolved}`,
                   config.doltRepoPath,
                   cmd.parent?.opts().noCommit,
                 ),
               )
-              .map(() => ({ task_id: taskId }));
+              .map(() => ({ task_id: resolved }));
           });
 
         result.match(

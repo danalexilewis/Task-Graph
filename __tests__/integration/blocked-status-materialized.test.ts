@@ -10,7 +10,8 @@ import {
   teardownIntegrationTest,
 } from "./test-utils";
 
-describe("Blocked status materialized integration", () => {
+// Serial: flaky under concurrency (DB-dependent; status transitions order-sensitive).
+describe.serial("Blocked status materialized integration", () => {
   let context: Awaited<ReturnType<typeof setupIntegrationTest>> | undefined;
   let planId: string;
   let blockerTaskId: string;
@@ -185,7 +186,8 @@ todos:
   }, 20000);
 });
 
-describe("syncBlockedStatusForTask with seeded DB", () => {
+// Serial: flaky under concurrency (DB-dependent).
+describe.serial("syncBlockedStatusForTask with seeded DB", () => {
   let context: Awaited<ReturnType<typeof setupIntegrationTest>> | undefined;
   const planId = "a1eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
   const taskTodoId = "b2eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";

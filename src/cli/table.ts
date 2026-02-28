@@ -7,17 +7,31 @@ export interface TableOptions {
   maxWidth?: number;
   /** Minimum column widths (indexed by column). Falls back to 3. */
   minWidths?: number[];
+  /**
+   * Index of the column that gets extra space when under budget and shrinks first when over.
+   * Default 0 (first column).
+   */
+  flexColumnIndex?: number;
+  /** Maximum column widths (indexed by column). Caps natural width so column never exceeds this. */
+  maxWidths?: number[];
 }
 
 /**
  * Render a table that fits within `maxWidth`, using cli-table3 for
  * ANSI-aware width calculations and word wrapping.
  *
- * The first column is treated as the "flex" column — it absorbs any
- * width reduction needed so numeric/short columns stay readable.
+ * By default the first column is the "flex" column. Use `flexColumnIndex` to
+ * choose another (e.g. 1 for Task column). Use `maxWidths` to cap columns (e.g. Id at 10).
  */
 export function renderTable(opts: TableOptions): string {
-  const { headers, rows, maxWidth = 80, minWidths = [] } = opts;
+  const {
+    headers,
+    rows,
+    maxWidth = 80,
+    minWidths = [],
+    flexColumnIndex = 0,
+    maxWidths = [],
+  } = opts;
   const colCount = headers.length;
 
   // cli-table3 colWidths include padding (1 left + 1 right = 2).
@@ -27,35 +41,102 @@ export function renderTable(opts: TableOptions): string {
   // Available content+padding space
   const available = Math.max(colCount * 3, maxWidth - borders);
 
-  // Measure natural content widths (max of header + all rows per column)
+  // Measure natural content widths (max of header + all rows per column); apply maxWidths cap
   const natural: number[] = headers.map((h) => h.length);
   for (const row of rows) {
     for (let i = 0; i < row.length; i++) {
       natural[i] = Math.max(natural[i] ?? 0, row[i].length);
     }
   }
+  for (let i = 0; i < natural.length; i++) {
+    if (maxWidths[i] != null) {
+      natural[i] = Math.min(natural[i], maxWidths[i] as number);
+    }
+  }
 
   // colWidths = content width + 2 (for padding). We work in content-space first.
   const contentBudget = available - colCount * 2; // subtract padding
+
+  const fixedMax = Math.max(4, Math.floor(contentBudget / colCount));
 
   let contentWidths: number[];
   const totalNatural = natural.reduce((s, w) => s + w, 0);
 
   if (totalNatural <= contentBudget) {
-    contentWidths = [...natural];
+    contentWidths = natural.map((w, i) =>
+      Math.min(w, maxWidths[i] ?? Number.POSITIVE_INFINITY),
+    );
   } else {
-    // Fixed columns (all but the first) get their natural width, capped
-    const fixedMax = Math.max(4, Math.floor(contentBudget / colCount));
-    const fixedCols = natural.slice(1).map((w) => Math.min(w, fixedMax));
-    const fixedTotal = fixedCols.reduce((s, w) => s + w, 0);
-    const flexWidth = Math.max(minWidths[0] ?? 4, contentBudget - fixedTotal);
-    contentWidths = [flexWidth, ...fixedCols];
+    // Fixed columns (all but flex) get natural capped by fixedMax and maxWidths
+    contentWidths = natural.map((w, i) => {
+      const cap = Math.min(fixedMax, maxWidths[i] ?? Number.POSITIVE_INFINITY);
+      return i === flexColumnIndex ? 0 : Math.min(w, cap);
+    });
+    const fixedTotal = contentWidths.reduce((s, w) => s + w, 0);
+    contentWidths[flexColumnIndex] = Math.max(
+      minWidths[flexColumnIndex] ?? 4,
+      contentBudget - fixedTotal,
+    );
   }
 
-  // Enforce minimums
+  // Enforce minimums and maxWidths
   for (let i = 0; i < contentWidths.length; i++) {
     const min = minWidths[i] ?? 3;
-    contentWidths[i] = Math.max(contentWidths[i], min);
+    const max = maxWidths[i] ?? Number.POSITIVE_INFINITY;
+    contentWidths[i] = Math.max(min, Math.min(contentWidths[i], max));
+  }
+
+  // Cap total width so we never exceed maxWidth (no terminal wrap)
+  let totalContent = contentWidths.reduce((s, x) => s + x, 0);
+  let totalRendered = totalContent + colCount * 2 + borders;
+  if (totalRendered > maxWidth) {
+    const overflow = totalRendered - maxWidth;
+    const flexMin = minWidths[flexColumnIndex] ?? 3;
+    const flexMax = maxWidths[flexColumnIndex] ?? Number.POSITIVE_INFINITY;
+    contentWidths[flexColumnIndex] = Math.max(
+      flexMin,
+      Math.min(flexMax, contentWidths[flexColumnIndex] - overflow),
+    );
+    totalContent = contentWidths.reduce((s, x) => s + x, 0);
+    totalRendered = totalContent + colCount * 2 + borders;
+    if (totalRendered > maxWidth) {
+      const remainingOverflow = totalRendered - maxWidth;
+      let slack = 0;
+      for (let i = 0; i < contentWidths.length; i++) {
+        if (i === flexColumnIndex) continue;
+        const min = minWidths[i] ?? 3;
+        slack += Math.max(0, contentWidths[i] - min);
+      }
+      if (slack >= remainingOverflow) {
+        for (let i = 0; i < contentWidths.length; i++) {
+          if (i === flexColumnIndex) continue;
+          const min = minWidths[i] ?? 3;
+          const max = maxWidths[i] ?? Number.POSITIVE_INFINITY;
+          const canTake = Math.max(0, contentWidths[i] - min);
+          const take = Math.min(
+            canTake,
+            Math.round((canTake / slack) * remainingOverflow),
+          );
+          contentWidths[i] = Math.max(
+            min,
+            Math.min(max, contentWidths[i] - take),
+          );
+        }
+      } else {
+        for (let i = 0; i < contentWidths.length; i++) {
+          if (i === flexColumnIndex) continue;
+          contentWidths[i] = minWidths[i] ?? 3;
+        }
+        let extra = remainingOverflow - slack;
+        for (let i = 0; extra > 0 && i < contentWidths.length; i++) {
+          if (i === flexColumnIndex) continue;
+          const max = maxWidths[i] ?? Number.POSITIVE_INFINITY;
+          const take = Math.min(contentWidths[i] - 1, extra);
+          contentWidths[i] = Math.min(max, contentWidths[i] - take);
+          extra -= take;
+        }
+      }
+    }
   }
 
   // cli-table3 colWidths include padding

@@ -22,6 +22,10 @@
 
 - `event.body` may be returned as object or string by doltSql depending on driver. Handle both: `typeof raw === 'string' ? JSON.parse(raw) : raw`.
 
+## Integration tests under full concurrency
+
+- Running `bun test __tests__` with default concurrency can cause flakiness: different integration test files run in parallel and may hit "database is read only" or Dolt commit conflicts when sharing the golden template or temp dirs. Flaky integration describes were wrapped with `describe.serial()` and a "Serial: flaky under concurrency" comment (invariants-db, no-hard-deletes, blocked-status-materialized, cursor-import).
+
 ## DAL writable (read-only errors)
 
 - All Dolt invocations use `--data-dir <repoPath>` so the repo is explicit (avoids wrong cwd or connecting to a server). They pass `DOLT_READ_ONLY=false` in env so Dolt treats the session as writable when the repo allows it. `commit.ts` uses `process.env.DOLT_PATH || "dolt"` for consistency with connection/migrate.
@@ -42,6 +46,11 @@
 ## Execution — sub-agents mandatory, Cursor decides concurrency
 
 - **Task execution MUST use implementer (and reviewer) sub-agents.** AGENT.md and subagent-dispatch.mdc require it. Feed all runnable non-conflicting tasks; Cursor decides how many run in parallel. Direct execution only after 2 sub-agent failures or when task is explicitly exploratory. Skipping dispatch during execution is a critical failure.
+
+## Orchestrator and sub-agent orientation: tg status --tasks
+
+- **Orchestrator** runs `tg status --tasks` (not plain `tg status`) so it sees the **full** active task list. Default `tg status` shows only 3 next runnable; the orchestrator should not infer "batch 3" from that. Session-start.mdc and taskgraph-workflow.mdc use `--tasks`.
+- **Sub-agents** (implementer, reviewer, etc.) run `tg status --tasks` at start when they need to orient—not full `tg status`. They only need task-level context; the orchestrator handles plans and initiatives. Session-start.mdc and implementer.md state this.
 
 ## Task orchestration UI (sub-agent management)
 
@@ -105,6 +114,11 @@
 - **File trees**: Use the same tree connectors in YAML `fileTree` fields. Group by directory.
 - **Mermaid**: Still use for data flows, state machines, and supplementary views. Complements but does not replace the tree-style graphs.
 
+## Test concurrency (Bun)
+
+- **Concurrent execution:** `bunfig.toml` sets `concurrentTestGlob = ["**/__tests__/integration/**", "**/__tests__/e2e/**"]` so integration and e2e test files run concurrently; unit tests (db, domain, export, plan-import) stay sequential. See https://bun.com/docs/test#concurrent-test-execution and https://bun.com/docs/test/configuration (concurrentTestGlob). To run all tests concurrently use `bun test --concurrent`.
+- **Flaky tests:** To identify flaky tests, run `pnpm gate:full` or `pnpm test:all` 3–5 times and note intermittently failing tests. Use `test.serial()` or `describe.serial()` (Bun API) only for tests that fail under concurrency due to order or shared state (e.g. shared Dolt DB). Add a one-line comment at the serial block explaining why (e.g. `// Flaky under concurrency; shared Dolt state`).
+
 ## Follow-up from sub-agent notes (orchestrator)
 
 - When an implementer (or sub-agent) completes and reports environment limitations, gate failures, or suggested follow-up in their return message or via `tg note`, the **orchestrator** decides whether to investigate. If warranted: `tg task new "<title>" --plan <planId>` then delegate the new task(s). See subagent-dispatch.mdc → "Follow-up from notes/evidence". Implementers should leave a `tg note` when they hit issues they could not fix so the orchestrator can spawn follow-up tasks.
@@ -127,3 +141,5 @@
 
 - **[2026-02-27]** `tg status` now shows: vanity metrics (completed plans/tasks/canceled), active plans table (with Done column, only in-flight plans), active work table (Task/Plan/Agent), next runnable (limit 3). Completed plans hidden from active plans table. Health-check functions in `src/skills/health-check/index.ts` (stale, orphaned, unresolved deps).
 - **[2026-02-27]** `tg status` uses chalk colors (bold blue headings, green metrics, yellow table headers, cyan/red/green status values) and responsive tables via `cli-table3` in `src/cli/table.ts`. Tables respect terminal width (`getTerminalWidth()` from `src/cli/terminal.ts`). The first column is the flex column that absorbs width reduction. With many columns + enforced minimums, total width may exceed `maxWidth` — that's by design (hard floor).
+- **Status: merged Active Work + Next Runnable, short Id (user preference).** Default `tg status` should show a single merged table ("Active & next") combining doing tasks and next runnable (up to 3), with columns Id, Task, Plan, Status, Agent. Task Id in that section (and in next runnable display) must be short hash/id (`hash_id` when present, else truncated UUID), not full UUID. Plan: `plans/26-02-28_merge_status_active_next_short_id.md`.
+- **renderTable flex and max widths:** `src/cli/table.ts` `renderTable()` accepts optional `flexColumnIndex` (default 0) and `maxWidths` (per-column caps). The Active & next table uses `flexColumnIndex: 1` (Task column flexes), `maxWidths: [10]` (Id thin), and truncates plan titles to 18 chars with "…". Other tables can use these options for different layouts.

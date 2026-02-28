@@ -7,16 +7,22 @@ alwaysApply: true
 
 At the start of every session, run:
 
+- **Orchestrator (main session):** `pnpm tg status --tasks` — full task list (Id, Title, Plan, Status, Owner). Use this so you see all active tasks, not just the 3 next runnable shown by default status.
+- **Sub-agents (implementer, reviewer, etc.):** `pnpm tg status --tasks` — task list only; you don't need plans or initiatives.
+
 ```bash
-pnpm tg status
+# Orchestrator:
+pnpm tg status --tasks
+
+# Sub-agent (when you are executing a single task):
+pnpm tg status --tasks
 ```
 
-This surfaces:
+Full task list surfaces:
 
-- Plans in progress
-- Tasks stuck in `doing` (may need cleanup)
-- **Active work:** doing tasks with agent_id and plan (when multiple agents are active)
-- Next runnable tasks
+- All active tasks (todo, doing, blocked) with plan and owner
+- **Doing tasks** show owner — use for multi-agent (avoid overlapping files with another agent's task)
+- Stale `doing` or forgotten `todo` tasks to clean up (see Recovery)
 
 **Key constraints (see AGENT.md for details):**
 

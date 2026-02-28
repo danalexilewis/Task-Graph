@@ -55,6 +55,12 @@ export type EventKind = z.infer<typeof EventKindSchema>;
 export const ActorSchema = z.enum(["human", "agent"]);
 export type Actor = z.infer<typeof ActorSchema>;
 
+export const GateTypeSchema = z.enum(["human", "ci", "webhook"]);
+export type GateType = z.infer<typeof GateTypeSchema>;
+
+export const GateStatusSchema = z.enum(["pending", "resolved", "expired"]);
+export type GateStatus = z.infer<typeof GateStatusSchema>;
+
 // Risk entry for plan.risks (rich planning)
 export const PlanRiskEntrySchema = z.object({
   description: z.string(),
@@ -147,3 +153,14 @@ export const DecisionSchema = z.object({
   created_at: z.string().datetime(),
 });
 export type Decision = z.infer<typeof DecisionSchema>;
+
+export const GateSchema = z.object({
+  gate_id: z.string().uuid(),
+  name: z.string().max(255),
+  gate_type: GateTypeSchema,
+  status: GateStatusSchema.default("pending"),
+  task_id: z.string().uuid(),
+  resolved_at: z.string().datetime().nullable(),
+  created_at: z.string().datetime(),
+});
+export type Gate = z.infer<typeof GateSchema>;

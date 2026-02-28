@@ -19,7 +19,7 @@ alwaysApply: true
 
 ## Orientation
 
-Before executing any plan, run `pnpm tg status` to see what's outstanding. **Multi-agent:** Check "Active work" for other agents' tasks; avoid overlapping on the same files/area. If overlap is detected, use `tg note <taskId> --msg "..."` to signal and pick a different task. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first (see Recovery below).
+Before executing any plan, run `pnpm tg status --tasks` to see what's outstanding (full task list; default status shows only 3 next runnable). **Multi-agent:** Check doing tasks and owners; avoid overlapping on the same files/area. If overlap is detected, use `tg note <taskId> --msg "..."` to signal and pick a different task. If there are stale `doing` tasks or forgotten `todo` tasks for completed work, clean them up first (see Recovery below).
 
 ## Plan Creation and Review
 
@@ -50,7 +50,8 @@ Task execution uses sub-agents. Follow `.cursor/rules/subagent-dispatch.mdc` Pat
 2. For each task: build implementer prompt from `tg context` and `.cursor/agents/implementer.md`; dispatch via Task tool, agent CLI, or mcp_task.
 3. After implementer completes: dispatch reviewer with task context + diff.
 4. If reviewer FAILs, re-dispatch implementer once. After 2 failures, fall back to direct execution.
-5. **Follow-up from notes/evidence**: If the implementer's return or task notes mention environment issues, gate failures, or suggested follow-up, the orchestrator decides whether to investigate — if yes, create task(s) with `tg task new ... --plan <planId>` and delegate them (see subagent-dispatch.mdc → Follow-up from notes/evidence).
+5. **Evidence**: Implementer uses "commands run, git ref" or "implemented; no test run" (not expected to report tests run). For the final run-full-suite task: "gate:full passed" or "gate:full failed: <summary>".
+6. **Follow-up from notes/evidence**: If the implementer's return or task notes mention environment issues, gate failures, or suggested follow-up, the orchestrator decides whether to investigate — if yes, create task(s) with `tg task new ... --plan <planId>` and delegate them (see subagent-dispatch.mdc → Follow-up from notes/evidence).
 
 ### Fallback: direct execution
 
@@ -62,7 +63,7 @@ Use only when: a sub-agent has failed twice on the same task, or the task is exp
 4. `pnpm tg done <taskId> --evidence "..."`
 5. Log the reason: `pnpm tg note <taskId> --msg "Direct execution: <reason>"`
 
-Evidence should include: tests run, commands, git hashes.
+Evidence: commands run, git ref; or "implemented; no test run". If the human ran the full suite: "gate:full run by human".
 
 ### Multi-task discipline
 
@@ -82,10 +83,10 @@ Export writes to `exports/<planId>.md` by default (gitignored). Plan files in `p
 
 If work is already done but the task is still `todo` or `doing` in taskgraph:
 
-- **Task is `todo`**: `pnpm tg done <taskId> --force --evidence "completed previously"`
-- **Task is `doing`**: `pnpm tg done <taskId> --evidence "completed previously"`
+- **Task is `todo`**: `pnpm tg done <taskId> --force --evidence "completed previously"` (or "gate:full run by human" if applicable)
+- **Task is `doing`**: `pnpm tg done <taskId> --evidence "completed previously"` (or "gate:full run by human" if applicable)
 
-Run `pnpm tg status` after cleanup to verify.
+Run `pnpm tg status --tasks` after cleanup to verify.
 
 ## When Blocked
 

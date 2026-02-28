@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { execa } from "execa";
 import {
   applyDomainToDocRenameMigration,
+  applyHashIdMigration,
   applyMigrations,
   applyPlanRichFieldsMigration,
   applyTaskAgentMigration,
@@ -38,6 +39,7 @@ export default async function globalSetup(): Promise<void> {
   (await applyTaskAgentMigration(doltRepoPath))._unsafeUnwrap();
   (await applyPlanRichFieldsMigration(doltRepoPath))._unsafeUnwrap();
   (await applyTaskSuggestedChangesMigration(doltRepoPath))._unsafeUnwrap();
+  (await applyHashIdMigration(doltRepoPath))._unsafeUnwrap();
 
   process.env.TG_GOLDEN_TEMPLATE = tempDir;
   fs.writeFileSync(GOLDEN_TEMPLATE_PATH_FILE, tempDir, "utf8");

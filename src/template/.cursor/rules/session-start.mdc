@@ -7,11 +7,18 @@ alwaysApply: true
 
 At the start of every session, run:
 
+- **Orchestrator (main session):** `pnpm tg status` — plans, active work, next runnable.
+- **Sub-agents (implementer, reviewer, etc.):** `pnpm tg status --tasks` — task list only; you don't need plans or initiatives.
+
 ```bash
+# Orchestrator:
 pnpm tg status
+
+# Sub-agent (when you are executing a single task):
+pnpm tg status --tasks
 ```
 
-This surfaces:
+Full status surfaces:
 
 - Plans in progress
 - Tasks stuck in `doing` (may need cleanup)

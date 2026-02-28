@@ -3,7 +3,7 @@ import { ResultAsync } from "neverthrow";
 import { query } from "../db/query";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import type { Edge, Event, Task, TaskStatus } from "../domain/types";
-import { type Config, readConfig } from "./utils"; // Import Config
+import { type Config, readConfig, resolveTaskId } from "./utils";
 
 export function showCommand(program: Command) {
   program
@@ -11,95 +11,101 @@ export function showCommand(program: Command) {
     .description("Prints task details, blockers, dependents, and recent events")
     .argument("<taskId>", "ID of the task to show")
     .action(async (taskId, _options, cmd) => {
-      const result = await readConfig().asyncAndThen((config: Config) => {
-        const q = query(config.doltRepoPath);
-
-        return ResultAsync.fromPromise(
-          (async () => {
-            const taskDetailQueryResult = await q.raw<
-              Task & { plan_title: string }
-            >(`SELECT t.*, p.title as plan_title
+      const result = await readConfig().asyncAndThen((config: Config) =>
+        resolveTaskId(taskId, config.doltRepoPath).andThen((resolved) => {
+          const q = query(config.doltRepoPath);
+          return ResultAsync.fromPromise(
+            (async () => {
+              const taskDetailQueryResult = await q.raw<
+                Task & { plan_title: string }
+              >(`SELECT t.*, p.title as plan_title
               FROM \`task\` t
               JOIN \`plan\` p ON t.plan_id = p.plan_id
-              WHERE t.task_id = '${taskId}';`);
-            if (taskDetailQueryResult.isErr())
-              throw taskDetailQueryResult.error;
-            const taskDetailsArray = taskDetailQueryResult.value;
-            if (taskDetailsArray.length === 0) {
-              throw buildError(
-                ErrorCode.TASK_NOT_FOUND,
-                `Task with ID ${taskId} not found.`,
-              );
-            }
-            const taskDetails = taskDetailsArray[0];
+              WHERE t.task_id = '${resolved}';`);
+              if (taskDetailQueryResult.isErr())
+                throw taskDetailQueryResult.error;
+              const taskDetailsArray = taskDetailQueryResult.value;
+              if (taskDetailsArray.length === 0) {
+                throw buildError(
+                  ErrorCode.TASK_NOT_FOUND,
+                  `Task with ID ${taskId} not found.`,
+                );
+              }
+              const taskDetails = taskDetailsArray[0];
 
-            interface BlockerDetails extends Edge {
-              title: string;
-              status: Task["status"];
-            }
-            interface DependentDetails extends Edge {
-              title: string;
-              status: Task["status"];
-            }
+              interface BlockerDetails extends Edge {
+                title: string;
+                status: Task["status"];
+              }
+              interface DependentDetails extends Edge {
+                title: string;
+                status: Task["status"];
+              }
 
-            const blockersResult = await q.raw<BlockerDetails>(`
+              const blockersResult = await q.raw<BlockerDetails>(`
               SELECT e.from_task_id, t.title, t.status, e.reason
               FROM \`edge\` e
               JOIN \`task\` t ON e.from_task_id = t.task_id
-              WHERE e.to_task_id = '${taskId}' AND e.type = 'blocks';
+              WHERE e.to_task_id = '${resolved}' AND e.type = 'blocks';
             `);
-            const blockers = blockersResult.isOk() ? blockersResult.value : [];
+              const blockers = blockersResult.isOk()
+                ? blockersResult.value
+                : [];
 
-            const dependentsResult = await q.raw<
-              DependentDetails & { type: string }
-            >(`
+              const dependentsResult = await q.raw<
+                DependentDetails & { type: string }
+              >(`
               SELECT e.to_task_id, e.type, t.title, t.status, e.reason
               FROM \`edge\` e
               JOIN \`task\` t ON e.to_task_id = t.task_id
-              WHERE e.from_task_id = '${taskId}';
+              WHERE e.from_task_id = '${resolved}';
             `);
-            const dependents = dependentsResult.isOk()
-              ? dependentsResult.value
-              : [];
+              const dependents = dependentsResult.isOk()
+                ? dependentsResult.value
+                : [];
 
-            const eventsResult = await q.raw<Event>(`
+              const eventsResult = await q.raw<Event>(`
               SELECT kind, body, created_at, actor
               FROM \`event\`
-              WHERE task_id = '${taskId}'
+              WHERE task_id = '${resolved}'
               ORDER BY created_at DESC
               LIMIT 10;
             `);
-            const events = eventsResult.isOk() ? eventsResult.value : [];
-            const noteEvents = events.filter((e) => e.kind === "note");
+              const events = eventsResult.isOk() ? eventsResult.value : [];
+              const noteEvents = events.filter((e) => e.kind === "note");
 
-            const domainsResult = await q.select<{ doc: string }>("task_doc", {
-              columns: ["doc"],
-              where: { task_id: taskId },
-            });
-            const skillsResult = await q.select<{ skill: string }>(
-              "task_skill",
-              { columns: ["skill"], where: { task_id: taskId } },
-            );
-            const domains = domainsResult.isOk()
-              ? domainsResult.value.map((r) => r.doc)
-              : [];
-            const skills = skillsResult.isOk()
-              ? skillsResult.value.map((r) => r.skill)
-              : [];
+              const domainsResult = await q.select<{ doc: string }>(
+                "task_doc",
+                {
+                  columns: ["doc"],
+                  where: { task_id: resolved },
+                },
+              );
+              const skillsResult = await q.select<{ skill: string }>(
+                "task_skill",
+                { columns: ["skill"], where: { task_id: resolved } },
+              );
+              const domains = domainsResult.isOk()
+                ? domainsResult.value.map((r) => r.doc)
+                : [];
+              const skills = skillsResult.isOk()
+                ? skillsResult.value.map((r) => r.skill)
+                : [];
 
-            return {
-              taskDetails,
-              blockers,
-              dependents,
-              events,
-              noteEvents,
-              domains,
-              skills,
-            };
-          })(),
-          (e) => e as AppError, // Error handler for the promise
-        );
-      });
+              return {
+                taskDetails,
+                blockers,
+                dependents,
+                events,
+                noteEvents,
+                domains,
+                skills,
+              };
+            })(),
+            (e) => e as AppError,
+          );
+        }),
+      );
 
       result.match(
         (data: unknown) => {

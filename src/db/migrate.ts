@@ -349,6 +349,22 @@ export function applyTaskAgentMigration(
   });
 }
 
+/** Create gate table if missing (idempotent). Columns match Gate schema: gate_id, name, gate_type, status, task_id, resolved_at, created_at. */
+export function applyGateTableMigration(
+  repoPath: string,
+  noCommit: boolean = false,
+): ResultAsync<void, AppError> {
+  return tableExists(repoPath, "gate").andThen((exists) => {
+    if (exists) return ResultAsync.fromSafePromise(Promise.resolve());
+    const create =
+      "CREATE TABLE IF NOT EXISTS `gate` (gate_id CHAR(36) PRIMARY KEY, name VARCHAR(255) NOT NULL, gate_type ENUM('human','ci','webhook') NOT NULL, status ENUM('pending','resolved','expired') DEFAULT 'pending', task_id CHAR(36) NOT NULL, resolved_at DATETIME NULL, created_at DATETIME NOT NULL, FOREIGN KEY (task_id) REFERENCES `task`(task_id))";
+    return doltSql(create, repoPath)
+      .map(() => undefined)
+      .andThen(() => doltCommit("db: add gate table", repoPath, noCommit))
+      .map(() => undefined);
+  });
+}
+
 /** Chains all idempotent migrations. Safe to run on every command. */
 export function ensureMigrations(
   repoPath: string,
@@ -362,6 +378,7 @@ export function ensureMigrations(
     .andThen(() => applyTaskAgentMigration(repoPath, noCommit))
     .andThen(() => applyHashIdMigration(repoPath, noCommit))
     .andThen(() => applyNoDeleteTriggersMigration(repoPath, noCommit))
+    .andThen(() => applyGateTableMigration(repoPath, noCommit))
     .map(() => undefined);
 }
 

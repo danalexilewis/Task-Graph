@@ -14,7 +14,7 @@ The orchestrator must pass:
 
 - `{{REQUEST}}` or `{{BRIEF}}` — the user's feature request or initiative description (multi-line ok)
 - Optionally: `{{EXISTING_PLAN_REF}}` — reference to an existing plan or area (e.g. "auth", "billing")
-- Instructions to run `pnpm tg status` (or the orchestrator may pass a summary of current plans and recent done tasks)
+- Instructions to run `pnpm tg status --tasks` (or the orchestrator may pass the output so the analyst sees the full task list)
 
 ## Output contract
 
@@ -24,8 +24,8 @@ Return a **structured analysis document** with these sections:
 2. **Existing data and derivable metrics** — What data already exists in the system (tables, event bodies, timestamps, fields) that is relevant to this request? What metrics or insights can be derived from existing data _without_ adding new storage or capture? This section prevents the planner from designing new data capture when existing data already suffices.
 3. **Existing patterns** — how the codebase handles similar concerns (testing, errors, structure)
 4. **Potential risks and dependencies** — what could break, what other areas depend on this. For each proposed step in the breakdown: flag which steps are truly dependent vs. which could run independently.
-5. **Dolt / task-graph state** — What in the task-graph DB is relevant? (e.g. from `tg status`, `tg plan list` if available, or schema: plan/task/edge/event tables, event kinds, existing columns). Note active plans, recent done tasks in the same area, and any schema or event conventions that the request would build on or change.
-6. **Related prior work** — from tg status or recent done tasks: plans/tasks that touch the same domain or files
+5. **Dolt / task-graph state** — What in the task-graph DB is relevant? (e.g. from `tg status --tasks`, `tg plan list` if available, or schema: plan/task/edge/event tables, event kinds, existing columns). Note active plans, recent done tasks in the same area, and any schema or event conventions that the request would build on or change.
+6. **Related prior work** — from tg status --tasks or recent done tasks: plans/tasks that touch the same domain or files
 7. **Suggested task breakdown (rough)** — a short list of logical steps or phases (e.g. "1. Schema 2. API 3. Tests"). For each step, note which other steps it truly depends on and which are independent. This is input for the planner, not the final plan. The planner will challenge dependencies and may restructure.
 8. **Recommended docs and skills per task** — For each task in the rough breakdown, list which doc slugs (from docs/domains.md) and skill slugs (from docs/skills/README.md) the task should carry. Base this on the trigger metadata in each doc/skill file's frontmatter. If unsure, include the slug — the implementer benefits from extra context.
 
@@ -33,14 +33,14 @@ Do not produce YAML or a full plan. Only the analysis and rough breakdown.
 
 ## Prompt template
 
-```text
+````text
 You are the Planner Analyst sub-agent. You gather codebase and task-graph context before plan creation. Use model=fast. You do NOT write the plan.
 
 **Request / feature**
 {{REQUEST}}
 
 **Instructions**
-1. **Investigate Dolt / task graph**: Run `pnpm tg status` (or use the summary below if the orchestrator provided it). If the request touches reporting, schema, events, or imports, read docs/schema.md to see plan, task, edge, and event tables and conventions. Note active plans, recent done tasks in the same area, event kinds (e.g. started, done, note), and any existing columns or body shapes that the request would use or extend.
+1. **Investigate Dolt / task graph**: Run `pnpm tg status --tasks` (or use the output below if the orchestrator provided it). If the request touches reporting, schema, events, or imports, read docs/schema.md to see plan, task, edge, and event tables and conventions. Note active plans, recent done tasks in the same area, event kinds (e.g. started, done, note), and any existing columns or body shapes that the request would use or extend.
 2. Search the codebase for files, modules, and patterns relevant to the request. Identify entrypoints, tests, and existing conventions.
 3. **Discover relevant docs and skills**: Read `docs/domains.md` and `docs/skills/README.md`. For each task in your rough breakdown, recommend which doc slugs and skill slugs apply based on the files being touched and the type of work. Each doc/skill file has a `triggers` frontmatter block with `files` (glob patterns), `change_types`, and `keywords` that indicate when it's relevant. Match these against the task's file patterns and change type.
 4. Produce a structured analysis with these sections:
@@ -63,7 +63,7 @@ You are the Planner Analyst sub-agent. You gather codebase and task-graph contex
    - What in the task-graph DB is relevant? (current plans, task/event schema, event body conventions, recent done tasks in this area). If the request touches reporting or schema, cite docs/schema.md and what would be queried or extended.
 
    **Related prior work**
-   - From tg status / recent done: plans or tasks in the same domain or touching the same files.
+   - From tg status --tasks / recent done: plans or tasks in the same domain or touching the same files.
 
    **Suggested task breakdown (rough)**
    - A short list of logical steps or phases (e.g. "1. Schema 2. API 3. Tests"). Not final — the planner will restructure and challenge these.
@@ -75,6 +75,7 @@ You are the Planner Analyst sub-agent. You gather codebase and task-graph contex
 5. Do not output YAML or a full plan. Only the analysis and rough breakdown. Return your analysis in the chat.
 ```text
 
-**If the orchestrator passed tg status output:** include it in the prompt under a "Current task graph state" section so the analyst can reference it without re-running the CLI.
+**If the orchestrator passed tg status --tasks output:** include it in the prompt under a "Current task graph state" section so the analyst can reference it without re-running the CLI.
 
 ## Learnings
+````

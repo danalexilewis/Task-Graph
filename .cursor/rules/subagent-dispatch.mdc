@@ -39,6 +39,12 @@ Agent templates live in `.cursor/agents/` (see README there). You build each sub
 - **In-IDE or terminal**: Use the Cursor Task tool (with `model="fast"`) or the **agent CLI** (`agent --model <fast-model> --print --trust ...`). See [docs/cursor-agent-cli.md](../docs/cursor-agent-cli.md) for CLI options and usage.
 - **This environment** (when the Task tool or agent CLI is not available): Use **mcp_task** with the same built prompt and a short `description` (e.g. "Implement task: &lt;title&gt;" or "Planner analyst: gather context for plan"). Use `subagent_type` generalPurpose or explore as appropriate (e.g. explore for planner-analyst, generalPurpose for implementer/reviewer). The prompt and workflow are unchanged; only the invocation differs. Do not skip dispatch because the Task tool is not visible — use mcp_task.
 
+## Test coverage / execution
+
+- **Plan-end structure:** The last tasks of every plan must be **add-tests** (one or more tasks that create tests for new features) then **run-full-suite** (e.g. `pnpm gate:full`). These are dedicated tasks in the plan, blocked by all feature work. See plan-authoring.mdc and docs/plan-format.md.
+- **Implementers do not run tests:** Implementer sub-agents do not run the test suite; they complete their task and report evidence (commands run, git ref). Tests are added and run only in the dedicated add-tests and run-full-suite tasks at plan end.
+- **When run-full-suite fails:** Use the **Follow-up from notes/evidence** protocol below (lead-informed on failure): the run-full-suite task is marked done with failure in evidence and a `tg note`; the orchestrator creates fix tasks or escalates.
+
 ## When to use sub-agents
 
 - **Before creating a plan** — **MANDATORY.** You MUST dispatch the planner-analyst first. See Pattern 3 below. AGENT.md and plan-authoring.mdc both require this; skipping it is a critical failure.
@@ -83,13 +89,15 @@ When an implementer (or other sub-agent) completes and their return message, evi
 
 Implementers should leave a `tg note` when they hit environment or gate issues they cannot fix, so the orchestrator can evaluate and optionally spawn follow-up tasks.
 
+**Full-suite (gate:full) failure:** When the task is "run full test suite" (or equivalent) and `pnpm gate:full` fails, the agent **marks the task done** with evidence e.g. `gate:full failed: <brief reason>` and adds a `tg note` with the failure reason. The lead sees the outcome in `tg show` / evidence and uses the Follow-up from notes/evidence protocol above to create fix tasks. Do not leave the task not-done; using done + note keeps status clean and reuses the same mechanism as other gate/environment follow-up.
+
 ## Pattern 3: Plan analysis (before writing a plan) — MANDATORY
 
 **You must use this pattern whenever the user asks for a plan.** Do not write a plan without first dispatching the planner-analyst.
 
 Before creating a new plan (e.g. user asked for a feature and you are about to write `plans/yy-mm-dd_<name>.md`):
 
-1. Read `.cursor/agents/planner-analyst.md`. Build the prompt with `{{REQUEST}}` = user's feature/request. Optionally run `pnpm tg status` and pass the output so the analyst can reference current plans and done tasks.
+1. Read `.cursor/agents/planner-analyst.md`. Build the prompt with `{{REQUEST}}` = user's feature/request. Optionally run `pnpm tg status --tasks` and pass the output so the analyst can reference current task state (full list, not limited to 3).
 2. **Dispatch** the planner-analyst (Task tool, agent CLI, or mcp_task with subagent_type explore) with the built prompt and description "Planner analyst: gather context for plan".
 3. Use the analyst's output as input when you write the plan. **You own architecture, dependencies, and task design** — the analyst gathers facts, you do the reasoning.
 

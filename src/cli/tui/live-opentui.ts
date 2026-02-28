@@ -17,6 +17,8 @@ import {
   fetchProjectsTableData,
   fetchStatusData,
   fetchTasksTableData,
+  formatDashboardProjectsView,
+  formatDashboardTasksView,
   formatInitiativesAsString,
   formatProjectsAsString,
   formatStatusAsString,
@@ -95,7 +97,7 @@ export async function runOpenTUILive(
   );
 
   const content = initialData
-    ? formatStatusAsString(initialData, w)
+    ? formatStatusAsString(initialData, w, { dashboard: true })
     : "Loading...";
 
   const { Box, Text } = mod;
@@ -134,7 +136,269 @@ export async function runOpenTUILive(
             child.destroy();
             renderer.root.remove(STATUS_ROOT_ID);
           }
-          const newContent = formatStatusAsString(data, getTerminalWidth());
+          const newContent = formatStatusAsString(data, getTerminalWidth(), {
+            dashboard: true,
+          });
+          const newBox = Box(
+            {
+              id: STATUS_ROOT_ID,
+              borderStyle: "round",
+              border: true,
+              width: getTerminalWidth(),
+              height: "auto",
+            },
+            Text({ content: newContent }),
+          );
+          renderer.root.add(newBox);
+        } catch {
+          // ignore update errors
+        }
+      },
+      () => {},
+    );
+  }, REFRESH_MS);
+
+  renderer.on("destroy", () => {
+    clearInterval(timer);
+  });
+
+  await renderer.setupTerminal();
+  return new Promise<void>((resolve) => {
+    renderer.on("destroy", () => resolve());
+  });
+}
+
+/**
+ * Run the live dashboard tasks view using OpenTUI: Active tasks, Next 7 runnable, Last 7 completed.
+ * Uses fetchStatusData and fetchTasksTableData(..., { filter: 'active' }); 2s refresh.
+ */
+export async function runOpenTUILiveDashboardTasks(
+  config: Config,
+  statusOptions: StatusOptions,
+): Promise<void> {
+  const importTimeoutMs = 300;
+  const mod = (await Promise.race([
+    import("@opentui/core"),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("OpenTUI import timeout")),
+        importTimeoutMs,
+      ),
+    ),
+  ]).catch(() => null)) as OpenTUIMod | null;
+  if (!mod?.createCliRenderer || !mod.Box || !mod.Text) {
+    throw new Error("OpenTUI not available");
+  }
+
+  const initTimeoutMs = 350;
+  const rendererPromise = mod.createCliRenderer({
+    exitOnCtrlC: true,
+    targetFps: 10,
+  });
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("OpenTUI init timeout")), initTimeoutMs),
+  );
+  const renderer = await Promise.race([rendererPromise, timeoutPromise]);
+
+  const w = getTerminalWidth();
+  const activeOptions = { ...statusOptions, filter: "active" as const };
+  let initialStatus: StatusData | null = null;
+  let initialActive: TaskRow[] = [];
+
+  const [statusResult, activeResult] = await Promise.all([
+    fetchStatusData(config, statusOptions),
+    fetchTasksTableData(config, activeOptions),
+  ]);
+  statusResult.match(
+    (d) => {
+      initialStatus = d;
+    },
+    () => {},
+  );
+  activeResult.match(
+    (rows) => {
+      initialActive = rows;
+    },
+    () => {},
+  );
+
+  const content =
+    initialStatus != null
+      ? formatDashboardTasksView(initialStatus, initialActive, w)
+      : "Loading...";
+
+  const { Box, Text } = mod;
+  const rootBox = Box(
+    {
+      id: STATUS_ROOT_ID,
+      borderStyle: "round",
+      border: true,
+      width: w,
+      height: "auto",
+    },
+    Text({ content }),
+  );
+  renderer.root.add(rootBox);
+
+  renderer.prependInputHandler((sequence: string) => {
+    if (sequence.toLowerCase() === "q") {
+      renderer.destroy();
+      process.exit(0);
+      return true;
+    }
+    return false;
+  });
+
+  const timer = setInterval(async () => {
+    if (renderer.isDestroyed) {
+      clearInterval(timer);
+      return;
+    }
+    const [resStatus, resActive] = await Promise.all([
+      fetchStatusData(config, statusOptions),
+      fetchTasksTableData(config, activeOptions),
+    ]);
+    let data: StatusData | null = null;
+    let activeRows: TaskRow[] = [];
+    resStatus.match(
+      (d) => {
+        data = d;
+      },
+      () => {},
+    );
+    resActive.match(
+      (rows) => {
+        activeRows = rows;
+      },
+      () => {},
+    );
+    if (data != null) {
+      try {
+        const child = renderer.root.getRenderable(STATUS_ROOT_ID);
+        if (child) {
+          child.destroy();
+          renderer.root.remove(STATUS_ROOT_ID);
+        }
+        const newContent = formatDashboardTasksView(
+          data,
+          activeRows,
+          getTerminalWidth(),
+        );
+        const newBox = Box(
+          {
+            id: STATUS_ROOT_ID,
+            borderStyle: "round",
+            border: true,
+            width: getTerminalWidth(),
+            height: "auto",
+          },
+          Text({ content: newContent }),
+        );
+        renderer.root.add(newBox);
+      } catch {
+        // ignore update errors
+      }
+    }
+  }, REFRESH_MS);
+
+  renderer.on("destroy", () => {
+    clearInterval(timer);
+  });
+
+  await renderer.setupTerminal();
+  return new Promise<void>((resolve) => {
+    renderer.on("destroy", () => resolve());
+  });
+}
+
+/**
+ * Run the live dashboard projects view using OpenTUI: Active plans, Next 7 upcoming, Last 7 completed.
+ * Uses fetchStatusData only; 2s refresh.
+ */
+export async function runOpenTUILiveDashboardProjects(
+  config: Config,
+  statusOptions: StatusOptions,
+): Promise<void> {
+  const importTimeoutMs = 300;
+  const mod = (await Promise.race([
+    import("@opentui/core"),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("OpenTUI import timeout")),
+        importTimeoutMs,
+      ),
+    ),
+  ]).catch(() => null)) as OpenTUIMod | null;
+  if (!mod?.createCliRenderer || !mod.Box || !mod.Text) {
+    throw new Error("OpenTUI not available");
+  }
+
+  const initTimeoutMs = 350;
+  const rendererPromise = mod.createCliRenderer({
+    exitOnCtrlC: true,
+    targetFps: 10,
+  });
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("OpenTUI init timeout")), initTimeoutMs),
+  );
+  const renderer = await Promise.race([rendererPromise, timeoutPromise]);
+
+  const w = getTerminalWidth();
+  let initialData: StatusData | null = null;
+
+  const firstResult = await fetchStatusData(config, statusOptions);
+  firstResult.match(
+    (d) => {
+      initialData = d;
+    },
+    () => {},
+  );
+
+  const content =
+    initialData != null
+      ? formatDashboardProjectsView(initialData, w)
+      : "Loading...";
+
+  const { Box, Text } = mod;
+  const rootBox = Box(
+    {
+      id: STATUS_ROOT_ID,
+      borderStyle: "round",
+      border: true,
+      width: w,
+      height: "auto",
+    },
+    Text({ content }),
+  );
+  renderer.root.add(rootBox);
+
+  renderer.prependInputHandler((sequence: string) => {
+    if (sequence.toLowerCase() === "q") {
+      renderer.destroy();
+      process.exit(0);
+      return true;
+    }
+    return false;
+  });
+
+  const timer = setInterval(async () => {
+    if (renderer.isDestroyed) {
+      clearInterval(timer);
+      return;
+    }
+    const result = await fetchStatusData(config, statusOptions);
+    result.match(
+      (data) => {
+        try {
+          const child = renderer.root.getRenderable(STATUS_ROOT_ID);
+          if (child) {
+            child.destroy();
+            renderer.root.remove(STATUS_ROOT_ID);
+          }
+          const newContent = formatDashboardProjectsView(
+            data,
+            getTerminalWidth(),
+          );
           const newBox = Box(
             {
               id: STATUS_ROOT_ID,

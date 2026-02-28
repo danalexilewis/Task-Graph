@@ -149,7 +149,7 @@ The content **after** the closing `---` of the frontmatter is the **narrative la
 
 Show execution order using `├──` / `└──` connectors. Group tasks into waves based on what can run concurrently vs what is blocked. This is the quick-scan execution plan that humans and orchestrators read first.
 
-```
+```text
 Parallel start (2 unblocked):
   ├── add-migration (schema changes)
   └── write-format-spec (docs)
@@ -161,6 +161,10 @@ After add-migration:
 After all above:
   └── integration-tests
 ```
+
+### Plan end structure (required)
+
+Every plan must end with (a) one or more **add-tests** tasks (creating tests for new features or covering plan-level tests) and (b) a final **run-full-suite** task (e.g. `pnpm gate:full`). These tasks must be blocked by all feature work in the dependency graph. The run-full-suite task records the result in evidence; on failure the agent adds a `tg note` with the failure reason and either does not mark done or marks done with failure in evidence. Full authoring guidance: [Plan Authoring](../.cursor/rules/plan-authoring.mdc) → Required end-of-plan structure.
 
 ### Original Prompt
 

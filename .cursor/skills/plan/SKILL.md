@@ -14,10 +14,10 @@ When this skill is invoked, run the full two-phase planning workflow. Do not sho
 **Mandatory.** Do not write a plan without analyst output.
 
 1. Read `.cursor/agents/planner-analyst.md` for the prompt template.
-2. Run `pnpm tg status` to capture current task-graph state.
+2. Run `pnpm tg status --tasks` to capture current task list (full; not limited to 3).
 3. Build the analyst prompt:
    - `{{REQUEST}}` = the user's feature/change request
-   - Include `tg status` output so the analyst can reference active plans and done tasks
+   - Include `tg status --tasks` output so the analyst can reference the full task list
    - Include `{{LEARNINGS}}` from the agent file's `## Learnings` section if non-empty
 4. Dispatch via Task tool (`model="fast"`, `subagent_type="explore"`) with description "Planner analyst: gather context for plan".
 5. Wait for the analyst's structured analysis (relevant files, existing data, patterns, risks, rough breakdown).
