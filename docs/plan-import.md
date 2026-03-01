@@ -153,3 +153,15 @@ tg import plans/onboarding-flow.md --plan "User Onboarding Flow"
 # Assuming 'User Onboarding Flow' plan exists or is created.
 # Output: Successfully imported tasks and edges from plans/onboarding-flow.md to plan <plan_id>.
 ```
+
+## Gotchas / implementation notes
+
+- **Task title**: Stored in `task.title` as `VARCHAR(255)`. Keep plan todo titles (YAML `content`) under 255 characters or import will fail.
+- **Task external_key**: Plan-scoped. Import appends a 6-char hex hash of `plan_id` to the todo `id` (e.g. `wt-integration-tests-a1b2c3`) so the same todo id in different plans does not violate the unique constraint. Re-import of the same plan upserts by this stable key; export strips the suffix so round-trip YAML uses stable ids.
+- **INSERT/UPDATE plan data**: After the plan→project rename migration, `plan` is a view. Dolt does not allow INSERT into a view. Use table **`project`** (not `plan`) for writes in import and template apply. See `src/cli/import.ts` and `src/cli/template.ts`.
+
+## Related projects
+
+- Import pre-flight and duplicate prevention
+- Plan Import Robustness for Simple Models
+- Cursor Plan Import and Agent Workflow

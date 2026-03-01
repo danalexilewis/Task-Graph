@@ -1,0 +1,117 @@
+---
+description: Documentation strategy — DDD-inspired domain docs, doc categories, and agentic patterns
+alwaysApply: true
+---
+
+# Documentation Strategy
+
+The `docs/` folder is the project's **durable knowledge base**. It loosely follows Domain-Driven Design: each doc covers a bounded context — what it owns, key design decisions, gotchas, and links to related projects. Agents and humans read these docs before working in an area; the learnings hook promotes new knowledge here automatically.
+
+## Principles
+
+1. **Docs are the source of truth for how things work.** Rules (`.cursor/rules/`) tell agents what to do; docs tell them (and humans) why things are the way they are.
+2. **One doc per bounded context.** Don't scatter knowledge about schema across five files. If a topic has its own entrypoints, invariants, and decisions, it gets its own doc.
+3. **Decisions live with the domain.** Design decisions, gotchas, and trade-offs belong in the domain doc's "Decisions / gotchas" section — not in memory, not in code comments, not in a separate ADR folder.
+4. **Related projects link execution to knowledge.** Each domain doc ends with a "Related projects" section listing task-graph project titles that changed that domain. This creates a bidirectional trail: doc → projects that shaped it; project → domain it touched.
+5. **Transient context goes to memory, not docs.** Environment quirks, one-off debugging discoveries, and recent corrections go in `.cursor/memory.md`. When they prove durable, promote them to the relevant doc.
+
+## Doc categories
+
+| Category           | Path                            | Purpose                                                                                      | Examples                                                    |
+| ------------------ | ------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Domain docs**    | `docs/<slug>.md`                | Bounded context: what it owns, entrypoints, data model, decisions, gotchas, related projects | `schema.md`, `testing.md`, `infra.md`, `cli-tables.md`      |
+| **Reference docs** | `docs/<name>.md`                | Exhaustive reference for a surface area                                                      | `cli-reference.md`, `glossary.md`                           |
+| **Strategy docs**  | `docs/<name>.md`                | Cross-cutting patterns and architectural philosophy                                          | `architecture.md`, `agent-strategy.md`, `agent-contract.md` |
+| **Skill guides**   | `docs/skills/<slug>.md`         | Step-by-step how-to for a specific technique                                                 | `dolt-schema-migration.md`, `cli-command-implementation.md` |
+| **Lead docs**      | `docs/leads/<slug>.md`          | Sub-agent role definition: purpose, decision tree, input/output contract                     | `execution.md`, `investigator.md`, `planner-analyst.md`     |
+| **Research**       | `docs/research/<name>.md`       | Investigation findings, benchmarks, analysis (point-in-time)                                 | `cheap-gate-typecheck-lint-failures.md`                     |
+| **Rescope**        | `docs/rescope/<date>_<name>.md` | Clarification of shipped behavior vs intended behavior                                       | `26-02-28_status_active_next_table_columns.md`              |
+
+## Domain doc structure
+
+Domain docs should follow this general shape (not all sections are required for every doc):
+
+```markdown
+---
+triggers:
+  files: ["<glob patterns>"]
+  change_types: ["<types>"]
+  keywords: ["<terms>"]
+---
+
+# <Domain Name>
+
+Brief description of what this domain covers.
+
+## Purpose
+
+What this subsystem owns. What it explicitly does NOT own.
+
+## <Core sections>
+
+Entrypoints, data model, key APIs, configuration — whatever is specific to this domain.
+
+## Decisions / gotchas
+
+Design decisions, trade-offs, and hard-won lessons. Each entry should explain the "why".
+
+## Related projects
+
+- Project Title One
+- Project Title Two
+```
+
+The `triggers` frontmatter enables automated doc-skill assignment (the doc-skill-registry matches tasks to docs by file globs, change types, and keywords).
+
+## Agentic documentation patterns
+
+These patterns work well when agents are the primary consumers of docs:
+
+### Scannable structure over prose
+
+Agents process structured content more reliably than long paragraphs. Prefer:
+
+- **Tables** for reference data (commands, fields, mappings)
+- **Bullet lists** for rules, constraints, and gotchas
+- **Code blocks** for commands, config, and examples
+- **Headings** as semantic anchors (agents use them to locate relevant sections)
+
+Long narrative paragraphs are fine for "Analysis" sections in plans and reports, but domain docs should lead with structure.
+
+### Explicit boundaries
+
+Agents work best when scope is clear. Each domain doc should state:
+
+- What it **owns** (so the agent knows this doc is authoritative)
+- What it **does not own** (so the agent doesn't look here for the wrong thing)
+- **Related docs** when topics overlap (e.g. schema.md links to architecture.md for data flow)
+
+### Frontmatter as machine-readable metadata
+
+The `triggers` block in frontmatter is not just decoration — the doc-skill-registry uses it to automatically assign docs to tasks based on which files a task touches, what change type it is, and keyword matches. Keep triggers accurate and up to date.
+
+### Decisions inline, not separate
+
+Agents lose context when they have to cross-reference a separate ADR folder. Keeping decisions in the domain doc means the agent reads the decision in the same context as the system it applies to. Use the "Decisions / gotchas" section pattern.
+
+### Related projects as execution history
+
+The "Related projects" section at the bottom of each domain doc gives agents historical context: what was changed, when, and why. When an agent reads `docs/schema.md` before modifying the schema, it sees which past projects touched it — useful for understanding precedent and avoiding regressions.
+
+### Skill guides for repeatable procedures
+
+When a task type recurs (e.g. "add a CLI command", "write a Dolt migration"), capture the procedure in `docs/skills/<slug>.md`. Plan authors assign the skill to tasks via the `skill` field; the agent reads the guide before executing. This is more reliable than expecting the agent to infer the procedure from examples.
+
+### Lead docs for sub-agent contracts
+
+Each sub-agent type (implementer, reviewer, debugger, etc.) has a lead doc in `docs/leads/` defining its purpose, decision tree, and input/output contract. These docs are the "job description" the orchestrator uses when dispatching. Keep them precise — vague lead docs produce vague sub-agent behavior.
+
+## Index
+
+The full domain slug → doc mapping is in [docs/domains.md](../docs/domains.md). The categorized doc list is in [docs/README.md](../docs/README.md). When adding a new doc, update both.
+
+## Related rules
+
+- **docs-sync.mdc** — when to update which doc (trigger-based)
+- **memory.mdc** — learnings routing: transient → memory, durable → docs
+- **markdown-format.mdc** — frontmatter structure, table formatting

@@ -110,3 +110,15 @@ pnpm test:e2e
 ## Typecheck and OpenTUI
 
 OpenTUI is **Bun-only** and must stay out of type scope for the Node-based gate. Our tsconfig keeps it isolated: `include: ["src/**/*.ts"]`, `exclude: ["node_modules"]`, `types: ["node"]`. See [Research: Cheap-Gate Typecheck/Lint Failures](research/cheap-gate-typecheck-lint-failures.md) for the full rationale.
+
+## Environment / gotchas
+
+- **`.env.local` for integration tests**: `DOLT_ROOT_PATH` and `TG_GOLDEN_TEMPLATE` must be **empty** in `.env.local` (or set to the actual temp directory path, not to the `.taskgraph/tg-*.txt` path files). Bun auto-loads `.env.local`; if these point to the path files instead of the directories they contain, `getGoldenTemplatePath()` can return a file path and copy operations may fail (EISDIR). See `.env.local.example` for correct empty values.
+
+## Related projects
+
+- Fix Failing Unit Tests
+- Fix Failing Tests Properly
+- Integration Test Performance and Harness Improvements
+- Concurrent Tests Maximize
+- Migrate to Bun Test, Add Biome, Targeted Test Execution

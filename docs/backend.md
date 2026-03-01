@@ -1,6 +1,6 @@
 # Backend
 
-This doc is a **domain guide**. Tasks with `domain: backend` should point here (`docs/backend.md`).
+This doc is a **template stub**. Project-specific content has not been added. Tasks with `domain: backend` point here (`docs/backend.md`).
 
 ## Purpose
 

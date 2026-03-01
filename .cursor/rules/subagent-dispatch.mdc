@@ -60,6 +60,8 @@ Agent templates live in `.cursor/agents/` (see README there). You build each sub
 
 Use **direct execution** (you do start → work → done yourself) only when: a sub-agent has failed twice and you are completing that task yourself, or the task is explicitly exploratory/ambiguous and not suitable for dispatch. Always log direct execution with `tg note <taskId> --msg "Direct execution: <reason>"`.
 
+**Doc-only plans:** If a plan's tasks only (or mostly) touch documentation (docs/, README, CHANGELOG, .cursor), the plan should set **`agent: documenter`** for those tasks. The implementer is forbidden from editing docs; without documenter assigned, the orchestrator may fall back to direct execution for the whole batch. See plan-authoring.mdc → Choosing agent and docs/plan-format.md (agent field).
+
 ## Escalation decision tree
 
 Use this to decide **re-dispatch** vs **direct execution** vs **escalate to human**.

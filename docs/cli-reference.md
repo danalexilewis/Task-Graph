@@ -76,6 +76,8 @@ tg setup
 - `--no-cursor`: Do not scaffold `.cursor/` (rules + memory).
 - `--force`: Overwrite existing files (default is to skip).
 
+**Implementation notes:** Commander `--no-<flag>` options default to `true`; don't pass `false` as the default or behavior inverts. **.cursor is opt-in:** `tg setup` defaults to scaffolding only `docs/`; use `--cursor` to also scaffold `.cursor/` (rules, agents, skills) and `AGENT.md`. Templates are resolved from `path.join(__dirname, '..', 'template')` (at runtime: `dist/template`; in dev: `src/template`).
+
 **Example:**
 
 ```bash
@@ -369,7 +371,7 @@ tg worktree list
 
 ### Git worktree integration (parallel tasks)
 
-When running **parallel implementers**, use `tg start --worktree` so each task gets an isolated worktree. **Worktrunk (wt) is the standard backend** for sub-agent work: set `"useWorktrunk": true` in `.taskgraph/config.json` or ensure `wt` is on PATH (auto-detect). With Worktrunk, worktrees are wt-managed (e.g. `<repo>.tg-<hash_id>`); with raw git, worktrees live at `.taskgraph/worktrees/<taskId>/` on branch `tg/<taskId>` or `tg-<hash_id>`. The **started event body** stores `worktree_path`, `worktree_branch`, and (Worktrunk) `worktree_repo_root`. The **orchestrator** must pass the worktree path (e.g. from `tg worktree list --json`) to implementers as **WORKTREE_PATH** so they run all work and `tg done` from that directory. When the task is complete, run `tg done --evidence "..."`; add `--merge` to merge the worktree branch into the base branch before removing the worktree. See `.cursor/rules/subagent-dispatch.mdc` and [multi-agent.md](multi-agent.md).
+When running **parallel implementers**, use `tg start --worktree` so each task gets an isolated worktree. **Worktrunk (wt) is the standard backend** for sub-agent work: set `"useWorktrunk": true` in `.taskgraph/config.json` or ensure `wt` is on PATH (auto-detect). With Worktrunk, worktrees are wt-managed (e.g. `<repo>.tg-<hash_id>`); with raw git, worktrees live at `.taskgraph/worktrees/<taskId>/` on branch `tg/<taskId>` or `tg-<hash_id>`. The **started event body** stores `worktree_path`, `worktree_branch`, and (Worktrunk) `worktree_repo_root`. The **orchestrator** must pass the worktree path (e.g. from `tg worktree list --json`) to implementers as **WORKTREE_PATH** so they run all work and `tg done` from that directory. When the task is complete, run `tg done --evidence "..."`; add `--merge` to merge the worktree branch into the base branch before removing the worktree. **Worktrunk remove gotcha:** `wt remove <branch> -C <repoRoot>` can fail with "No branch named" when the repo path differs from the path used at create. Reliable fix: run `wt remove` with **no branch argument** and **cwd = worktree path** (the path to the worktree to remove). The CLI passes `worktreePathOverride` from `tg done` into `removeWorktree()` and uses it for worktrunk. See `.cursor/rules/subagent-dispatch.mdc` and [multi-agent.md](multi-agent.md).
 
 ### `tg gate create <name>`
 
@@ -596,6 +598,8 @@ tg context <taskId>
 **Configuration:** Optional `context_token_budget` in `.taskgraph/config.json` (number, e.g. `4000` or `8000`) sets a token limit for context output. When the full context exceeds this budget, the command compacts it by slimming `related_done_by_doc` and `related_done_by_skill` (fewer items, `task_id` and `title` only), then reducing further or clearing those lists if still over budget. Omitted or `null` means no limit.
 
 **Output (human):** Task title and ID; change type; domain doc path(s) (`docs/<domain>.md`); skill guide path(s) (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 by skill. If the task has `suggested_changes`, the plan has `file_tree`, or the plan has `risks`, those are printed as well. Ends with approximate context size in tokens.
+
+**Implementation note:** Context reads doc/skill from **task_doc** and **task_skill** junction tables. Older repos may have `task_domain` (pre-rename) or `task.domain` / `task.skill` columns on the task table.
 
 ### `tg crossplan`
 

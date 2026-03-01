@@ -1,0 +1,89 @@
+---
+description: Markdown formatting for docs, plans, and reports (frontmatter, tables)
+globs: docs/**/*.md, plans/**/*.md, reports/**/*.md
+alwaysApply: false
+---
+
+# Markdown Format
+
+This rule covers Markdown formatting in `docs/`, `plans/`, and `reports/`: **frontmatter** (YAML block at the top) and **tables** (keeping columns narrow). Apply it when editing or adding files in those paths.
+
+## Frontmatter
+
+Markdown files in these locations may use YAML frontmatter. Parsers (e.g. `tg import`, doc-skill-registry) expect a strict structure. Incorrect frontmatter breaks import, registry load, and can make the doc render with headings out of order (e.g. H2 before H1).
+
+### Universal rules (all three locations)
+
+1. **Delimiters**
+   - First line of the file: `---` (opening).
+   - Frontmatter content: valid YAML only (see below).
+   - Closing: a line containing only `---` (closing).
+   - After the closing `---`: one blank line, then the document body.
+
+2. **No markdown inside the block**
+   - Between the two `---` lines there must be **only YAML**. Do not use markdown syntax there.
+   - **Wrong:** `## triggers:` (that is a markdown H2, not a YAML key). **Right:** `triggers:`.
+   - Keys are top-level YAML keys (e.g. `name:`, `overview:`, `triggers:`); indented values follow normal YAML rules.
+
+3. **Body starts with one H1**
+   - The first heading in the document body (after the blank line) should be a single `# Title`. That way the doc renders with one main title; no horizontal rule or H2 appearing above it.
+
+### docs/
+
+Domain docs listed in [docs/domains.md](docs/domains.md) are loaded by the doc-skill-registry and **must** have a valid `triggers` block so the registry can parse them:
+
+```yaml
+---
+triggers:
+  files: ["<glob patterns>"]
+  change_types: ["create", "modify", ...]
+  keywords: ["<terms>"]
+---
+```
+
+- Use the slug from the domains table (e.g. `schema`, `plan-import`) to know which docs need this block.
+- If you add a new domain doc and list it in domains.md, add frontmatter with `triggers` in this form.
+- Docs that are not in the domains table (e.g. glossary, README) may omit frontmatter or use it for other tooling; if they use a block, still follow the universal rules above.
+
+### plans/
+
+Plans use the Cursor plan format for `tg import --format cursor`. Frontmatter must be valid YAML and include at least `name`, `overview`, and `todos`; see [docs/plan-format.md](docs/plan-format.md) and [docs/plan-import.md](docs/plan-import.md).
+
+- Same delimiter and “no markdown inside” rules apply. Multi-line values (e.g. `fileTree: |`) are YAML; keep them inside the block.
+- Validate after editing: `pnpm tg import plans/<file> --plan "<Plan Name>" --format cursor`.
+- Authoring and rich-planning content: see [.cursor/rules/plan-authoring.mdc](.cursor/rules/plan-authoring.mdc).
+
+### reports/
+
+Reports in `reports/` do not currently require frontmatter; many start with `# Title` and inline metadata (e.g. **Date:**, **Scope:**). If you add frontmatter (e.g. for future tooling or consistency), use the same universal rules: opening `---`, valid YAML only, closing `---`, blank line, then body with a single `# Title` first.
+
+## Markdown tables
+
+Plain Markdown cannot set column width or truncate cell content. To avoid one column stretching the table (e.g. long `ENUM(...)` or type strings):
+
+- **Keep cells short.** Use an abbreviated label in the cell (e.g. `ENUM` instead of the full `ENUM('a','b','c',...)`).
+- **Move long values to a reference.** Add a "Reference" or "ENUM reference" section below the table (or at the end of the doc) that lists the full values. In the table cell, link to it: `(values: see [ENUM reference](#enum-reference) below)` or include the short list in the Description column when it fits (e.g. `human, agent`).
+- **No MDX required.** This pattern works in any Markdown renderer (GitHub, Cursor preview, static sites) without components or custom CSS.
+
+Example: In `docs/schema.md`, the Type column uses `ENUM` and an [ENUM reference](docs/schema.md#enum-reference) section lists all enum values.
+
+### Long strings that won't wrap in columns
+
+When a cell contains a long string (e.g. a full type, path, or sentence) that would stretch the column or not wrap cleanly:
+
+1. **Truncate in-cell, link to full value.** Put a short label or truncated text in the cell (e.g. `VARCHAR(255)` or `path.join(...)`), then add a link or footnote to a section below where the full string is listed or explained. Example: `[see path resolution](#path-resolution)`.
+2. **Move the long content out of the table.** Replace the cell with a brief label (e.g. "See below") and add a **Reference** or **Details** subsection under the table (or elsewhere in the doc) that holds the full string(s). Keeps the table scannable.
+3. **Split into multiple rows only if it helps.** For a single "long value" that applies to one logical row, prefer one table row with a short cell + reference. Use multiple rows when you genuinely have multiple distinct values (e.g. one row per enum value).
+4. **Avoid raw long strings in cells.** Do not paste unbounded type definitions, file paths, or paragraphs into a cell; they break table layout in most renderers. Prefer abbreviations, placeholders, or references.
+
+## Quick checklist (frontmatter)
+
+When adding or editing frontmatter in docs/ or plans/:
+
+- [ ] Opening line is `---` with no leading content (except optional BOM).
+- [ ] No markdown (e.g. `## key:`) inside the block; use YAML keys only (e.g. `key:`).
+- [ ] Closing line is `---` alone.
+- [ ] One blank line between closing `---` and the first line of the body.
+- [ ] Body starts with one `# Title` so rendering is correct.
+- [ ] **docs/** (domain docs in domains.md): include a valid `triggers` block.
+- [ ] **plans/**: run `tg import ... --format cursor` to verify.

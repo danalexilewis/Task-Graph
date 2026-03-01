@@ -31,17 +31,23 @@ Check if `.cursor/pending-learnings.md` exists. If it does:
 
 ### Formal docs routing guide
 
-| Area                               | Doc path                 | What belongs there                                |
-| ---------------------------------- | ------------------------ | ------------------------------------------------- |
-| CLI commands and options           | `docs/cli-reference.md`  | New flags, changed behavior, option semantics     |
-| CLI rendering (tables, boxen, TUI) | `docs/cli-tables.md`     | Layout rules, padding calculations, column config |
-| Database schema and migrations     | `docs/schema.md`         | Table changes, migration patterns, Dolt quirks    |
-| Architecture and layering          | `docs/architecture.md`   | Module boundaries, data flow, design decisions    |
-| Testing patterns                   | `docs/testing.md`        | Test isolation, concurrency, harness patterns     |
-| Error handling                     | `docs/error-handling.md` | Result types, error codes, boundary patterns      |
-| Agent workflow                     | `docs/agent-contract.md` | Execution protocol, sub-agent dispatch, evidence  |
-| Plan authoring                     | `docs/plan-format.md`    | Plan structure, import format, YAML conventions   |
-| Infrastructure                     | `docs/infra.md`          | Build, deploy, CI, environment setup              |
+| Area                               | Doc path                       | What belongs there                                |
+| ---------------------------------- | ------------------------------ | ------------------------------------------------- |
+| CLI commands and options           | `docs/cli-reference.md`         | New flags, changed behavior, option semantics     |
+| CLI rendering (tables, boxen, TUI) | `docs/cli-tables.md`           | Layout rules, padding calculations, column config |
+| Database schema and migrations     | `docs/schema.md`               | Table changes, migration patterns, Dolt quirks    |
+| Architecture and layering          | `docs/architecture.md`         | Module boundaries, data flow, design decisions    |
+| Testing patterns                   | `docs/testing.md`              | Test isolation, concurrency, harness patterns    |
+| Error handling                     | `docs/error-handling.md`       | Result types, error codes, boundary patterns      |
+| Agent workflow                     | `docs/agent-contract.md`       | Execution protocol, sub-agent dispatch, evidence |
+| Agent strategy and patterns        | `docs/agent-strategy.md`       | Communication model, cross-dimensional notes     |
+| Multi-agent coordination           | `docs/multi-agent.md`          | Worktrees, notes, parallel execution              |
+| Plan authoring                     | `docs/plan-format.md`          | Plan structure, YAML conventions                  |
+| Plan import                        | `docs/plan-import.md`           | Import format, cursor/legacy, gotchas             |
+| Infrastructure                     | `docs/infra.md`                | Build, deploy, CI, environment setup              |
+| MCP server                         | `docs/mcp.md`                  | MCP tools and configuration                       |
+| Glossary / naming                  | `docs/glossary.md`             | Term definitions, plan vs project                 |
+| Recommended packages               | `docs/recommended-packages.md` | Dependency recommendations                        |
 
 When a learning doesn't fit an existing doc, check if it's substantial enough to warrant a new one. If not, it goes in memory.
 

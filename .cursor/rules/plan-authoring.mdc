@@ -143,6 +143,7 @@ Below the closing `---`, add the markdown body: **Analysis**, **Dependency graph
 ## Choosing agent
 
 - For fix/debug tasks where root cause is unclear or repro is needed, set `agent: debugger` so the dispatcher uses the systematic debugging template.
+- **For doc-only (or docs-heavy) tasks** — e.g. updating docs/, README, CHANGELOG, .cursor rules — set **`agent: documenter`**. The implementer template explicitly excludes editing documentation; if you leave `agent: implementer`, the orchestrator may bypass dispatch and do the work directly. Setting `agent: documenter` lets /work run multiple waves using the documenter sub-agent with no scope conflict.
 
 ## Assigning docs and skills
 

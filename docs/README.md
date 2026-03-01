@@ -2,6 +2,8 @@
 
 Welcome to the Task Graph documentation! This system is designed to facilitate "centaur development" in Cursor, allowing an agent to operate an issue graph (tasks + dependencies + events) backed by Dolt.
 
+**Docs as domain knowledge base:** The `docs/` folder follows a DDD-inspired structure. Each doc covers a bounded context — the subsystem it owns, key design decisions, implementation gotchas, and (where applicable) links to related projects in the task graph. See [domains.md](domains.md) for the full slug index.
+
 ## Overview
 
 The Task Graph CLI (`tg`) provides a small, safe command surface for agents to interact with plans and tasks. It aims to persist plans as an issue graph in Dolt, keeping Cursor Plan docs as the narrative layer while atomizing into graph records for querying, overlap detection, and execution sequencing.
@@ -41,13 +43,36 @@ From the repo root, use `pnpm tg` (see root [package.json](../package.json)). Re
 
 For more detailed information, refer to the following documentation sections:
 
+**Core**
+
 - [Glossary](glossary.md) — naming conventions and definitions (plan vs project, waves, tasks, etc.)
 - [Architecture](architecture.md)
 - [Dolt Schema](schema.md)
-- [Skill guides](skills/README.md) — taskgraph-lifecycle-execution, dolt-schema-migration, cli-command-implementation, and more
+- [Domain index](domains.md) — full list of domain slugs and doc mapping
+
+**CLI**
+
 - [CLI Reference](cli-reference.md)
-- [Error Handling](error-handling.md)
-- [Testing](testing.md)
+- [CLI overview](cli.md)
+- [CLI tables](cli-tables.md) — table rendering, boxen layout, column config
+
+**Agent**
+
 - [Agent Contract](agent-contract.md)
-- [Plan Import](plan-import.md)
+- [Agent strategy](agent-strategy.md)
+- [Multi-agent](multi-agent.md) — coordination, worktrees, notes
 - [Cursor Agent CLI](cursor-agent-cli.md) — run sub-agents from the terminal (`agent --print --trust`)
+- [MCP](mcp.md) — MCP server tools
+
+**Development**
+
+- [Testing](testing.md)
+- [Error Handling](error-handling.md)
+- [Infra](infra.md) — build, validation, publishing
+- [Recommended packages](recommended-packages.md)
+- [Skill guides](skills/README.md) — taskgraph-lifecycle-execution, dolt-schema-migration, cli-command-implementation, and more
+
+**Planning**
+
+- [Plan format](plan-format.md)
+- [Plan Import](plan-import.md)
