@@ -33,17 +33,17 @@ Check if `.cursor/pending-learnings.md` exists. If it does:
 
 | Area                               | Doc path                       | What belongs there                                |
 | ---------------------------------- | ------------------------------ | ------------------------------------------------- |
-| CLI commands and options           | `docs/cli-reference.md`         | New flags, changed behavior, option semantics     |
+| CLI commands and options           | `docs/cli-reference.md`        | New flags, changed behavior, option semantics     |
 | CLI rendering (tables, boxen, TUI) | `docs/cli-tables.md`           | Layout rules, padding calculations, column config |
 | Database schema and migrations     | `docs/schema.md`               | Table changes, migration patterns, Dolt quirks    |
 | Architecture and layering          | `docs/architecture.md`         | Module boundaries, data flow, design decisions    |
-| Testing patterns                   | `docs/testing.md`              | Test isolation, concurrency, harness patterns    |
+| Testing patterns                   | `docs/testing.md`              | Test isolation, concurrency, harness patterns     |
 | Error handling                     | `docs/error-handling.md`       | Result types, error codes, boundary patterns      |
-| Agent workflow                     | `docs/agent-contract.md`       | Execution protocol, sub-agent dispatch, evidence |
-| Agent strategy and patterns        | `docs/agent-strategy.md`       | Communication model, cross-dimensional notes     |
+| Agent workflow                     | `docs/agent-contract.md`       | Execution protocol, sub-agent dispatch, evidence  |
+| Agent strategy and patterns        | `docs/agent-strategy.md`       | Communication model, cross-dimensional notes      |
 | Multi-agent coordination           | `docs/multi-agent.md`          | Worktrees, notes, parallel execution              |
 | Plan authoring                     | `docs/plan-format.md`          | Plan structure, YAML conventions                  |
-| Plan import                        | `docs/plan-import.md`           | Import format, cursor/legacy, gotchas             |
+| Plan import                        | `docs/plan-import.md`          | Import format, cursor/legacy, gotchas             |
 | Infrastructure                     | `docs/infra.md`                | Build, deploy, CI, environment setup              |
 | MCP server                         | `docs/mcp.md`                  | MCP tools and configuration                       |
 | Glossary / naming                  | `docs/glossary.md`             | Term definitions, plan vs project                 |
@@ -62,8 +62,8 @@ When a learning doesn't fit an existing doc, check if it's substantial enough to
 
 **Keep it lean**: under 150 lines. When entries accumulate, promote durable knowledge to formal docs and remove the memory entry.
 
-**Agents do not manually update memory during normal work.** The `extract-learnings` stop hook captures conversation context automatically. The next session processes it via step 2 above. The only exception: if the user explicitly asks you to record something to memory, do it immediately.
+**Agents do not manually update memory during normal work.** The `extract-learnings` sessionEnd hook captures conversation context when you close/archive the chat. The next session processes it via step 2 above. The only exception: if the user explicitly asks you to record something to memory, do it immediately.
 
 ## 4. Config flag
 
-The learnings system is controlled by `learningMode` in `.taskgraph/config.json`. When `false`, the stop hook skips transcript extraction and no `pending-learnings.md` is generated. Agents still read memory at session start regardless of this flag.
+The learnings system is controlled by `learningMode` in `.taskgraph/config.json`. When `false`, the sessionEnd hook skips transcript extraction and no `pending-learnings.md` is generated. Agents still read memory at session start regardless of this flag.

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Stop hook: extract conversation content for learnings processing.
+ * sessionEnd hook: extract conversation content for learnings processing.
  *
- * Reads .taskgraph/config.json for learningMode flag. When enabled, finds the
- * most recent agent transcript and writes a digest to .cursor/pending-learnings.md
+ * Runs when a Composer conversation ends (user closes/archives chat). Reads
+ * .taskgraph/config.json for learningMode flag. When enabled, finds the most
+ * recent agent transcript and writes a digest to .cursor/pending-learnings.md
  * for the next session's agent to route into formal docs or memory.
  */
 
@@ -21,8 +22,8 @@ process.stdin.on("data", (chunk) => {
 process.stdin.on("end", () => {
   try {
     const payload = JSON.parse(input || "{}");
-    const roots = payload.workspace_roots || [process.cwd()];
-    const root = path.resolve(roots[0]);
+    const root = resolveProjectRoot(payload);
+    if (!root) return;
 
     const configPath = path.join(root, ".taskgraph", "config.json");
     if (!fs.existsSync(configPath)) return;
@@ -42,6 +43,22 @@ process.stdin.on("end", () => {
     console.error("[cursor hook] extract-learnings:", err.message);
   }
 });
+
+/** Resolve project root from payload or by walking up from cwd for .taskgraph. */
+function resolveProjectRoot(payload) {
+  const roots = payload.workspace_roots || [];
+  if (roots.length > 0) return path.resolve(roots[0]);
+
+  let dir = process.cwd();
+  for (let i = 0; i < 10; i++) {
+    const configPath = path.join(dir, ".taskgraph", "config.json");
+    if (fs.existsSync(configPath)) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
 
 function findTranscriptsDir(root) {
   const projectSlug = root.replace(/\//g, "-").replace(/^-/, "");
