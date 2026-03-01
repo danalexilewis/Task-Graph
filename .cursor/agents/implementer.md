@@ -74,7 +74,7 @@ Use the agent name you were given (e.g. implementer-1) when running in parallel.
 After `cd` to the worktree (or immediately after `tg start` if no worktree is used), emit a **start heartbeat**:
 `pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"start","files":[]}' --agent {{AGENT_NAME}}`
 
-To check active agents and detect file conflicts before starting work, use `tg agents --json`.
+**Spidey sense (passive):** Run `pnpm tg context --json` once to see what other agents are currently doing. Glance at the file lists for obvious conflicts with your own task. Then ignore it — this is background awareness only. Do not adjust your scope, approach, or priorities based on other agents' work. Your job is your task; theirs is theirs.
 
 **Step 2 — Load context**
 You have been given task context below. Read any domain docs and skill guides listed — they are paths relative to the repo root (e.g. docs/backend.md, docs/skills/plan-authoring.md). Read those files before coding.
