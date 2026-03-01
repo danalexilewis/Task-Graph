@@ -733,6 +733,33 @@ With `--json` (one-shot only; not with `--dashboard`): default view outputs an o
 - **Raw mode and exit.** On entering live mode, `process.stdin.setRawMode(true)` is set so that the "q" key can quit. On **SIGINT**, **SIGTERM**, or key **"q"**: clear the refresh interval, call `setRawMode(false)`, then `process.exit(0)`. **Ctrl+C** and **"q"** both quit live mode.
 - **`--json` with `--dashboard` unsupported.** If `--json` is passed with `--dashboard`, the CLI prints to stderr: `tg status --dashboard does not support --json`, then `process.exit(1)`.
 
+### `tg agents`
+
+Lists active agents (tasks in `doing` status) and their latest heartbeat, so orchestrators and implementers can see who is working on what and which files they are touching. Implementers use `tg agents --json` to detect file conflicts before starting work. Heartbeats are note events with `message.type = "heartbeat"`; see [multi-agent.md](multi-agent.md) and the implementer template for the convention.
+
+```bash
+tg agents [--json] [--plan <planId>]
+```
+
+**Options:**
+
+- `--json`: Output machine-readable JSON (array of agent rows). Omit for a human-readable table.
+- `--plan <planId>`: Restrict to agents working on tasks in the given plan.
+
+**Output (human):** Table with agent names and task/plan context; when heartbeat data exists, phase and files are shown.
+
+**Output (JSON):** Object with an `agents` array. Each entry: `agent`, `task_id`, `hash_id`, `task_title`, `plan_title`, `phase` (from last heartbeat or null), `files` (array from last heartbeat or []), `started_at`, `last_heartbeat_at` (null if no heartbeat). One entry per doing task; tasks with no heartbeat have `phase: null`, `files: []`.
+
+**Example:**
+
+```bash
+tg agents
+# Table of active agents
+
+tg agents --json --plan 74a61674
+# JSON array of agents for that plan
+```
+
 ### `tg cycle new <name>`
 
 Creates a new cycle (time-bounded planning period). Requires the `cycle` table (see schema and migrations).
