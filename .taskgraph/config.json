@@ -1,4 +1,5 @@
 {
   "doltRepoPath": "/Users/dan/repos/Task-Graph/.taskgraph/dolt",
-  "learningMode": true
+  "learningMode": true,
+  "useWorktrunk": true
 }

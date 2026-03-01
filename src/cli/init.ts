@@ -92,7 +92,7 @@ export function initCommand(program: Command) {
           const remoteUrl = options.remoteUrl ?? options.remote;
           const config = {
             doltRepoPath: doltRepoPath,
-            learningMode: false,
+            learningMode: true,
             ...(remoteUrl != null && remoteUrl !== "" ? { remoteUrl } : {}),
             ...(isWorktrunkAvailable() ? { useWorktrunk: true } : {}),
           };
