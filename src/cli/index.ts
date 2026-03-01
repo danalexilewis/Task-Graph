@@ -13,6 +13,7 @@ import { exportCommand } from "./export";
 import { gateCommand } from "./gate";
 import { importCommand } from "./import";
 import { initCommand } from "./init";
+import { initiativeCommand } from "./initiative";
 import { nextCommand } from "./next";
 import { noteCommand } from "./note";
 import { planCommand } from "./plan";
@@ -106,6 +107,7 @@ export function createProgram(): Command {
   contextCommand(program);
   crossplanCommand(program);
   cycleCommand(program);
+  initiativeCommand(program);
   templateCommand(program);
   worktreeCommand(program);
   syncCommand(program);
