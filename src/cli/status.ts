@@ -48,11 +48,15 @@ export interface ProjectRow {
 }
 
 export interface InitiativeRow {
+  /** Cycle name when cycle table exists; otherwise absent. */
+  cycle_name?: string | null;
   initiative_id: string;
   title: string;
   status: string;
   cycle_start: string | null;
   cycle_end: string | null;
+  /** Cycle name when cycle table exists; otherwise absent. */
+  cycle_name?: string | null;
   project_count: number;
 }
 
@@ -751,12 +755,14 @@ export function fetchInitiativesTableData(
       : "";
 
   const initiativesSql = `
-    SELECT i.initiative_id, i.title, i.status, i.cycle_start, i.cycle_end,
+    SELECT i.initiative_id, i.title, i.status, c.name AS cycle_name, i.cycle_start, i.cycle_end,
       COUNT(p.plan_id) AS project_count
     FROM ${bt("initiative")} i
+    LEFT JOIN ${bt("cycle")} c ON i.cycle_id = c.cycle_id
+    LEFT JOIN ${bt("cycle")} c ON i.cycle_id = c.cycle_id
     LEFT JOIN ${bt("project")} p ON p.initiative_id = i.initiative_id
     WHERE 1=1 ${filterUpcoming}
-    GROUP BY i.initiative_id, i.title, i.status, i.cycle_start, i.cycle_end
+    GROUP BY i.initiative_id, i.title, i.status, cycle_name, i.cycle_start, i.cycle_end
     ORDER BY i.cycle_start ASC, i.title ASC
   `;
 
@@ -1223,6 +1229,7 @@ export function statusCommand(program: Command) {
           const d = data as StatusData;
           if (!rootOpts(cmd).json) {
             printHumanStatus(d);
+            console.log("Tip: Run 'tg status --initiatives' or 'tg initiative list' to view initiative details.");
           } else {
             printJsonStatus(d);
           }
@@ -1760,12 +1767,13 @@ export function formatInitiativesAsString(
   const initiativeRows = rows.map((r) => [
     r.title,
     r.status,
+    r.cycle_name ?? "—",
     r.cycle_start ?? "—",
     r.cycle_end ?? "—",
     String(r.project_count),
   ]);
   const table = renderTable({
-    headers: ["Initiative", "Status", "Cycle Start", "Cycle End", "Projects"],
+    headers: ["Initiative", "Status", "Cycle", "Cycle Start", "Cycle End", "Projects"],
     rows:
       initiativeRows.length > 0
         ? initiativeRows
