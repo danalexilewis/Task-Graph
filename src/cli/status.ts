@@ -1,7 +1,7 @@
+import { existsSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { existsSync, readdirSync } from "fs";
-import { resolve } from "path";
 import { okAsync, ResultAsync } from "neverthrow";
 import { sqlEscape } from "../db/escape";
 import { tableExists } from "../db/migrate";
@@ -43,6 +43,8 @@ export interface ProjectRow {
   doing: number;
   blocked: number;
   done: number;
+  /** Initiative title when initiative table exists; otherwise absent. */
+  initiative_title?: string | null;
 }
 
 export interface InitiativeRow {
@@ -117,6 +119,7 @@ interface ActivePlanRow {
   title: string;
   status: string;
   count: number;
+  initiative_title?: string | null;
 }
 
 interface NextTaskRow {
@@ -143,6 +146,8 @@ export interface PlanSummaryRow {
   title: string;
   status: string;
   updated_at: string | null;
+  /** Initiative title when initiative table exists; otherwise absent. */
+  initiative_title?: string | null;
 }
 
 interface ActiveWorkRow {
@@ -166,6 +171,8 @@ export interface StatusData {
     blocked: number;
     done: number;
     actionable: number;
+    /** Initiative title when initiative table exists. */
+    initiative_title?: string | null;
   }>;
   staleTasks: Array<{ task_id: string; hash_id: string | null; title: string }>;
   staleDoingTasks: StaleDoingTaskRow[];
@@ -260,17 +267,25 @@ export function fetchStatusData(
       ) x) AS total_agent_minutes
   `;
 
-  const activePlansSql = `
-    SELECT p.plan_id, p.title, t.status, COUNT(*) AS count
-    FROM ${bt("project")} p
+  const buildPlansSql = (initiativeExists: boolean) => {
+    const initiativeSelect = initiativeExists
+      ? ", i.title AS initiative_title"
+      : "";
+    const initiativeJoin = initiativeExists
+      ? ` LEFT JOIN ${bt("initiative")} i ON p.initiative_id = i.initiative_id`
+      : "";
+    return `
+    SELECT p.plan_id, p.title, t.status, COUNT(*) AS count${initiativeSelect}
+    FROM ${bt("project")} p${initiativeJoin}
     JOIN ${bt("task")} t ON t.plan_id = p.plan_id
     WHERE p.status NOT IN ('done', 'abandoned')
       AND t.status NOT IN ('canceled')
     ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
     ${dimFilter}
-    GROUP BY p.plan_id, p.title, p.status, p.priority, p.updated_at, t.status
+    GROUP BY p.plan_id, p.title, p.status, p.priority, p.updated_at, t.status${initiativeExists ? ", p.initiative_id, i.title" : ""}
     ORDER BY CASE WHEN p.status = 'draft' THEN 1 ELSE 0 END, p.priority DESC, p.updated_at DESC, p.title ASC
   `;
+  };
 
   const actionablePerPlanSql = `
     SELECT p.plan_id, COUNT(*) AS count
@@ -350,22 +365,38 @@ export function fetchStatusData(
     ORDER BY t.updated_at DESC
     LIMIT 7
   `;
-  const next7UpcomingPlansSql = `
-    SELECT plan_id, title, status, updated_at
-    FROM ${bt("project")}
-    WHERE status IN ('draft', 'active', 'paused')
-    ${options.plan ? (isUUID ? `AND plan_id = '${sqlEscape(options.plan)}'` : `AND title = '${sqlEscape(options.plan)}'`) : ""}
-    ORDER BY CASE WHEN status = 'draft' THEN 1 ELSE 0 END, priority DESC, updated_at DESC
+  const buildNext7UpcomingPlansSql = (initiativeExists: boolean) => {
+    const initiativeSelect = initiativeExists
+      ? ", i.title AS initiative_title"
+      : "";
+    const initiativeJoin = initiativeExists
+      ? ` LEFT JOIN ${bt("initiative")} i ON p.initiative_id = i.initiative_id`
+      : "";
+    return `
+    SELECT p.plan_id AS plan_id, p.title, p.status, p.updated_at${initiativeSelect}
+    FROM ${bt("project")} p${initiativeJoin}
+    WHERE p.status IN ('draft', 'active', 'paused')
+    ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
+    ORDER BY CASE WHEN p.status = 'draft' THEN 1 ELSE 0 END, p.priority DESC, p.updated_at DESC
     LIMIT 7
   `;
-  const last7CompletedPlansSql = `
-    SELECT plan_id, title, status, updated_at
-    FROM ${bt("project")}
-    WHERE status = 'done'
-    ${options.plan ? (isUUID ? `AND plan_id = '${sqlEscape(options.plan)}'` : `AND title = '${sqlEscape(options.plan)}'`) : ""}
-    ORDER BY updated_at ASC
+  };
+  const buildLast7CompletedPlansSql = (initiativeExists: boolean) => {
+    const initiativeSelect = initiativeExists
+      ? ", i.title AS initiative_title"
+      : "";
+    const initiativeJoin = initiativeExists
+      ? ` LEFT JOIN ${bt("initiative")} i ON p.initiative_id = i.initiative_id`
+      : "";
+    return `
+    SELECT p.plan_id AS plan_id, p.title, p.status, p.updated_at${initiativeSelect}
+    FROM ${bt("project")} p${initiativeJoin}
+    WHERE p.status = 'done'
+    ${options.plan ? (isUUID ? `AND p.plan_id = '${sqlEscape(options.plan)}'` : `AND p.title = '${sqlEscape(options.plan)}'`) : ""}
+    ORDER BY p.updated_at ASC
     LIMIT 7
   `;
+  };
   const activeWorkSql = `
     SELECT t.task_id, t.hash_id, t.title, p.title as plan_title, e.body, e.created_at
     FROM ${bt("task")} t
@@ -387,127 +418,139 @@ export function fetchStatusData(
     sub_agent_runs: number;
     total_agent_minutes: number;
   }
-  // All queries are independent reads — run them all in parallel.
-  return ResultAsync.combine([
-    q.raw<{ count: number }>(completedPlansSql),
-    q.raw<{ count: number }>(completedTasksSql),
-    q.raw<{ count: number }>(canceledTasksSql),
-    q.raw<AgentMetricsRow>(agentMetricsSql),
-    q.raw<ActivePlanRow>(activePlansSql),
-    q.raw<{ plan_id: string; count: number }>(actionablePerPlanSql),
-    q.raw<{ task_id: string; hash_id: string | null; title: string }>(staleSql),
-    q.raw<{ count: number }>(plansCountSql),
-    q.raw<{ status: string; count: number }>(statusCountsSql),
-    q.raw<{ count: number }>(actionableCountSql),
-    q.raw<NextTaskRow>(nextSql),
-    q.raw<NextTaskRow>(next7Sql),
-    q.raw<LastCompletedTaskRow>(last7CompletedSql),
-    q.raw<PlanSummaryRow>(next7UpcomingPlansSql),
-    q.raw<PlanSummaryRow>(last7CompletedPlansSql),
-    q.raw<ActiveWorkRow>(activeWorkSql),
-    fetchStaleDoingTasks(config.doltRepoPath, options.staleThreshold ?? 2),
-  ] as const).andThen(
-    ([
-      cpRes,
-      ctRes,
-      canRes,
-      amRes,
-      apRows,
-      actionableRows,
-      staleRows,
-      plansRes,
-      statusRows,
-      actionableRes,
-      nextTasks,
-      next7RunnableTasks,
-      last7CompletedTasks,
-      next7UpcomingPlans,
-      last7CompletedPlans,
-      activeWork,
-      staleDoingTasks,
-    ]) => {
-      {
-        const completedPlans = cpRes[0]?.count ?? 0;
-        const completedTasks = ctRes[0]?.count ?? 0;
-        const canceledTasks = canRes[0]?.count ?? 0;
-        const repoRoot = getRepoRootFromConfig(config);
-        const agentCount = getDefinedAgentCount(repoRoot);
-        const subAgentTypesDefined = DEFINED_SUB_AGENT_TYPES.length;
-        const subAgentRuns = Number(amRes[0]?.sub_agent_runs ?? 0);
-        const totalAgentHours = Math.round(
-          Number(amRes[0]?.total_agent_minutes ?? 0),
-        );
-
-        const actionableMap = new Map(
-          actionableRows.map((r) => [r.plan_id, r.count]),
-        );
-        const planMap = new Map<
-          string,
-          {
-            plan_id: string;
-            title: string;
-            todo: number;
-            doing: number;
-            blocked: number;
-            done: number;
-            actionable: number;
-          }
-        >();
-        for (const row of apRows) {
-          if (!planMap.has(row.plan_id)) {
-            planMap.set(row.plan_id, {
-              plan_id: row.plan_id,
-              title: row.title,
-              todo: 0,
-              doing: 0,
-              blocked: 0,
-              done: 0,
-              actionable: actionableMap.get(row.plan_id) ?? 0,
-            });
-          }
-          const entry = planMap.get(row.plan_id);
-          if (entry) {
-            if (row.status === "todo") entry.todo = row.count;
-            else if (row.status === "doing") entry.doing = row.count;
-            else if (row.status === "blocked") entry.blocked = row.count;
-            else if (row.status === "done") entry.done = row.count;
-          }
-        }
-        const activePlans = Array.from(planMap.values()).filter(
-          (p) => p.todo > 0 || p.doing > 0 || p.blocked > 0,
-        );
-
-        const statusCounts: Record<string, number> = {};
-        statusRows.forEach((r) => {
-          statusCounts[r.status] = r.count;
-        });
-
-        const base: StatusData = {
-          completedPlans,
-          completedTasks,
-          canceledTasks,
-          activePlans,
-          staleTasks: staleRows,
-          staleDoingTasks,
+  // Check initiative table so we can optionally join for initiative title in projects/plans.
+  return tableExists(config.doltRepoPath, "initiative").andThen(
+    (initiativeExists) => {
+      const activePlansSql = buildPlansSql(initiativeExists);
+      const next7UpcomingPlansSql =
+        buildNext7UpcomingPlansSql(initiativeExists);
+      const last7CompletedPlansSql =
+        buildLast7CompletedPlansSql(initiativeExists);
+      // All queries are independent reads — run them all in parallel.
+      return ResultAsync.combine([
+        q.raw<{ count: number }>(completedPlansSql),
+        q.raw<{ count: number }>(completedTasksSql),
+        q.raw<{ count: number }>(canceledTasksSql),
+        q.raw<AgentMetricsRow>(agentMetricsSql),
+        q.raw<ActivePlanRow>(activePlansSql),
+        q.raw<{ plan_id: string; count: number }>(actionablePerPlanSql),
+        q.raw<{ task_id: string; hash_id: string | null; title: string }>(
+          staleSql,
+        ),
+        q.raw<{ count: number }>(plansCountSql),
+        q.raw<{ status: string; count: number }>(statusCountsSql),
+        q.raw<{ count: number }>(actionableCountSql),
+        q.raw<NextTaskRow>(nextSql),
+        q.raw<NextTaskRow>(next7Sql),
+        q.raw<LastCompletedTaskRow>(last7CompletedSql),
+        q.raw<PlanSummaryRow>(next7UpcomingPlansSql),
+        q.raw<PlanSummaryRow>(last7CompletedPlansSql),
+        q.raw<ActiveWorkRow>(activeWorkSql),
+        fetchStaleDoingTasks(config.doltRepoPath, options.staleThreshold ?? 2),
+      ] as const).andThen(
+        ([
+          cpRes,
+          ctRes,
+          canRes,
+          amRes,
+          apRows,
+          actionableRows,
+          staleRows,
+          plansRes,
+          statusRows,
+          actionableRes,
           nextTasks,
           next7RunnableTasks,
           last7CompletedTasks,
           next7UpcomingPlans,
           last7CompletedPlans,
           activeWork,
-          plansCount: plansRes[0]?.count ?? 0,
-          statusCounts,
-          actionableCount: actionableRes[0]?.count ?? 0,
-          agentCount,
-          subAgentTypesDefined,
-          subAgentRuns,
-          totalAgentHours,
-        };
+          staleDoingTasks,
+        ]) => {
+          {
+            const completedPlans = cpRes[0]?.count ?? 0;
+            const completedTasks = ctRes[0]?.count ?? 0;
+            const canceledTasks = canRes[0]?.count ?? 0;
+            const repoRoot = getRepoRootFromConfig(config);
+            const agentCount = getDefinedAgentCount(repoRoot);
+            const subAgentTypesDefined = DEFINED_SUB_AGENT_TYPES.length;
+            const subAgentRuns = Number(amRes[0]?.sub_agent_runs ?? 0);
+            const totalAgentHours = Math.round(
+              Number(amRes[0]?.total_agent_minutes ?? 0),
+            );
 
-        return tableExists(config.doltRepoPath, "cycle").andThen(
-          (cycleExists) => {
-            if (!cycleExists) return okAsync(base);
-            const currentCycleSql = `
+            const actionableMap = new Map(
+              actionableRows.map((r) => [r.plan_id, r.count]),
+            );
+            const planMap = new Map<
+              string,
+              {
+                plan_id: string;
+                title: string;
+                todo: number;
+                doing: number;
+                blocked: number;
+                done: number;
+                actionable: number;
+                initiative_title?: string | null;
+              }
+            >();
+            for (const row of apRows) {
+              if (!planMap.has(row.plan_id)) {
+                planMap.set(row.plan_id, {
+                  plan_id: row.plan_id,
+                  title: row.title,
+                  todo: 0,
+                  doing: 0,
+                  blocked: 0,
+                  done: 0,
+                  actionable: actionableMap.get(row.plan_id) ?? 0,
+                  initiative_title: row.initiative_title ?? null,
+                });
+              }
+              const entry = planMap.get(row.plan_id);
+              if (entry) {
+                if (row.status === "todo") entry.todo = row.count;
+                else if (row.status === "doing") entry.doing = row.count;
+                else if (row.status === "blocked") entry.blocked = row.count;
+                else if (row.status === "done") entry.done = row.count;
+              }
+            }
+            const activePlans = Array.from(planMap.values()).filter(
+              (p) => p.todo > 0 || p.doing > 0 || p.blocked > 0,
+            );
+
+            const statusCounts: Record<string, number> = {};
+            statusRows.forEach((r) => {
+              statusCounts[r.status] = r.count;
+            });
+
+            const base: StatusData = {
+              completedPlans,
+              completedTasks,
+              canceledTasks,
+              activePlans,
+              staleTasks: staleRows,
+              staleDoingTasks,
+              nextTasks,
+              next7RunnableTasks,
+              last7CompletedTasks,
+              next7UpcomingPlans,
+              last7CompletedPlans,
+              activeWork,
+              plansCount: plansRes[0]?.count ?? 0,
+              statusCounts,
+              actionableCount: actionableRes[0]?.count ?? 0,
+              agentCount,
+              subAgentTypesDefined,
+              subAgentRuns,
+              totalAgentHours,
+            };
+
+            return tableExists(config.doltRepoPath, "cycle").andThen(
+              (cycleExists) => {
+                if (!cycleExists) return okAsync(base);
+                const currentCycleSql = `
           SELECT c.name, c.start_date, c.end_date,
                  COUNT(DISTINCT i.initiative_id) AS initiative_count
           FROM ${bt("cycle")} c
@@ -515,17 +558,19 @@ export function fetchStatusData(
           WHERE CURDATE() BETWEEN c.start_date AND c.end_date
           GROUP BY c.cycle_id, c.name, c.start_date, c.end_date
           LIMIT 1`;
-            return q
-              .raw<{
-                name: string;
-                start_date: string;
-                end_date: string;
-                initiative_count: number;
-              }>(currentCycleSql)
-              .map((rows) => ({ ...base, currentCycle: rows[0] ?? null }));
-          },
-        );
-      }
+                return q
+                  .raw<{
+                    name: string;
+                    start_date: string;
+                    end_date: string;
+                    initiative_count: number;
+                  }>(currentCycleSql)
+                  .map((rows) => ({ ...base, currentCycle: rows[0] ?? null }));
+              },
+            );
+          }
+        },
+      );
     },
   );
 }
@@ -563,6 +608,7 @@ export function fetchStaleDoingTasks(
 /**
  * Fetch projects (plans) table: one row per plan with task counts.
  * Reuses --plan, --domain, --skill, --all. When --filter active, plan status NOT IN ('done','abandoned').
+ * When initiative table exists, includes initiative_title (from initiative join).
  */
 export function fetchProjectsTableData(
   config: Config,
@@ -596,7 +642,7 @@ export function fetchProjectsTableData(
       ? ` AND p.${bt("status")} NOT IN ('done', 'abandoned') `
       : "";
 
-  const projectsSql = `
+  const projectsSqlNoInitiative = `
     SELECT p.plan_id, p.title, p.status, p.updated_at,
       COALESCE(SUM(CASE WHEN t.status = 'todo' THEN 1 ELSE 0 END), 0) AS todo,
       COALESCE(SUM(CASE WHEN t.status = 'doing' THEN 1 ELSE 0 END), 0) AS doing,
@@ -612,15 +658,30 @@ export function fetchProjectsTableData(
       p.title ASC
   `;
 
-  return q.raw<{
-    plan_id: string;
-    title: string;
-    status: string;
-    todo: number;
-    doing: number;
-    blocked: number;
-    done: number;
-  }>(projectsSql);
+  const projectsSqlWithInitiative = `
+    SELECT p.plan_id, p.title, p.status, p.updated_at,
+      COALESCE(SUM(CASE WHEN t.status = 'todo' THEN 1 ELSE 0 END), 0) AS todo,
+      COALESCE(SUM(CASE WHEN t.status = 'doing' THEN 1 ELSE 0 END), 0) AS doing,
+      COALESCE(SUM(CASE WHEN t.status = 'blocked' THEN 1 ELSE 0 END), 0) AS blocked,
+      COALESCE(SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END), 0) AS done,
+      i.title AS initiative_title
+    FROM ${bt("project")} p
+    LEFT JOIN ${bt("initiative")} i ON p.initiative_id = i.initiative_id
+    LEFT JOIN ${bt("task")} t ON t.plan_id = p.plan_id ${taskNotCanceled} ${dimJoin}
+    WHERE 1=1 ${planWhere} ${planNotAbandoned} ${filterActive}
+    GROUP BY p.plan_id, p.title, p.status, p.updated_at, p.initiative_id, i.title
+    ORDER BY CASE WHEN p.status = 'draft' THEN 2 WHEN p.status = 'done' THEN 0 ELSE 1 END,
+      CASE WHEN p.status = 'done' THEN p.updated_at END ASC,
+      CASE WHEN p.status IN ('active','paused') THEN p.updated_at END DESC,
+      p.title ASC
+  `;
+
+  return tableExists(config.doltRepoPath, "initiative").andThen(
+    (initiativeExists) =>
+      initiativeExists
+        ? q.raw<ProjectRow>(projectsSqlWithInitiative)
+        : q.raw<ProjectRow>(projectsSqlNoInitiative),
+  );
 }
 
 /**
@@ -718,7 +779,7 @@ export function statusCommand(program: Command) {
     .option("--all", "Include canceled tasks and abandoned plans")
     .option(
       "--projects",
-      "Show projects (plans) table: Plan, Status, Todo, Doing, Blocked, Done",
+      "Show projects (plans) table: Plan, Initiative, Status, Todo, Doing, Blocked, Done",
     )
     .option(
       "--tasks",
@@ -837,8 +898,9 @@ export function statusCommand(program: Command) {
           console.error("tg status --dashboard does not support --json");
           process.exit(1);
         }
-        const { runOpenTUILiveInitiatives } =
-          await import("./tui/live-opentui.js");
+        const { runOpenTUILiveInitiatives } = await import(
+          "./tui/live-opentui.js"
+        );
         try {
           await runOpenTUILiveInitiatives(config, statusOptions);
           return;
@@ -975,8 +1037,9 @@ export function statusCommand(program: Command) {
         const config = configResult.value;
 
         if (viewMode === "projects") {
-          const { runOpenTUILiveProjects } =
-            await import("./tui/live-opentui.js");
+          const { runOpenTUILiveProjects } = await import(
+            "./tui/live-opentui.js"
+          );
           try {
             await runOpenTUILiveProjects(config, statusOptions);
             return;
@@ -1190,10 +1253,10 @@ function getCompletedSectionContent(d: StatusData): string {
   );
 }
 
-/** One-line footer for dashboard: active workers (doing), defined agent/sub-agent counts, invocations, total agent hours. */
+/** One-line footer for dashboard: active agents (doing), defined agent/sub-agent counts, invocations, total agent hours. */
 export function getDashboardFooterLine(d: StatusData): string {
-  const activeWorkers = d.statusCounts.doing ?? 0;
-  return `Active workers: ${activeWorkers}  Agents (defined): ${d.agentCount}  Sub-agents (defined): ${d.subAgentTypesDefined}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
+  const activeAgents = d.statusCounts.doing ?? 0;
+  return `Active agents: ${activeAgents}  Agents (defined): ${d.agentCount}  Sub-agents (defined): ${d.subAgentTypesDefined}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
 }
 
 const NARROW_PLAN_WIDTH = 50;
@@ -1365,6 +1428,7 @@ function getMergedActiveNextContent(
 
 /**
  * Format projects table as a single string (boxed). Used for one-shot and live projects view.
+ * Includes Initiative column when initiative_title is present on rows.
  */
 export function formatProjectsAsString(
   rows: ProjectRow[],
@@ -1374,6 +1438,7 @@ export function formatProjectsAsString(
   const innerW = getBoxInnerWidth(w);
   const projectRows = rows.map((p) => [
     p.title,
+    p.initiative_title ?? "—",
     p.status,
     String(p.todo),
     p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
@@ -1381,14 +1446,22 @@ export function formatProjectsAsString(
     p.done > 0 ? chalk.green(String(p.done)) : "0",
   ]);
   const table = renderTable({
-    headers: ["Project name", "Status", "Todo", "Doing", "Blocked", "Done"],
+    headers: [
+      "Project name",
+      "Initiative",
+      "Status",
+      "Todo",
+      "Doing",
+      "Blocked",
+      "Done",
+    ],
     rows:
       projectRows.length > 0
         ? projectRows
-        : [["No projects", "—", "0", "0", "0", "0"]],
+        : [["No projects", "—", "—", "0", "0", "0", "0"]],
     maxWidth: innerW,
-    minWidths: [12, 8, 4, 3, 5, 3],
-    maxWidths: [undefined, undefined, undefined, 5, 7, 4],
+    minWidths: [12, 10, 8, 4, 3, 5, 3],
+    maxWidths: [undefined, 10, undefined, undefined, 5, 7, 4],
   });
   return boxedSection("Projects", table, w);
 }
@@ -1564,13 +1637,14 @@ export function formatDashboardProjectsView(
     d.activePlans.length > 0
       ? d.activePlans.map((p) => [
           p.title,
+          p.initiative_title ?? "—",
           String(p.todo),
           p.actionable > 0 ? chalk.greenBright(String(p.actionable)) : "0",
           p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
           p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
           p.done > 0 ? chalk.green(String(p.done)) : "0",
         ])
-      : [["No active plans", "0", "0", "0", "0", "0"]];
+      : [["No active plans", "—", "0", "0", "0", "0", "0"]];
   const sumTodo = d.activePlans.reduce((s, p) => s + Number(p.todo), 0);
   const sumDoing = d.activePlans.reduce((s, p) => s + Number(p.doing), 0);
   const sumBlocked = d.activePlans.reduce((s, p) => s + Number(p.blocked), 0);
@@ -1578,6 +1652,7 @@ export function formatDashboardProjectsView(
   const sumReady = d.activePlans.reduce((s, p) => s + Number(p.actionable), 0);
   const totalRow = [
     chalk.dim("Total"),
+    "",
     String(sumTodo),
     sumReady > 0 ? chalk.greenBright(String(sumReady)) : "0",
     sumDoing > 0 ? chalk.cyan(String(sumDoing)) : "0",
@@ -1588,19 +1663,21 @@ export function formatDashboardProjectsView(
     d.activePlans.length > 0 ? [...activePlanRows, totalRow] : activePlanRows;
   const planHeaders = [
     "Project name",
+    "Initiative",
     "Todo",
     "Ready",
     "Doing",
     "Blocked",
     "Done",
   ];
-  const numericColW = Math.max(...planHeaders.slice(1).map((h) => h.length));
+  const numericColW = Math.max(...planHeaders.slice(2).map((h) => h.length));
   const activeTable = renderTable({
     headers: planHeaders,
     rows: activeRows,
     maxWidth: innerW,
     minWidths: [
       12,
+      10,
       numericColW,
       numericColW,
       numericColW,
@@ -1609,6 +1686,7 @@ export function formatDashboardProjectsView(
     ],
     maxWidths: [
       undefined,
+      10,
       numericColW,
       numericColW,
       numericColW,
@@ -1622,15 +1700,16 @@ export function formatDashboardProjectsView(
     d.next7UpcomingPlans.length > 0
       ? d.next7UpcomingPlans.map((p) => [
           p.title,
+          p.initiative_title ?? "—",
           p.status,
           p.updated_at ?? "—",
         ])
-      : [["No upcoming plans", "—", "—"]];
+      : [["No upcoming plans", "—", "—", "—"]];
   const next7Table = renderTable({
-    headers: ["Project name", "Status", "Updated"],
+    headers: ["Project name", "Initiative", "Status", "Updated"],
     rows: next7Rows,
     maxWidth: innerW,
-    minWidths: [12, 8, 16],
+    minWidths: [12, 10, 8, 16],
   });
   parts.push(
     boxedSection("Next 7 upcoming", next7Table, w, { fullWidth: true }),
@@ -1649,16 +1728,17 @@ export function formatDashboardProjectsView(
           return [
             justDone ? chalk.green("✓") : "—",
             p.title,
+            p.initiative_title ?? "—",
             p.status,
             p.updated_at ?? "—",
           ];
         })
-      : [["—", "No completed plans", "—", "—"]];
+      : [["—", "No completed plans", "—", "—", "—"]];
   const last7Table = renderTable({
-    headers: ["", "Project name", "Status", "Updated"],
+    headers: ["", "Project name", "Initiative", "Status", "Updated"],
     rows: last7Rows,
     maxWidth: innerW,
-    minWidths: [1, 12, 8, 16],
+    minWidths: [1, 12, 10, 8, 16],
     maxWidths: [1],
   });
   parts.push(

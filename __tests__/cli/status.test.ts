@@ -363,7 +363,7 @@ isProject: false
     );
   }, 30000);
 
-  it("tg status --projects shows single Projects table with Project, Status, Todo, Doing, Blocked, Done", async () => {
+  it("tg status --projects shows single Projects table with Project, Initiative, Status, Todo, Doing, Blocked, Done", async () => {
     if (!context) throw new Error("Context not initialized");
 
     const { exitCode, stdout } = await runTgCli(
@@ -373,6 +373,7 @@ isProject: false
     expect(exitCode).toBe(0);
     expect(stdout).toContain("Projects");
     expect(stdout).toContain("Project");
+    expect(stdout).toContain("Initiative");
     expect(stdout).toContain("Status");
     expect(stdout).toContain("Todo");
     expect(stdout).toContain("Doing");
