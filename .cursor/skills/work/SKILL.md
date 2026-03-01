@@ -60,6 +60,10 @@ flowchart TD
 
 ## Task orchestration UI — ALWAYS use when running tg tasks
 
+## Benchmark-run self-report checklist
+
+Before completing `run-full-suite` tasks or any benchmark-run tasks, ensure implementer agents include self-report flags for performance metrics. The checklist helps standardize reporting across runs.
+
 When executing tasks from tg, **always structure work so Cursor surfaces the "Task orchestration for autonomous execution" panel.** This gives the human a single place to see which sub-agents are doing what (meta todo + sub-agent management). Assume there will always be one or more tasks; use the same orchestration flow whether it's 1 or 5.
 
 **Before each batch:**

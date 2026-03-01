@@ -39,6 +39,18 @@ The orchestrator must pass:
 - Run `tg done <taskId> --evidence "..."` with a short evidence string (commands run, git ref, or implemented; no test run).
 - Return a brief completion message to the orchestrator (e.g. "Task X done. Evidence: ...").
 - **Self-report (optional):** If your environment exposes token usage, pass it to `tg done`:
+
+### Benchmark runs
+
+**Self-report checklist for benchmark-run tasks:**
+
+- [ ] Include `--tokens-in <n>` — input tokens for this session
+- [ ] Include `--tokens-out <n>` — output tokens generated
+- [ ] Include `--tool-calls <n>` — total tool calls made
+- [ ] Include `--attempt <n>` — attempt number (1 for first attempt, etc.)
+
+- For benchmark-run tasks (when the task or plan represents a benchmark), implementers SHOULD include the self-report flags (`--tokens-in`, `--tokens-out`, `--tool-calls`, `--attempt`) with `tg done` to standardize performance reporting across runs.
+
   - `--tokens-in <n>` — input tokens for this session
   - `--tokens-out <n>` — output tokens generated
   - `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
