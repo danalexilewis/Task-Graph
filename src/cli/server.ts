@@ -26,7 +26,11 @@ export function readServerMeta(configDir: string): ServerMeta | null {
 }
 
 export function writeServerMeta(configDir: string, meta: ServerMeta): void {
-  writeFileSync(serverMetaPath(configDir), JSON.stringify(meta, null, 2), "utf8");
+  writeFileSync(
+    serverMetaPath(configDir),
+    JSON.stringify(meta, null, 2),
+    "utf8",
+  );
 }
 
 /** Returns true if the process with the given PID is alive. */
@@ -144,9 +148,7 @@ export function serverCommand(program: Command): void {
       const { readConfig } = await import("./utils.js");
       const configResult = readConfig();
       if (configResult.isErr()) {
-        console.error(
-          "Error: no tg config found. Run `tg init` first.",
-        );
+        console.error("Error: no tg config found. Run `tg init` first.");
         process.exit(1);
       }
       const config = configResult.value;
@@ -186,9 +188,7 @@ export function serverCommand(program: Command): void {
       }
 
       writeServerMeta(configDir, { port, pid, dataDir: doltRepoPath });
-      console.log(
-        `tg server started (pid ${pid}, port ${port})`,
-      );
+      console.log(`tg server started (pid ${pid}, port ${port})`);
     });
 
   server
@@ -219,6 +219,22 @@ export function serverCommand(program: Command): void {
           process.kill(meta.pid, "SIGTERM");
         } catch {
           // already dead
+        }
+      }
+      // Wait up to 3 s for graceful exit, then escalate to SIGKILL
+      const killDeadline = Date.now() + 3_000;
+      while (isServerAlive(meta.pid) && Date.now() < killDeadline) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (isServerAlive(meta.pid)) {
+        try {
+          process.kill(-meta.pid, "SIGKILL");
+        } catch {
+          try {
+            process.kill(meta.pid, "SIGKILL");
+          } catch {
+            // already dead
+          }
         }
       }
       rmSync(serverMetaPath(configDir), { force: true });

@@ -4,19 +4,7 @@ import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execa } from "execa";
-import {
-  applyCycleMigration,
-  applyDomainToDocRenameMigration,
-  applyHashIdMigration,
-  applyInitiativeCycleIdMigration,
-  applyInitiativeMigration,
-  applyMigrations,
-  applyPlanRichFieldsMigration,
-  applyTaskAgentMigration,
-  applyTaskDimensionsMigration,
-  applyTaskDomainSkillJunctionMigration,
-  applyTaskSuggestedChangesMigration,
-} from "../../src/db/migrate";
+import { applyMigrations, ensureMigrations } from "../../src/db/migrate";
 
 const DOLT_PATH = process.env.DOLT_PATH || "dolt";
 
@@ -84,6 +72,14 @@ export default async function globalSetup(): Promise<void> {
   // Kill any stale per-test dolt servers from a previous crashed run
   killStalePidRegistry();
 
+  // Ensure golden-template migrations always use the subprocess (execa) path, not any
+  // externally-configured SQL server (which may point at the production DB and cause
+  // migration checks to short-circuit against wrong tables).
+  delete process.env.TG_DOLT_SERVER_PORT;
+  delete process.env.TG_DOLT_SERVER_DATABASE;
+  delete process.env.TG_DOLT_SERVER_USER;
+  delete process.env.TG_DOLT_SERVER_PASSWORD;
+
   // Clean default eventsData directory to avoid polluting user data
   const defaultDoltRoot =
     process.env.DOLT_ROOT_PATH || path.join(os.homedir(), ".dolt");
@@ -117,16 +113,7 @@ export default async function globalSetup(): Promise<void> {
   });
 
   (await applyMigrations(doltRepoPath))._unsafeUnwrap();
-  (await applyTaskDimensionsMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyTaskDomainSkillJunctionMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyDomainToDocRenameMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyTaskAgentMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyPlanRichFieldsMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyTaskSuggestedChangesMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyHashIdMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyInitiativeMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyCycleMigration(doltRepoPath))._unsafeUnwrap();
-  (await applyInitiativeCycleIdMigration(doltRepoPath))._unsafeUnwrap();
+  (await ensureMigrations(doltRepoPath))._unsafeUnwrap();
 
   // Expose paths for test runners (project-relative so all Bun workers see the same file)
   fs.mkdirSync(path.dirname(GOLDEN_TEMPLATE_PATH_FILE), { recursive: true });

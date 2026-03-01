@@ -13,6 +13,10 @@ exports/
 # Integration test harness writes these under .taskgraph/
 .taskgraph/tg-golden-template-path.txt
 .taskgraph/tg-dolt-root-path.txt
+.taskgraph/.tg-migration-version
+.taskgraph/tg-test-server-pids.json
+.taskgraph/tg-golden-server-pid.txt
+.taskgraph/tg-dolt-server-port.txt
 
 # Test & coverage
 coverage/

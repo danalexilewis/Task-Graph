@@ -42,7 +42,7 @@ export interface IntegrationTestContext {
 /** Per-worker counter for unique per-test server ports (13310 + offset) */
 let perTestPortCounter = 0;
 const PER_TEST_PORT_BASE = 13310;
-const PER_TEST_PORT_RANGE = 90;
+const PER_TEST_PORT_RANGE = 200;
 
 /**
  * Module-level registry of PIDs for servers that have been started but not yet torn down.
@@ -227,7 +227,37 @@ async function startDoltServer(
   );
 }
 
-export async function setupIntegrationTest(): Promise<IntegrationTestContext> {
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.once("error", () => resolve(true));
+    srv.once("listening", () => {
+      srv.close(() => resolve(false));
+    });
+    srv.listen(port, "127.0.0.1");
+  });
+}
+
+async function resolvePort(
+  candidate: number,
+  maxRetries = 10,
+): Promise<number> {
+  for (let i = 0; i < maxRetries; i++) {
+    const inUse = await isPortInUse(candidate + i);
+    if (!inUse) return candidate + i;
+  }
+  return candidate;
+}
+
+export async function setupIntegrationTest(options?: {
+  /**
+   * When true, skip spawning a per-test dolt sql-server and do NOT set
+   * TG_DOLT_SERVER_PORT.  Use for tests that manage their own server lifecycle
+   * (e.g. `tg server start/stop/status`), where a pre-running server would lock
+   * the data directory and prevent the command under test from starting its own.
+   */
+  noServer?: boolean;
+}): Promise<IntegrationTestContext> {
   // Ensure Dolt root path is isolated
   const doltRootPath = getDoltRootPath();
   process.env.DOLT_ROOT_PATH = doltRootPath;
@@ -240,9 +270,14 @@ export async function setupIntegrationTest(): Promise<IntegrationTestContext> {
   fs.cpSync(templatePath, tempDir, { recursive: true });
   writeConfig({ doltRepoPath }, tempDir)._unsafeUnwrap();
 
-  const port =
+  if (options?.noServer) {
+    return { tempDir, doltRepoPath, cliPath };
+  }
+
+  const port = await resolvePort(
     PER_TEST_PORT_BASE +
-    (((process.pid ?? 0) + perTestPortCounter++) % PER_TEST_PORT_RANGE);
+      (((process.pid ?? 0) + perTestPortCounter++) % PER_TEST_PORT_RANGE),
+  );
   const serverPid = await startDoltServer(doltRepoPath, port);
   // Guard: if any post-spawn step throws, kill the server immediately so it
   // does not become an orphan (afterAll's `if (context)` guard would skip teardown).

@@ -11,10 +11,7 @@ import {
 } from "./test-utils";
 
 /** Wait until a TCP port accepts connections (polls every 200ms up to maxMs). */
-async function waitForPort(
-  port: number,
-  maxMs = 10_000,
-): Promise<boolean> {
+async function waitForPort(port: number, maxMs = 10_000): Promise<boolean> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     const ok = await new Promise<boolean>((resolve) => {
@@ -64,7 +61,7 @@ describe("tg server lifecycle", () => {
   let ctx: IntegrationTestContext;
 
   beforeEach(async () => {
-    ctx = await setupIntegrationTest();
+    ctx = await setupIntegrationTest({ noServer: true });
   }, 60_000);
 
   afterEach(async () => {
@@ -85,11 +82,11 @@ describe("tg server lifecycle", () => {
     const configDir = path.dirname(ctx.doltRepoPath);
     const meta = readServerMeta(configDir);
     expect(meta).not.toBeNull();
-    expect(meta!.port).toBeGreaterThan(0);
-    expect(meta!.pid).toBeGreaterThan(0);
+    expect(meta?.port).toBeGreaterThan(0);
+    expect(meta?.pid).toBeGreaterThan(0);
 
     // The server should already be up (startDoltServerProcess polls for ready)
-    const listening = await waitForPort(meta!.port, 5_000);
+    const listening = await waitForPort(meta?.port, 5_000);
     expect(listening).toBe(true);
   }, 60_000);
 
@@ -121,7 +118,7 @@ describe("tg server lifecycle", () => {
     expect(readServerMeta(configDir)).toBeNull();
 
     // Port should no longer accept connections
-    const stillListening = await waitForPort(meta!.port, 2_000);
+    const stillListening = await waitForPort(meta?.port, 2_000);
     expect(stillListening).toBe(false);
   }, 60_000);
 
@@ -155,8 +152,8 @@ describe("tg server lifecycle", () => {
     // Second start reports already running, no new server
     expect(second).toMatch(/already running/);
     // Same PID and port
-    expect(meta2!.pid).toBe(meta1!.pid);
-    expect(meta2!.port).toBe(meta1!.port);
+    expect(meta2?.pid).toBe(meta1?.pid);
+    expect(meta2?.port).toBe(meta1?.port);
   }, 60_000);
 
   it("tg server status shows stopped when no server has been started", async () => {

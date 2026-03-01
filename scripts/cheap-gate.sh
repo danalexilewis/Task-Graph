@@ -40,15 +40,18 @@ fi
 if [[ -n "$FULL" ]]; then
   echo "=== [SETUP] integration golden template ==="
   bun run scripts/run-integration-global-setup.ts
-  echo "=== [TEST:full] bun test __tests__ (db first so mock.module applies) ==="
+  echo "=== [TEST:full] bun test __tests__ (db and mcp isolated so mock.module applies) ==="
   set +e
   # Run db/ tests first in isolation so connection is not pre-loaded (mock applies)
   bun test __tests__/db/
   DB_EXIT=$?
-  # Then run the rest (exclude db to avoid double-run)
-  bun test __tests__/cli/ __tests__/domain/ __tests__/e2e/ __tests__/export/ __tests__/integration/ __tests__/mcp/ __tests__/plan-import/ __tests__/skills/
+  # Run mcp/ tests in isolation: tools.test.ts mocks domain/invariants which bleeds into domain tests
+  bun test __tests__/mcp/
+  MCP_EXIT=$?
+  # Then run the rest (exclude db and mcp to avoid double-run)
+  bun test __tests__/cli/ __tests__/domain/ __tests__/e2e/ __tests__/export/ __tests__/integration/ __tests__/plan-import/ __tests__/skills/
   REST_EXIT=$?
-  EXIT=$((DB_EXIT | REST_EXIT))
+  EXIT=$((DB_EXIT | MCP_EXIT | REST_EXIT))
   set -e
   bun run scripts/run-integration-global-teardown.ts
   exit "$EXIT"
