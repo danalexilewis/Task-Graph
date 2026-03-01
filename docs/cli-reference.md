@@ -526,6 +526,28 @@ tg block d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --on c0eebc99-9c0b-4ef8-bb6d-6bb9b
 # Task d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 blocked by c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11.
 ```
 
+### `tg recover [--threshold <hours>] [--dry-run]`
+
+Resets stale doing tasks back to todo. A task is "stale" when its most recent `started` event is older than `--threshold` hours (default 2). For each recovered task, updates `status` to `todo` and inserts a `note` event with body `{ type: 'recovery', age_hours, agent: 'system', timestamp }`.
+
+**Self-healing:** `tg next` automatically calls `tg recover` with the default 2-hour threshold before returning runnable tasks, so orphaned doing tasks (e.g. from an aborted agent session) are silently unstuck whenever an agent asks for work.
+
+**Options:**
+- `--threshold <hours>` — Inactivity threshold in hours. Default: `2`. Must be a positive number.
+- `--dry-run` — Preview stale tasks without making any changes.
+
+**Output:** Human: a table of recovered tasks (`Id`, `Title`, `Age (h)`) followed by `"Recovered N task(s) back to todo."` or `"No stale tasks found."`. With `--dry-run`, prints the same table and `"Dry run — N task(s) would be recovered. No changes made."`. With `--json`: array of `{ task_id, hash_id, title, age_hours }`.
+
+**Examples:**
+
+```
+tg recover
+tg recover --threshold 4
+tg recover --dry-run
+```
+
+---
+
 ### `tg cancel <ids...> [--type plan|task] [--reason <text>]`
 
 Soft-deletes one or more plans (sets status to `abandoned`) or tasks (sets status to `canceled`). IDs can be space- or comma-separated. Each ID is resolved by trying plan first (by `plan_id` or `title`), then task by `task_id`. Use `--type plan` or `--type task` to force resolution. Refuses to cancel plans in `done` or `abandoned`, or tasks in `done` or `canceled`. For tasks, inserts a `note` event with body `{ type: 'cancel', reason }`. Exit code is 1 if any ID fails.

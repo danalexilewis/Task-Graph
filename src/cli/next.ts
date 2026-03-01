@@ -3,6 +3,7 @@ import { errAsync } from "neverthrow";
 import { sqlEscape } from "../db/escape";
 import { query } from "../db/query";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
+import { recoverStaleTasks } from "./recover";
 import { type Config, readConfig } from "./utils";
 
 export function nextCommand(program: Command) {
@@ -25,6 +26,20 @@ export function nextCommand(program: Command) {
     .option("--limit <limit>", "Limit the number of tasks returned", "10")
     .option("--all", "Include canceled tasks and abandoned plans")
     .action(async (options, cmd) => {
+      // Auto-recover stale doing tasks before returning the next batch.
+      const configForRecover = readConfig();
+      if (configForRecover.isOk()) {
+        const recovered = await recoverStaleTasks(
+          configForRecover.value.doltRepoPath,
+          2,
+        );
+        if (recovered.isOk() && recovered.value.length > 0) {
+          process.stderr.write(
+            `Recovered ${recovered.value.length} stale task(s) back to todo.\n`,
+          );
+        }
+      }
+
       const result = await readConfig().asyncAndThen((config: Config) => {
         const limit = parseInt(options.limit, 10);
         if (Number.isNaN(limit) || limit <= 0) {
