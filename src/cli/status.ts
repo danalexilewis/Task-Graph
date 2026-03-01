@@ -55,8 +55,6 @@ export interface InitiativeRow {
   status: string;
   cycle_start: string | null;
   cycle_end: string | null;
-  /** Cycle name when cycle table exists; otherwise absent. */
-  cycle_name?: string | null;
   project_count: number;
 }
 
@@ -208,6 +206,8 @@ export interface StatusData {
   subAgentRuns: number;
   /** Sum of started→done elapsed time in hours. */
   totalAgentHours: number;
+  investigatorRuns: number;
+  investigatorFixRate: number;
 }
 
 export function fetchStatusData(
@@ -262,6 +262,7 @@ export function fetchStatusData(
     SELECT
       (SELECT COUNT(DISTINCT JSON_UNQUOTE(JSON_EXTRACT(body, '$.agent'))) FROM ${bt("event")} WHERE kind = 'started' AND JSON_EXTRACT(body, '$.agent') IS NOT NULL) AS agent_count,
       (SELECT COUNT(*) FROM ${bt("event")} WHERE kind = 'done') AS sub_agent_runs,
+      (SELECT COUNT(*) FROM ${bt("event")} WHERE kind = 'done' AND JSON_UNQUOTE(JSON_EXTRACT(body, '$.agent')) = 'investigator') AS investigator_runs,
       (SELECT COALESCE(SUM(sec), 0) / 3600 FROM (
         SELECT TIMESTAMPDIFF(SECOND,
           (SELECT created_at FROM ${bt("event")} e2 WHERE e2.task_id = d.task_id AND e2.kind = 'started' ORDER BY e2.created_at DESC LIMIT 1),
@@ -421,6 +422,8 @@ export function fetchStatusData(
     agent_count: number;
     sub_agent_runs: number;
     total_agent_minutes: number;
+  investigator_runs: number;
+    investigator_runs: number;
   }
   // Check initiative table so we can optionally join for initiative title in projects/plans.
   return tableExists(config.doltRepoPath, "initiative").andThen(
@@ -482,6 +485,8 @@ export function fetchStatusData(
             const totalAgentHours = Math.round(
               Number(amRes[0]?.total_agent_minutes ?? 0),
             );
+            const investigatorRuns = Number(amRes[0]?.investigator_runs ?? 0);
+            const investigatorFixRate = subAgentRuns > 0 ? Math.round((investigatorRuns / subAgentRuns) * 100) : 0;
 
             const actionableMap = new Map(
               actionableRows.map((r) => [r.plan_id, r.count]),
@@ -759,7 +764,6 @@ export function fetchInitiativesTableData(
       COUNT(p.plan_id) AS project_count
     FROM ${bt("initiative")} i
     LEFT JOIN ${bt("cycle")} c ON i.cycle_id = c.cycle_id
-    LEFT JOIN ${bt("cycle")} c ON i.cycle_id = c.cycle_id
     LEFT JOIN ${bt("project")} p ON p.initiative_id = i.initiative_id
     WHERE 1=1 ${filterUpcoming}
     GROUP BY i.initiative_id, i.title, i.status, cycle_name, i.cycle_start, i.cycle_end
@@ -904,9 +908,8 @@ export function statusCommand(program: Command) {
           console.error("tg status --dashboard does not support --json");
           process.exit(1);
         }
-        const { runOpenTUILiveInitiatives } = await import(
-          "./tui/live-opentui.js"
-        );
+        const { runOpenTUILiveInitiatives } =
+          await import("./tui/live-opentui.js");
         try {
           await runOpenTUILiveInitiatives(config, statusOptions);
           return;
@@ -1043,9 +1046,8 @@ export function statusCommand(program: Command) {
         const config = configResult.value;
 
         if (viewMode === "projects") {
-          const { runOpenTUILiveProjects } = await import(
-            "./tui/live-opentui.js"
-          );
+          const { runOpenTUILiveProjects } =
+            await import("./tui/live-opentui.js");
           try {
             await runOpenTUILiveProjects(config, statusOptions);
             return;
@@ -1229,7 +1231,9 @@ export function statusCommand(program: Command) {
           const d = data as StatusData;
           if (!rootOpts(cmd).json) {
             printHumanStatus(d);
-            console.log("Tip: Run 'tg status --initiatives' or 'tg initiative list' to view initiative details.");
+            console.log(
+              "Tip: Run 'tg status --initiatives' or 'tg initiative list' to view initiative details.",
+            );
           } else {
             printJsonStatus(d);
           }
@@ -1263,7 +1267,7 @@ function getCompletedSectionContent(d: StatusData): string {
 /** One-line footer for dashboard: active agents (doing), defined agent/sub-agent counts, invocations, total agent hours. */
 export function getDashboardFooterLine(d: StatusData): string {
   const activeAgents = d.statusCounts.doing ?? 0;
-  return `Active agents: ${activeAgents}  Agents (defined): ${d.agentCount}  Sub-agents (defined): ${d.subAgentTypesDefined}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
+  return `Active agents: ${activeAgents}  Agents (defined): ${d.agentCount}  Sub-agents (defined): ${d.subAgentTypesDefined}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}  Investigator runs: ${d.investigatorRuns}  Investigator fix rate: ${d.investigatorFixRate}%`;
 }
 
 const NARROW_PLAN_WIDTH = 50;
@@ -1298,10 +1302,10 @@ function getActivePlansSectionContent(
   if (maxRows != null && maxRows > 0) {
     plans = plans.slice(0, maxRows - 1);
   }
-const planRows = plans.map((p) => [
-  p.title,
-  p.initiative_title ?? "—",
-  String(p.todo),
+  const planRows = plans.map((p) => [
+    p.title,
+    p.initiative_title ?? "—",
+    String(p.todo),
     p.actionable > 0 ? chalk.greenBright(String(p.actionable)) : "0",
     p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
     p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
@@ -1323,7 +1327,15 @@ const planRows = plans.map((p) => [
   ];
   const headers = narrow
     ? ["Project name", "Init", "To", "Rdy", "Do", "Blk", "Done"]
-    : ["Project name", "Initiative", "Todo", "Ready", "Doing", "Blocked", "Done"];
+    : [
+        "Project name",
+        "Initiative",
+        "Todo",
+        "Ready",
+        "Doing",
+        "Blocked",
+        "Done",
+      ];
   const numericHeaders = headers.slice(2);
   const numericColW = Math.max(...numericHeaders.map((h) => h.length));
   return renderTable({
@@ -1332,7 +1344,15 @@ const planRows = plans.map((p) => [
     maxWidth: innerW,
     minWidths: narrow
       ? [8, 10, numericColW, numericColW, numericColW, numericColW, numericColW]
-      : [12, 10, numericColW, numericColW, numericColW, numericColW, numericColW],
+      : [
+          12,
+          10,
+          numericColW,
+          numericColW,
+          numericColW,
+          numericColW,
+          numericColW,
+        ],
     maxWidths: [
       undefined,
       undefined,
@@ -1776,7 +1796,14 @@ export function formatInitiativesAsString(
     String(r.project_count),
   ]);
   const table = renderTable({
-    headers: ["Initiative", "Status", "Cycle", "Cycle Start", "Cycle End", "Projects"],
+    headers: [
+      "Initiative",
+      "Status",
+      "Cycle",
+      "Cycle Start",
+      "Cycle End",
+      "Projects",
+    ],
     rows:
       initiativeRows.length > 0
         ? initiativeRows
@@ -1991,6 +2018,12 @@ function printJsonStatus(d: StatusData): void {
         subAgentTypesDefined: d.subAgentTypesDefined,
         subAgentRuns: d.subAgentRuns,
         totalAgentHours: d.totalAgentHours,
+        investigatorRuns: d.investigatorRuns,
+        investigatorFixRate: d.investigatorFixRate,
+        investigatorRuns: d.investigatorRuns,
+        investigatorFixRate: d.investigatorFixRate,
+        investigatorRuns: d.investigatorRuns,
+        investigatorFixRate: d.investigatorFixRate,
         summary: {
           not_done: todo + doing + blocked,
           in_progress: doing,

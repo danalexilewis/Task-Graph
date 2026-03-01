@@ -92,7 +92,7 @@ export function statsCommand(program: Command) {
     )
     .option("--timeline", "Show cross-plan execution history sorted by date")
     .option("--recovery", "Include recovery metrics: investigator fix rate")
-    .option("--benchmark", "Filter to benchmark plans (only include projects where is_benchmark = 1)")
+    .option("--benchmark <benchmark>", "Filter to benchmark plans (only include projects where is_benchmark = 1)")
     .option("--benchmark", "Filter benchmark projects")
     .action(async (options, cmd) => {
       const configResult = readConfig();
@@ -651,6 +651,14 @@ export function statsCommand(program: Command) {
                 status: "error",
                 code: e.code,
                 message: e.message,
+              }),
+            );
+          process.exit(1);
+        },
+      );
+    });
+}
+ssage: e.message,
               }),
             );
           process.exit(1);
