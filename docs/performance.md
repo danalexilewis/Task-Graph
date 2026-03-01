@@ -48,7 +48,7 @@ Shows: number of plans with gate failures on the designated "run-full-suite" tas
 
 ## Productivity Benchmark
 
-For custom minimal productivity benchmarking (Option C), see `.benchmark/README.md`. The `.benchmark/` directory is gitignored and contains self-contained problems for measuring agent productivity (success = run.sh exit 0, wall-clock time, and optional token usage via `tg done` flags).
+For custom minimal productivity benchmarking (Option C), see [the productivity benchmark README](../.benchmark/README.md). The `.benchmark/` directory is gitignored and contains self-contained problems for measuring agent productivity (success = run.sh exit 0, wall-clock time, and optional token usage via `tg done` flags).
 
 ## Runbooks
 
