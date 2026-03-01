@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { closeAllServerPools } from "../db/connection";
 import { ensureMigrations } from "../db/migrate";
 import { ErrorCode } from "../domain/errors";
+import { agentsCommand } from "./agents";
 import { blockCommand } from "./block";
 import { cancelCommand } from "./cancel";
 import { contextCommand } from "./context";
@@ -107,6 +108,7 @@ export function createProgram(): Command {
   statusCommand(program);
   dashboardCommand(program);
   noteCommand(program);
+  agentsCommand(program);
   contextCommand(program);
   crossplanCommand(program);
   cycleCommand(program);
