@@ -45,6 +45,7 @@ For more detailed information, refer to the following documentation sections:
 
 **Core**
 
+- [How the system works](overview.md) — single-page narrative: entrypoints, data, flows, outcomes
 - [Glossary](glossary.md) — naming conventions and definitions (plan vs project, waves, tasks, etc.)
 - [Architecture](architecture.md)
 - [Dolt Schema](schema.md)
@@ -57,6 +58,8 @@ For more detailed information, refer to the following documentation sections:
 - [CLI tables](cli-tables.md) — table rendering, boxen layout, column config
 
 **Agent**
+
+The agent system is documented in [AGENT.md](../AGENT.md) (canonical contract), [Agent Contract](agent-contract.md), [Agent strategy](agent-strategy.md), [Multi-agent](multi-agent.md), and [docs/leads/](leads/) (lead registry and per-lead docs).
 
 - [Agent Field Guide](agent-field-guide.md) — **start here** — patterns, gotchas, checklists for implementation work
 - [Agent Contract](agent-contract.md)

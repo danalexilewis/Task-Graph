@@ -58,6 +58,23 @@ tg done <taskId> --evidence "<text>" [--checks <json>]
     `
     The `--evidence` should include: - Tests run and their outcomes. - Summaries of command outputs. - Relevant Git commit hash(es) if code changes were made. - Optionally, `--checks` can be used to report on specific acceptance criteria met.
 
+### Execution loop (reference)
+
+Quick reference for the execution sequence and rules.
+
+**Steps:** `tg next` → `tg show <taskId>` → `tg start <taskId> [--agent <name>] [--worktree]` → work → `tg done <taskId> [--merge] --evidence "<text>"`.
+
+**Rules:**
+
+- **`tg done` from repo root.** `pnpm tg done` requires `.taskgraph/config.json` at `process.cwd()`. Worktrunk worktrees are sibling dirs with no `.taskgraph/` — running `tg done` from the worktree fails. Always run `pnpm tg done <taskId> --evidence "..."` from the repo root. See [.cursor/rules/taskgraph-workflow.mdc](../.cursor/rules/taskgraph-workflow.mdc) (Fallback: direct execution).
+- **`gate:full` from plan worktree.** Run `pnpm gate:full` from inside the plan worktree where merged task changes are visible, not from repo root. See [gate:full Orchestration Rules](#gatefull-orchestration-rules) in this doc.
+- **WORKTREE_PATH for implementer.** The orchestrator injects `{{WORKTREE_PATH}}` and `{{REPO_PATH}}` into implementer prompts; file editing and git run from the worktree; all `pnpm tg` commands run from `{{REPO_PATH}}`. See [.cursor/rules/subagent-dispatch.mdc](../.cursor/rules/subagent-dispatch.mdc) (Worktrunk — standard for sub-agent worktrees).
+
+```mermaid
+flowchart LR
+  next --> show --> start --> work --> done
+```
+
 ## General context at start
 
 Sub-agents receive a small **general context** block at start to give them background "spider sense" — transient project state and optional awareness of other agents — without loading full docs.
@@ -100,7 +117,7 @@ tg block <currentTaskId> --on <newBlockerTaskId> --reason "Requires human decisi
 
 **Correct polling for long-running shell commands** (applies to `gate:full` and any other command that exceeds `block_until_ms`): use the **terminal-file polling pattern** — incremental short waits + terminal file check. See [docs/agent-field-guide.md § Shell / Long-Running Commands](agent-field-guide.md#shell--long-running-commands) for the full pattern, anti-patterns, and when to apply it.
 
-In brief: when a Shell tool call backgrounds a command, Cursor streams output to a terminal file. Poll that file with incremental sleeps until the `exit_code:` footer appears. Never chain `sleep N && tail` in one shell call — it kills the wait at a fixed offset and misses the footer if timing is off.
+In brief: when a Shell tool call backgrounds a command, Cursor streams output to a terminal file. Poll that file with incremental sleeps until the `exit_code:` footer appears. Never chain `sleep N && tail` in one shell call — it kills the wait at a fixed offset and misses the footer if timing is off. **Do not use this pattern for short CLI/DB ops** (e.g. `tg import`, create plan, `tg start`, `tg done`, `tg status`) — they complete in seconds; wait for the shell result. See [agent-field-guide.md § When NOT to use](agent-field-guide.md#shell--long-running-commands).
 
 ## Escalation ladder
 

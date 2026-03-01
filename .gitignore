@@ -10,6 +10,9 @@ build/
 # Export output (tg export markdown writes here by default)
 exports/
 
+# Productivity benchmark run output only; .benchmark/problems/ and README are committed
+.benchmark/results/
+
 # Integration test harness writes these under .taskgraph/
 .taskgraph/tg-golden-template-path.txt
 .taskgraph/tg-dolt-root-path.txt

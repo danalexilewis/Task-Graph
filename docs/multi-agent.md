@@ -44,6 +44,24 @@ When `tg done <taskId> --merge` is called on a task that was started with `--wor
 
 Multiple implementers working on tasks in the same plan each get their own task worktree (all branching from the plan branch). As each task finishes, `tg done --merge` merges the task branch into the plan branch. Because they all target the same plan branch, their changes accumulate there without touching main until the plan is ready to merge.
 
+### Worktree and merge flow
+
+The following diagram summarizes how branches and worktrees interact when using `tg start --worktree` and `tg done --merge`. See "Per-plan branch and worktree" and "Merge target is the plan branch" above for details.
+
+```mermaid
+flowchart TD
+  main["main branch"]
+  planBranch["plan branch (plan-p-*)"]
+  taskBranch["task branches (tg-*)"]
+
+  main -->|"tg start --worktree (first task)"| planBranch
+  planBranch -->|"tg start --worktree (per task)"| taskBranch
+  taskBranch -->|"tg done --merge"| planBranch
+  planBranch -.->|"plan complete (manual or cleanup)"| main
+```
+
+When the plan is complete, merge the plan branch into main (e.g. from the plan worktree or repo root) and remove the plan worktree.
+
 ### Backend selection
 
 Task-Graph uses **Worktrunk (wt)** as the standard backend when available: set `"useWorktrunk": true` in `.taskgraph/config.json`, or ensure the `wt` CLI is on PATH (auto-detect). Raw git worktrees are supported when `useWorktrunk` is false or `wt` is not installed. The orchestrator passes the worktree path (from `tg worktree list --json` or the started event) to implementers as **WORKTREE_PATH** so they `cd` there and run all work and `tg done` from that directory.
@@ -99,11 +117,11 @@ The outer `agent` and `timestamp` fields match the existing note body convention
 
 ### Phase values
 
-| Phase | When to emit | `files` value |
-| ----------- | ------------------------------------ | ------------------------------------------ |
-| `start` | Immediately after `tg start` | `[]` (no files touched yet) |
-| `mid-work` | Before touching files | List of files about to be modified |
-| `pre-done` | Just before calling `tg done` | Final list of files modified |
+| Phase      | When to emit                  | `files` value                      |
+| ---------- | ----------------------------- | ---------------------------------- |
+| `start`    | Immediately after `tg start`  | `[]` (no files touched yet)        |
+| `mid-work` | Before touching files         | List of files about to be modified |
+| `pre-done` | Just before calling `tg done` | Final list of files modified       |
 
 ### Command template
 

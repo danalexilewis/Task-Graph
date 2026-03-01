@@ -1,5 +1,7 @@
 import chalk from "chalk";
 import type { Command } from "commander";
+import { existsSync, readdirSync } from "fs";
+import { resolve } from "path";
 import { okAsync, ResultAsync } from "neverthrow";
 import { sqlEscape } from "../db/escape";
 import { tableExists } from "../db/migrate";
@@ -73,6 +75,41 @@ export interface StaleDoingTaskRow {
 
 function bt(name: string): string {
   return `\`${name}\``;
+}
+
+/** Sub-agent types that can be dispatched (Task tool / mcp_task). Matches available-agents.mdc. */
+const DEFINED_SUB_AGENT_TYPES = [
+  "generalPurpose",
+  "explore",
+  "shell",
+  "browser-use",
+  "investigator",
+  "planner-analyst",
+  "implementer",
+  "documenter",
+  "reviewer",
+  "test-quality-auditor",
+  "test-infra-mapper",
+  "test-coverage-scanner",
+  "debugger",
+  "fixer",
+  "spec-reviewer",
+  "quality-reviewer",
+];
+
+function getRepoRootFromConfig(config: Config): string {
+  const doltAbs = resolve(process.cwd(), config.doltRepoPath);
+  return resolve(doltAbs, "..", "..");
+}
+
+/** Count defined agent templates in .cursor/agents/*.md (excluding README.md). */
+function getDefinedAgentCount(repoRoot: string): number {
+  const agentsDir = resolve(repoRoot, ".cursor", "agents");
+  if (!existsSync(agentsDir)) return 0;
+  const entries = readdirSync(agentsDir, { withFileTypes: true });
+  return entries.filter(
+    (e) => e.isFile() && e.name.endsWith(".md") && e.name !== "README.md",
+  ).length;
 }
 
 interface ActivePlanRow {
@@ -152,8 +189,10 @@ export interface StatusData {
     end_date: string;
     initiative_count: number;
   } | null;
-  /** Distinct agent names (from started event body.agent). */
+  /** Number of defined agent templates (.cursor/agents/*.md, excluding README). */
   agentCount: number;
+  /** Number of defined sub-agent types (Task/mcp_task dispatchable). */
+  subAgentTypesDefined: number;
   /** Number of task completions (done events). */
   subAgentRuns: number;
   /** Sum of started→done elapsed time in hours. */
@@ -391,7 +430,9 @@ export function fetchStatusData(
         const completedPlans = cpRes[0]?.count ?? 0;
         const completedTasks = ctRes[0]?.count ?? 0;
         const canceledTasks = canRes[0]?.count ?? 0;
-        const agentCount = Number(amRes[0]?.agent_count ?? 0);
+        const repoRoot = getRepoRootFromConfig(config);
+        const agentCount = getDefinedAgentCount(repoRoot);
+        const subAgentTypesDefined = DEFINED_SUB_AGENT_TYPES.length;
         const subAgentRuns = Number(amRes[0]?.sub_agent_runs ?? 0);
         const totalAgentHours = Math.round(
           Number(amRes[0]?.total_agent_minutes ?? 0),
@@ -458,6 +499,7 @@ export function fetchStatusData(
           statusCounts,
           actionableCount: actionableRes[0]?.count ?? 0,
           agentCount,
+          subAgentTypesDefined,
           subAgentRuns,
           totalAgentHours,
         };
@@ -795,9 +837,8 @@ export function statusCommand(program: Command) {
           console.error("tg status --dashboard does not support --json");
           process.exit(1);
         }
-        const { runOpenTUILiveInitiatives } = await import(
-          "./tui/live-opentui.js"
-        );
+        const { runOpenTUILiveInitiatives } =
+          await import("./tui/live-opentui.js");
         try {
           await runOpenTUILiveInitiatives(config, statusOptions);
           return;
@@ -934,9 +975,8 @@ export function statusCommand(program: Command) {
         const config = configResult.value;
 
         if (viewMode === "projects") {
-          const { runOpenTUILiveProjects } = await import(
-            "./tui/live-opentui.js"
-          );
+          const { runOpenTUILiveProjects } =
+            await import("./tui/live-opentui.js");
           try {
             await runOpenTUILiveProjects(config, statusOptions);
             return;
@@ -1150,10 +1190,10 @@ function getCompletedSectionContent(d: StatusData): string {
   );
 }
 
-/** One-line footer for dashboard: active workers (doing), agent count, sub-agent runs, total agent hours. */
+/** One-line footer for dashboard: active workers (doing), defined agent/sub-agent counts, invocations, total agent hours. */
 export function getDashboardFooterLine(d: StatusData): string {
   const activeWorkers = d.statusCounts.doing ?? 0;
-  return `Active workers: ${activeWorkers}  Types of Agents: ${d.agentCount}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
+  return `Active workers: ${activeWorkers}  Agents (defined): ${d.agentCount}  Sub-agents (defined): ${d.subAgentTypesDefined}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
 }
 
 const NARROW_PLAN_WIDTH = 50;
@@ -1857,6 +1897,7 @@ function printJsonStatus(d: StatusData): void {
         last7CompletedPlans: d.last7CompletedPlans,
         activeWork: d.activeWork,
         agentCount: d.agentCount,
+        subAgentTypesDefined: d.subAgentTypesDefined,
         subAgentRuns: d.subAgentRuns,
         totalAgentHours: d.totalAgentHours,
         summary: {

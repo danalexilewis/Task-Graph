@@ -87,6 +87,21 @@ No skill ⇒ no lead ⇒ generalPurpose path.
 1. **User invokes a skill** (e.g. `/plan`, `/work`, `/investigate`) → skill runs → skill creates a **lead** → lead **dispatches workers** → lead synthesizes and reports.
 2. **User asks without a skill** → **generalPurpose**: orchestrator handles via direct dispatch or direct execution, no lead.
 
+## Skill to lead to worker flow
+
+When a skill is invoked, the orchestrator runs the skill; the skill implements a **lead** pattern that dispatches one or more **workers** and then synthesizes their results. Per-skill decision trees live in `.cursor/skills/`; the generic flow is:
+
+```mermaid
+flowchart LR
+  A["User input"] --> B["skill (trigger)"]
+  B --> C["lead"]
+  C --> D["dispatch worker(s)"]
+  D --> E["worker runs"]
+  E --> F["result"]
+  F --> G["lead synthesizes"]
+  G --> H["orchestrator"]
+```
+
 ## File Layout
 
 | Location                 | Purpose                                                                                           |

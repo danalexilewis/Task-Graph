@@ -584,6 +584,13 @@ The terminal file is the **shared medium** between the Shell tool (producer) and
 - Any external server startup where you need to wait for a "ready" signal
 - `dolt sql-server` background launch + readiness probe
 
+**When NOT to use (do not sleep or poll):**
+
+- **Short CLI commands** — `tg import`, `tg plan create`, `tg start`, `tg done`, `tg status`, `tg next`, `tg context`, and any other `tg` or quick CLI call. These complete in seconds. Run them with normal `block_until_ms` or no special timeout; they return when done. Do not run a 20s/25s sleep or terminal-file polling for these. **The task graph (hive) is the source of truth:** once `tg start` returns, the DB already has the task as doing and the started event has `worktree_path`; there is no need to "poll for completion" — completion is the shell return (or, if you had backgrounded starts, query the hive e.g. `tg status --tasks --json` and `tg worktree list --json`, not the terminal file).
+- **Single quick DB operations** — Creating a plan, inserting a row, or running a fast query. The command finishes; wait for the shell tool result. No polling.
+
+If you find yourself adding a long sleep (e.g. 15–60s) before or after a `tg import` or "create plan" / DB write, you are misapplying this pattern. Short ops are synchronous from the agent's perspective — no sleep needed.
+
 **Summary:** Terminal file = async message queue between shell execution and read tool calls. The `exit_code` footer is the completion signal. Always poll; never chain sleep+tail in one command.
 
 | What                                    | Where                                 |

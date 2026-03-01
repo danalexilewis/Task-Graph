@@ -17,52 +17,52 @@ All UUIDs (e.g., `plan_id`, `task_id`) are stored as `CHAR(36)`. Enumerated type
 
 Represents a high-level project (formerly the `plan` table), which can contain multiple tasks. Corresponds to a Cursor Plan document on disk; import creates or updates a **project** row. Each project belongs to one initiative (default: **Unassigned**).
 
-| Column           | Type           | Constraints                         | Description                                                                                                                                                                                                                                                                                                                                           |
-| ---------------- | -------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `plan_id`        | `CHAR(36)`     | `PRIMARY KEY`                       | Unique identifier for the project (column name retained from plan for compatibility)                                                                                                                                                                                                                                                                   |
-| `title`          | `VARCHAR(255)` | `NOT NULL`                          | Title of the project                                                                                                                                                                                                                                                                                                                                  |
-| `intent`         | `TEXT`         | `NOT NULL`                          | Detailed intent or goal of the project                                                                                                                                                                                                                                                                                                                |
-| `status`        | `ENUM`         | `DEFAULT 'draft'`                   | Current status (values: see [ENUM reference](#enum-reference) below). **Semantics:** When any task in the project is `doing` or `done`, the project should be `active`, not `draft`. The CLI transitions `draft` → `active` on the first `tg start` for a task in that project, and on import when the project has any task already in doing/done. |
-| `priority`       | `INT`          | `DEFAULT 0`                         | Priority level of the project                                                                                                                                                                                                                                                                                                                          |
-| `source_path`    | `VARCHAR(512)` | `NULL`                              | Path to the source Cursor Plan document (e.g., `plans/feature-x.md`)                                                                                                                                                                                                                                                                                   |
-| `source_commit`  | `VARCHAR(64)`  | `NULL`                              | Git commit hash of the source document                                                                                                                                                                                                                                                                                                                 |
-| `created_at`     | `DATETIME`     | `NOT NULL`                          | Timestamp when the project was created                                                                                                                                                                                                                                                                                                                  |
-| `updated_at`     | `DATETIME`     | `NOT NULL`                          | Timestamp when the project was last updated                                                                                                                                                                                                                                                                                                             |
-| `file_tree`      | `TEXT`         | `NULL`                              | Tree of files affected (rich planning)                                                                                                                                                                                                                                                                                                                  |
-| `risks`          | `JSON`         | `NULL`                              | Array of `{description, severity, mitigation}` (rich planning)                                                                                                                                                                                                                                                                                          |
-| `tests`          | `JSON`         | `NULL`                              | Array of test descriptions to create (rich planning)                                                                                                                                                                                                                                                                                                    |
-| `hash_id`        | `VARCHAR(20)`  | `NULL`                              | Short identifier; basis for the plan branch name (`plan-<hash_id>`). Format: `p-XXXXXX` (6 hex chars).                                                                                                                                                                                                                                                   |
-| `initiative_id`  | `CHAR(36)`     | `NOT NULL`, `FK -> initiative.initiative_id` | Initiative this project belongs to. Default: **Unassigned** (fixed UUID created by migration).                                                                                                                                                                                                                                                          |
-| `overview`       | `TEXT`         | `NULL`                              | Brief description of the project (e.g. from plan frontmatter `overview`)                                                                                                                                                                                                                                                                                 |
-| `objectives`     | `JSON`         | `NULL`                              | Optional list of objectives for the project                                                                                                                                                                                                                                                                                                               |
-| `outcomes`       | `JSON`         | `NULL`                              | Optional list of outcomes for the project                                                                                                                                                                                                                                                                                                                |
-| `outputs`        | `JSON`         | `NULL`                              | Optional list of outputs for the project                                                                                                                                                                                                                                                                                                                 |
+| Column          | Type           | Constraints                                  | Description                                                                                                                                                                                                                                                                                                                                        |
+| --------------- | -------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plan_id`       | `CHAR(36)`     | `PRIMARY KEY`                                | Unique identifier for the project (column name retained from plan for compatibility)                                                                                                                                                                                                                                                               |
+| `title`         | `VARCHAR(255)` | `NOT NULL`                                   | Title of the project                                                                                                                                                                                                                                                                                                                               |
+| `intent`        | `TEXT`         | `NOT NULL`                                   | Detailed intent or goal of the project                                                                                                                                                                                                                                                                                                             |
+| `status`        | `ENUM`         | `DEFAULT 'draft'`                            | Current status (values: see [ENUM reference](#enum-reference) below). **Semantics:** When any task in the project is `doing` or `done`, the project should be `active`, not `draft`. The CLI transitions `draft` → `active` on the first `tg start` for a task in that project, and on import when the project has any task already in doing/done. |
+| `priority`      | `INT`          | `DEFAULT 0`                                  | Priority level of the project                                                                                                                                                                                                                                                                                                                      |
+| `source_path`   | `VARCHAR(512)` | `NULL`                                       | Path to the source Cursor Plan document (e.g., `plans/feature-x.md`)                                                                                                                                                                                                                                                                               |
+| `source_commit` | `VARCHAR(64)`  | `NULL`                                       | Git commit hash of the source document                                                                                                                                                                                                                                                                                                             |
+| `created_at`    | `DATETIME`     | `NOT NULL`                                   | Timestamp when the project was created                                                                                                                                                                                                                                                                                                             |
+| `updated_at`    | `DATETIME`     | `NOT NULL`                                   | Timestamp when the project was last updated                                                                                                                                                                                                                                                                                                        |
+| `file_tree`     | `TEXT`         | `NULL`                                       | Tree of files affected (rich planning)                                                                                                                                                                                                                                                                                                             |
+| `risks`         | `JSON`         | `NULL`                                       | Array of `{description, severity, mitigation}` (rich planning)                                                                                                                                                                                                                                                                                     |
+| `tests`         | `JSON`         | `NULL`                                       | Array of test descriptions to create (rich planning)                                                                                                                                                                                                                                                                                               |
+| `hash_id`       | `VARCHAR(20)`  | `NULL`                                       | Short identifier; basis for the plan branch name (`plan-<hash_id>`). Format: `p-XXXXXX` (6 hex chars).                                                                                                                                                                                                                                             |
+| `initiative_id` | `CHAR(36)`     | `NOT NULL`, `FK -> initiative.initiative_id` | Initiative this project belongs to. Default: **Unassigned** (fixed UUID created by migration).                                                                                                                                                                                                                                                     |
+| `overview`      | `TEXT`         | `NULL`                                       | Brief description of the project (e.g. from plan frontmatter `overview`)                                                                                                                                                                                                                                                                           |
+| `objectives`    | `JSON`         | `NULL`                                       | Optional list of objectives for the project                                                                                                                                                                                                                                                                                                        |
+| `outcomes`      | `JSON`         | `NULL`                                       | Optional list of outcomes for the project                                                                                                                                                                                                                                                                                                          |
+| `outputs`       | `JSON`         | `NULL`                                       | Optional list of outputs for the project                                                                                                                                                                                                                                                                                                           |
 
 ## Table: `task`
 
 Represents an individual task within a plan, which can have dependencies and events.
 
-| Column              | Type           | Constraints                      | Description                                                                      |
-| ------------------- | -------------- | -------------------------------- | -------------------------------------------------------------------------------- |
-| `task_id`           | `CHAR(36)`     | `PRIMARY KEY`                    | Unique identifier for the task                                                   |
-| `hash_id`           | `VARCHAR(10)`  | `NULL`, `UNIQUE`                 | Short form for CLI (e.g., `tg-XXXXXX`)                                           |
+| Column              | Type           | Constraints                         | Description                                                                      |
+| ------------------- | -------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| `task_id`           | `CHAR(36)`     | `PRIMARY KEY`                       | Unique identifier for the task                                                   |
+| `hash_id`           | `VARCHAR(10)`  | `NULL`, `UNIQUE`                    | Short form for CLI (e.g., `tg-XXXXXX`)                                           |
 | `plan_id`           | `CHAR(36)`     | `NOT NULL`, `FK -> project.plan_id` | Foreign key to the parent project (column name retained from plan)               |
-| `feature_key`       | `VARCHAR(64)`  | `NULL`                           | Key for portfolio analysis (e.g., `auth`, `billing`)                             |
-| `title`             | `VARCHAR(255)` | `NOT NULL`                       | Title of the task                                                                |
-| `intent`            | `TEXT`         | `NULL`                           | Detailed intent or goal of the task                                              |
-| `scope_in`          | `TEXT`         | `NULL`                           | In-scope considerations for the task                                             |
-| `scope_out`         | `TEXT`         | `NULL`                           | Out-of-scope considerations for the task                                         |
-| `acceptance`        | `JSON`         | `NULL`                           | Array of acceptance criteria checks                                              |
-| `status`            | `ENUM`         | `DEFAULT 'todo'`                 | Current status of the task (values: see [ENUM reference](#enum-reference) below) |
-| `owner`             | `ENUM`         | `DEFAULT 'agent'`                | Who is responsible for the task (`human`, `agent`)                               |
-| `area`              | `VARCHAR(64)`  | `NULL`                           | Functional area (e.g., `frontend`, `backend`, `db`)                              |
-| `risk`              | `ENUM`         | `DEFAULT 'low'`                  | Risk level (`low`, `medium`, `high`)                                             |
-| `estimate_mins`     | `INT`          | `NULL`                           | Estimated time to complete in minutes                                            |
-| `created_at`        | `DATETIME`     | `NOT NULL`                       | Timestamp when the task was created                                              |
-| `updated_at`        | `DATETIME`     | `NOT NULL`                       | Timestamp when the task was last updated                                         |
-| `external_key`      | `VARCHAR(128)` | `NULL`, `UNIQUE`                 | Stable key for markdown import                                                   |
-| `change_type`       | `ENUM`         | `NULL`                           | How to approach the work (values: see [ENUM reference](#enum-reference) below)   |
-| `suggested_changes` | `TEXT`         | `NULL`                           | Proposed code snippets as starting point (rich planning)                         |
+| `feature_key`       | `VARCHAR(64)`  | `NULL`                              | Key for portfolio analysis (e.g., `auth`, `billing`)                             |
+| `title`             | `VARCHAR(255)` | `NOT NULL`                          | Title of the task                                                                |
+| `intent`            | `TEXT`         | `NULL`                              | Detailed intent or goal of the task                                              |
+| `scope_in`          | `TEXT`         | `NULL`                              | In-scope considerations for the task                                             |
+| `scope_out`         | `TEXT`         | `NULL`                              | Out-of-scope considerations for the task                                         |
+| `acceptance`        | `JSON`         | `NULL`                              | Array of acceptance criteria checks                                              |
+| `status`            | `ENUM`         | `DEFAULT 'todo'`                    | Current status of the task (values: see [ENUM reference](#enum-reference) below) |
+| `owner`             | `ENUM`         | `DEFAULT 'agent'`                   | Who is responsible for the task (`human`, `agent`)                               |
+| `area`              | `VARCHAR(64)`  | `NULL`                              | Functional area (e.g., `frontend`, `backend`, `db`)                              |
+| `risk`              | `ENUM`         | `DEFAULT 'low'`                     | Risk level (`low`, `medium`, `high`)                                             |
+| `estimate_mins`     | `INT`          | `NULL`                              | Estimated time to complete in minutes                                            |
+| `created_at`        | `DATETIME`     | `NOT NULL`                          | Timestamp when the task was created                                              |
+| `updated_at`        | `DATETIME`     | `NOT NULL`                          | Timestamp when the task was last updated                                         |
+| `external_key`      | `VARCHAR(128)` | `NULL`, `UNIQUE`                    | Stable key for markdown import                                                   |
+| `change_type`       | `ENUM`         | `NULL`                              | How to approach the work (values: see [ENUM reference](#enum-reference) below)   |
+| `suggested_changes` | `TEXT`         | `NULL`                              | Proposed code snippets as starting point (rich planning)                         |
 
 A task may have multiple domains and skills, stored in junction tables below.
 
@@ -115,18 +115,18 @@ An append-only log of operational events related to tasks, providing historical 
 
 Optional but high-leverage table for recording key decisions made during development.
 
-| Column         | Type           | Constraints                      | Description                                         |
-| -------------- | -------------- | -------------------------------- | --------------------------------------------------- |
-| `decision_id`  | `CHAR(36)`     | `PRIMARY KEY`                    | Unique identifier for the decision                  |
-| `plan_id`      | `CHAR(36)`     | `NOT NULL`, `FK -> project.plan_id` | Foreign key to the associated project             |
-| `task_id`      | `CHAR(36)`     | `NULL`, `FK -> task.task_id`     | Optional foreign key to the associated task         |
-| `summary`      | `VARCHAR(255)` | `NOT NULL`                       | Brief summary of the decision                       |
-| `context`      | `TEXT`         | `NOT NULL`                       | Context or background leading to the decision       |
-| `options`      | `JSON`         | `NULL`                           | JSON array of options considered                    |
-| `decision`     | `TEXT`         | `NOT NULL`                       | The decision that was made                          |
-| `consequences` | `TEXT`         | `NULL`                           | Anticipated consequences of the decision            |
-| `source_ref`   | `VARCHAR(512)` | `NULL`                           | Reference to external documentation (e.g., PR link) |
-| `created_at`   | `DATETIME`     | `NOT NULL`                       | Timestamp when the decision was recorded            |
+| Column         | Type           | Constraints                         | Description                                         |
+| -------------- | -------------- | ----------------------------------- | --------------------------------------------------- |
+| `decision_id`  | `CHAR(36)`     | `PRIMARY KEY`                       | Unique identifier for the decision                  |
+| `plan_id`      | `CHAR(36)`     | `NOT NULL`, `FK -> project.plan_id` | Foreign key to the associated project               |
+| `task_id`      | `CHAR(36)`     | `NULL`, `FK -> task.task_id`        | Optional foreign key to the associated task         |
+| `summary`      | `VARCHAR(255)` | `NOT NULL`                          | Brief summary of the decision                       |
+| `context`      | `TEXT`         | `NOT NULL`                          | Context or background leading to the decision       |
+| `options`      | `JSON`         | `NULL`                              | JSON array of options considered                    |
+| `decision`     | `TEXT`         | `NOT NULL`                          | The decision that was made                          |
+| `consequences` | `TEXT`         | `NULL`                              | Anticipated consequences of the decision            |
+| `source_ref`   | `VARCHAR(512)` | `NULL`                              | Reference to external documentation (e.g., PR link) |
+| `created_at`   | `DATETIME`     | `NOT NULL`                          | Timestamp when the decision was recorded            |
 
 ## Table: `gate`
 
@@ -179,12 +179,12 @@ A strategic goal or theme bounded by a cycle, grouping one or more projects. Opt
 
 Tracks the per-project git worktree created by `tg start --worktree` when the project has a `hash_id`. One row per project. The plan branch (`plan-<hash_id>`) is the merge target for all task worktrees belonging to that project. The plan worktree is never removed by `tg done`; it accumulates merged task work until the project is complete.
 
-| Column            | Type           | Constraints                              | Description                                                   |
-| ----------------- | -------------- | ---------------------------------------- | ------------------------------------------------------------- |
-| `plan_id`         | `CHAR(36)`     | `PRIMARY KEY`, `FK -> project.plan_id`   | Project this worktree belongs to                             |
-| `worktree_path`   | `VARCHAR(512)` | `NOT NULL`                          | Absolute path to the plan worktree directory                 |
-| `worktree_branch` | `VARCHAR(128)` | `NOT NULL`                          | Git branch name for the plan worktree (e.g. `plan-p-a1b2c3`) |
-| `created_at`      | `DATETIME`     | `NOT NULL`                          | Timestamp when the plan worktree was created                 |
+| Column            | Type           | Constraints                            | Description                                                  |
+| ----------------- | -------------- | -------------------------------------- | ------------------------------------------------------------ |
+| `plan_id`         | `CHAR(36)`     | `PRIMARY KEY`, `FK -> project.plan_id` | Project this worktree belongs to                             |
+| `worktree_path`   | `VARCHAR(512)` | `NOT NULL`                             | Absolute path to the plan worktree directory                 |
+| `worktree_branch` | `VARCHAR(128)` | `NOT NULL`                             | Git branch name for the plan worktree (e.g. `plan-p-a1b2c3`) |
+| `created_at`      | `DATETIME`     | `NOT NULL`                             | Timestamp when the plan worktree was created                 |
 
 ## Invariants
 
@@ -202,8 +202,45 @@ The following business logic invariants are enforced by the application to maint
 - **Dolt JSON columns**: `event.body` may be returned as object or string by doltSql depending on driver. Handle both: `typeof raw === 'string' ? JSON.parse(raw) : raw`.
 - **DAL writable**: All Dolt invocations use `--data-dir <repoPath>` and `DOLT_READ_ONLY=false` in env so Dolt treats the session as writable when the repo allows it.
 - **Plan → project table**: After the schema migration renames `plan` to `project`, all application code must query/insert/update the `project` table (not `plan`). The view `plan` exists for backward compatibility. PROTECTED_TABLES includes both `plan` (view) and `project`.
-- **Migration sentinel tracks function names only**: The fast-path sentinel (`.taskgraph/.tg-migration-version`) is keyed by a SHA1 of the `MIGRATION_CHAIN` function names. Adding or reordering a migration invalidates it correctly. **However**, editing the *body* of an existing migration without changing its name will NOT invalidate the sentinel — the re-run is silently skipped. The sentinel model assumes all migrations are idempotent. If you must patch a migration body, either add a new migration (preferred) or delete the sentinel file (`rm .taskgraph/.tg-migration-version`) to force a full re-probe.
+- **Migration sentinel tracks function names only**: The fast-path sentinel (`.taskgraph/.tg-migration-version`) is keyed by a SHA1 of the `MIGRATION_CHAIN` function names. Adding or reordering a migration invalidates it correctly. **However**, editing the _body_ of an existing migration without changing its name will NOT invalidate the sentinel — the re-run is silently skipped. The sentinel model assumes all migrations are idempotent. If you must patch a migration body, either add a new migration (preferred) or delete the sentinel file (`rm .taskgraph/.tg-migration-version`) to force a full re-probe.
 - **Batched migration probe**: When the sentinel is stale, `ensureMigrations` runs a single batched SQL query (plus one optional query for `_taskgraph_migrations`) to determine all table/column/view/trigger/index existence bits, then passes that `MigrationProbeResult` into each migration. Migrations use the probe when provided to avoid N round-trips; callers that run migrations outside `ensureMigrations` (e.g. tests) still use the existing `tableExists`/`columnExists` helpers.
+
+## Task and project state machine
+
+Task and project status values and allowed transitions are summarized below. See [ENUM reference](#enum-reference) for the full value lists and [glossary](glossary.md) for execution terms (wave, blocked, evidence).
+
+**Task states:** `todo`, `doing`, `blocked`, `done`, `canceled`. Transitions: `tg start` (todo → doing), `tg done` (doing → done), `tg block` (todo/doing → blocked), unblock when all blockers are done/canceled (blocked → todo), `tg cancel` (todo/doing/blocked → canceled).
+
+**Project states:** `draft`, `active`, `paused`, `done`, `abandoned`. The project becomes **active** (no longer draft) when any task is first started or when the project is imported with tasks already in doing/done.
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> todo
+  todo --> doing: start
+  doing --> done: done
+  todo --> blocked: block
+  doing --> blocked: block
+  blocked --> todo: unblock
+  todo --> canceled: cancel
+  doing --> canceled: cancel
+  blocked --> canceled: cancel
+  done --> [*]
+  canceled --> [*]
+```
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> draft
+  draft --> active: first tg start or import with doing/done
+  active --> paused: (optional)
+  paused --> active: (optional)
+  active --> done: (optional)
+  active --> abandoned: tg cancel project
+  done --> [*]
+  abandoned --> [*]
+```
 
 ## ENUM reference
 
@@ -212,16 +249,16 @@ Columns whose Type is `ENUM` in the tables above have the following value lists 
 | Table.Column        | Values                                                                             |
 | ------------------- | ---------------------------------------------------------------------------------- |
 | `project.status`    | draft, active, paused, done, abandoned                                             |
-| `task.status`      | todo, doing, blocked, done, canceled                                               |
-| `task.owner`       | human, agent                                                                       |
-| `task.risk`        | low, medium, high                                                                  |
-| `task.change_type` | create, modify, refactor, fix, investigate, test, document                         |
-| `edge.type`        | blocks, relates                                                                    |
-| `event.kind`       | created, started, progress, blocked, unblocked, done, split, decision_needed, note |
-| `event.actor`      | human, agent                                                                       |
-| `gate.gate_type`     | human, ci, webhook                                                                 |
-| `gate.status`        | pending, resolved, expired                                                          |
-| `initiative.status`  | draft, active, paused, done, abandoned                                              |
+| `task.status`       | todo, doing, blocked, done, canceled                                               |
+| `task.owner`        | human, agent                                                                       |
+| `task.risk`         | low, medium, high                                                                  |
+| `task.change_type`  | create, modify, refactor, fix, investigate, test, document                         |
+| `edge.type`         | blocks, relates                                                                    |
+| `event.kind`        | created, started, progress, blocked, unblocked, done, split, decision_needed, note |
+| `event.actor`       | human, agent                                                                       |
+| `gate.gate_type`    | human, ci, webhook                                                                 |
+| `gate.status`       | pending, resolved, expired                                                         |
+| `initiative.status` | draft, active, paused, done, abandoned                                             |
 
 ## Related projects
 

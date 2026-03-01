@@ -96,7 +96,7 @@ while true:
   5. Emit all Task/mcp_task calls for this batch in the same turn (batch-in-one-turn).
   6. for each task in batch:
        a. context = tg context <taskId> --json
-       b. Pre-start: run tg start <taskId> --agent <name> --worktree from repo root. When all starts in the batch have completed, run tg worktree list --json once and match each task to its entry (branch tg/<taskId> or tg-<hash_id>); inject {{WORKTREE_PATH}} per task. On the first tg start --worktree for a plan, capture plan_branch and store in the plan_id map; inject {{PLAN_BRANCH}}. Optionally after obtaining each worktree path: touch <worktree_path>/.tg-dispatch-marker for overseer staleness detection.
+       b. Pre-start: run tg start <taskId> --agent <name> --worktree from repo root **synchronously** (wait for each shell result — they complete in seconds). **Do not poll for completion.** The task graph (hive) is the source of truth: once `tg start` returns, the DB has the task as doing and the started event has worktree_path. When all N start commands have returned, run tg worktree list --json once and match each task to its entry (branch tg/<taskId> or tg-<hash_id>); inject {{WORKTREE_PATH}} per task. On the first tg start --worktree for a plan, capture plan_branch and store in the plan_id map; inject {{PLAN_BRANCH}}. Optionally after obtaining each worktree path: touch <worktree_path>/.tg-dispatch-marker for overseer staleness detection.
        c. build implementer prompt from .cursor/agents/implementer.md + context + {{WORKTREE_PATH}} + {{PLAN_BRANCH}}. When `doc_inline_budget` in `.taskgraph/config.json` is set (positive), inline doc content per subagent-dispatch.mdc (fill agent-field-guide, then doc_paths, then skill_docs within budget).
        d. dispatch sub-agent (Task tool or mcp_task, model=fast)
   7. wait for all sub-agents to complete
@@ -151,7 +151,7 @@ Implementers run with a soft 10-minute budget (set `block_until_ms: 600000` when
 1. Read the terminal file for that agent (last 60 lines). Terminal files are at `~/.cursor/projects/<project>/terminals/<id>.txt`; the PID is in the file header (`pid:` field).
 2. Evaluate stall heuristics — any one is sufficient to declare stall:
    - a. 5+ consecutive reads of the same file path with no intervening file write between them
-   - b. 3+ consecutive `sleep` or `wait` calls with no other tool call between them
+   - b. 2+ consecutive `sleep` or `wait` calls with no other tool call between them (terminal-file polling sleeps interleave with file reads and are NOT stalls). **Exception:** Sleeping after a short CLI/DB op (e.g. `tg import`, create plan, `tg start`, `tg done`) is a misapplication — those commands finish in seconds; sleeping 15–60s for them is a stall (see docs/agent-field-guide.md § When NOT to use).
    - c. Same error message repeated 3+ times without a different tool call between repeats
 3. **If stall confirmed:** kill the agent:
    ```bash

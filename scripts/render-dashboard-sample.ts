@@ -86,6 +86,10 @@ const mockData: StatusData = {
     end_date: "2026-03-14",
     initiative_count: 2,
   },
+  agentCount: 13,
+  subAgentTypesDefined: 16,
+  subAgentRuns: 42,
+  totalAgentHours: 12,
 };
 
 const width = 100;

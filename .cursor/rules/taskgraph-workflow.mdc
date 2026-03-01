@@ -18,6 +18,7 @@ alwaysApply: true
 - **Recommendation:** After making changes, run `pnpm gate` (or `bash scripts/cheap-gate.sh`) to validate before committing.
 - **Long-running commands (gate:full, builds):** If a shell command exceeds `block_until_ms` and backgrounds, use the **terminal-file polling pattern** — incremental sleep + tail on the terminal file until the `exit_code:` footer appears. Never chain `sleep N && tail` in one shell call. Full pattern: `docs/agent-field-guide.md § Shell / Long-Running Commands`.
   > **Note:** Terminal-file polling is for backgrounded **shell commands** only (e.g. `gate:full` or long CLI commands sent with `block_until_ms: 0`). **Task tool sub-agent calls are synchronous** — they block until the sub-agent returns and deliver results directly to the orchestrator. Never use `sleep && cat` to monitor Task tool sub-agents.
+- **Start commands and the hive:** Do not poll for completion of `tg start` (or other short tg CLI) commands. Run them synchronously and wait for the shell result; they complete in seconds. The **task graph is the source of truth** — once `tg start` returns, the DB has the task as doing and the started event has `worktree_path`. Get worktree paths from `tg worktree list --json` after the starts return, not by polling the terminal.
 
 ## Orientation
 
@@ -96,3 +97,10 @@ Run `pnpm tg status --tasks` after cleanup to verify.
 
 - `pnpm tg block <taskId> --on <blockerId> --reason "..."`
 - If blocker does not exist: create a new task with owner=human, then block on it.
+
+## Never sleep — check in instead
+
+Agents (orchestrator and sub-agents) must never sleep to wait for a state change or process output.
+
+- **Sub-agents (implementer, reviewer, etc.):** Sleeping to wait is a STUCK signal. Log `tg note <taskId> --msg 'STUCK: ...'`, return VERDICT: FAIL, and let the orchestrator reassign via the watchdog/escalation ladder. The only valid sleeps are (1) terminal-file polling (sleep alternates with file reads for a backgrounded shell command) and (2) a single kill-sequence pause (SIGTERM → sleep → SIGKILL).
+- **Orchestrator (this session):** Never sleep or poll. If you find yourself waiting for something that hasn't happened yet — stop and ask the user what to do next. Sleeping in the orchestrator produces no value; the user is the right escalation path.

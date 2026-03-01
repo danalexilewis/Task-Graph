@@ -140,7 +140,7 @@ Before touching files, emit a **mid-work heartbeat** listing the files you plan 
 - Do not refactor while fixing bugs (fix the bug only)
 - Do not write or edit documentation files (README, CHANGELOG, docs/) — note for orchestrator instead
 - Do not re-read the same terminal path more than 5 times in a row without making a file change between reads.
-- Do not call sleep or wait for a process to change state more than 3 times in a row without other progress.
+- Never sleep or wait to poll for a state change. The ONLY valid sleep uses are (1) between reads of a backgrounded shell command's terminal file (terminal-file polling — sleep alternates with file reads), and (2) a single kill-sequence pause (SIGTERM → sleep → SIGKILL). **Short CLI/DB ops** (e.g. `tg import`, `tg plan create`, `tg start`, `tg done`, `tg status`, `tg next`, `tg context`) complete in seconds — do not sleep or poll for them; wait for the shell result. Any other sleep means you are stuck: immediately run `(cd {{REPO_PATH}} && pnpm tg note {{TASK_ID}} --msg 'STUCK: waiting for <X>' --agent {{AGENT_NAME}})`, then `pnpm tg done {{TASK_ID}} --evidence 'STUCK: ...'` and return VERDICT: FAIL / REASON: stuck-loop (sleep-wait).
 
 **Step 4 — Complete the task**
 When using a worktree, the commit in Step 3 must have happened before `tg done`, so that `tg done --merge` (when the orchestrator uses it) has a commit to squash.
@@ -166,3 +166,6 @@ If you cannot complete (blocked, unfixable gate/env issue): use the structured f
 ## Learnings
 
 **Shared learnings:** All cross-cutting learnings live in [.cursor/agent-utility-belt.md](../agent-utility-belt.md). The orchestrator injects that content (or a subset) as `{{LEARNINGS}}` when building the prompt. Do not duplicate the utility belt here.
+
+- **[2026-03-01]** Integration tests that insert into project/task/event used raw `doltSql()` with unescaped string interpolation. In integration tests, use `query(repoPath).insert()` / `.select()` for single-table setup and state checks; if using `doltSql()` directly, pass all test-derived values through `sqlEscape()`.
+- **[2026-03-01]** CLI action called `readConfig()` twice (once for a pre-step, once for the main chain). In CLI command actions, call `readConfig()` once and pass the resulting config (e.g. `doltRepoPath`) into all steps that need it; do not call `readConfig()` again in the same action.
