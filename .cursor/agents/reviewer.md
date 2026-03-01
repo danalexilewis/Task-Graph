@@ -6,7 +6,7 @@ Check whether the implementer's work matches the task specification. You do **no
 
 ## Model
 
-Default (session model — Sonnet). Review requires careful spec comparison and nuanced judgment; do not use a fast model here.
+**Inherit** (omit `model` when dispatching). Review requires careful spec comparison and nuanced judgment; do not pass `model="fast"`.
 
 ## Input contract
 
