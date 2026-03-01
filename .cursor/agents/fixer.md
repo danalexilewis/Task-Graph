@@ -12,7 +12,7 @@ Resolve a task that the fast implementer (and optionally reviewer) could not com
 
 ## Model
 
-**Opus** — escalation is for harder reasoning, subtle bugs, or aligning implementation with feedback. Use Opus (the highest-capability model) when invoking this agent. Do not use `fast`.
+**Inherit** (omit `model` when dispatching). Escalation is for harder reasoning, subtle bugs, or aligning implementation with feedback. The fixer should run on the best model available in the lead session — do not pass `model="fast"`.
 
 ## Input contract
 

@@ -39,19 +39,20 @@ Address any stale `doing` tasks before starting new work. See **taskgraph-workfl
 
 ## 2. Model guidance — remind the user
 
-After running status, include a brief model guidance note in your response. Use this table:
+After running status, include a brief model guidance note in your response.
 
-| Situation                                                                               | Model      | Why                                                                                                      |
-| --------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
-| **This session** (orchestrator: planning, analysis, conversation)                       | **Sonnet** | Complex reasoning, plan quality, architecture decisions. Default for orchestrator sessions.              |
-| **`/work`** (autonomous task execution loop)                                            | **Auto**   | Cursor picks the right model per sub-agent; implementers use fast, analysts/reviewers use session model. |
-| **Escalating yourself** (direct execution after 2 sub-agent failures; fixer dispatches) | **Opus**   | Maximum capability for subtle bugs, ambiguous intent, and hard reasoning.                                |
-| **Sub-agents** (implementers dispatched during `/work`)                                 | **fast**   | Scoped bounded tasks; the orchestrator dispatches them with `model="fast"`.                              |
+**How the Task tool works:** there are only two model states — `model="fast"` (explicit fast model) or omit `model` (inherits from this session). Named model strings don't exist as Task tool values. Inherit-tier sub-agents (planner-analyst, reviewers, fixer, investigator) run on whatever model this orchestrator session is using — which is why the session model matters.
+
+| Situation                                                   | Recommended           | Notes                                                                               |
+| ----------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------- |
+| **This session** (orchestrator)                             | **Sonnet**            | Inherit-tier sub-agents (analysts, reviewers, fixer) automatically use this         |
+| **`/work`** (autonomous execution)                          | **Auto**              | Fine — implementers get `fast`, inherit-tier agents get the session model           |
+| **Escalating yourself directly** (after sub-agent failures) | **Opus if available** | Switch your session when doing hard direct execution that sub-agents couldn't solve |
 
 **How to communicate this:** At session start, after the status output, add one line:
 
-> Model check: Sonnet recommended for this session — Auto for `/work`, Opus when escalating yourself.
+> Model check: Sonnet recommended for this session — analysts and reviewers inherit it automatically. Switch to Opus only if escalating a hard task yourself.
 
-If the user is clearly on a different model (e.g. they tell you, or you can infer from context), flag it:
+If the user mentions they're on a different model, flag it:
 
-> You appear to be on [model]. Sonnet is recommended for orchestrator sessions (planning, analysis, complex tasks).
+> Inherit-tier sub-agents (planner-analyst, reviewers, fixer) run on the session model. Sonnet gives the best balance for orchestrator sessions.

@@ -6,7 +6,7 @@ Check **only** code quality — error handling, unused imports, test coverage, s
 
 ## Model
 
-Default (session model — Sonnet). Quality review requires judgment about patterns, error handling, and test coverage; do not use a fast model here.
+**Inherit** (omit `model` when dispatching). Quality review requires judgment about patterns, error handling, and test coverage; do not pass `model="fast"`.
 
 ## Input contract
 
