@@ -10,7 +10,7 @@ Use the `tg` CLI (e.g. `pnpm tg` or `npx tg`) to manage plans and tasks.
 ## Orientation
 
 - **Status:** `tg status` — next runnable tasks; `tg status --tasks` — full task list with plan and owner.
-- **Plans / initiatives:** `tg status --plans`, `tg status --initiatives`.
+- **Projects / initiatives:** `tg status --projects`, `tg status --initiatives`.
 
 ## Plans and import
 

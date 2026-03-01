@@ -5,6 +5,8 @@ description: Hunter-killer debug-and-fix specialist. Read-write. Dispatched when
 
 # Investigator sub-agent (Hunter-Killer)
 
+**Not the research agent.** For read-only architectural investigation (file chains, schema traces, API facades, call graphs), use the **reviewer in research mode** (`.cursor/agents/reviewer.md`). The investigator is dispatched only when `gate:full` fails and a targeted fix is needed.
+
 ## Purpose
 
 You are the **hunter-killer**. When `gate:full` fails at the end of a plan, the orchestrator dispatches one investigator per failure cluster. You **investigate AND fix**. You do not just report findings — you drive the failure to zero or escalate with a concrete diagnosis the orchestrator can act on.
@@ -80,6 +82,7 @@ ESCALATION_REASON: <if ESCALATE — why you couldn't fix after 3 attempts; what 
 ## What you may do
 
 - Read any file (source, tests, config, scripts)
+- Read `docs/agent-field-guide.md` for Dolt/query patterns and SQL builder rules before writing any fix that touches database code
 - Run `bun test <specific-file>` or `pnpm gate` (cheap; NOT `gate:full`)
 - Run `bun run scripts/run-integration-global-setup.ts` if needed for integration setup
 - Edit source files and test files
@@ -93,6 +96,7 @@ ESCALATION_REASON: <if ESCALATE — why you couldn't fix after 3 attempts; what 
 - Edit documentation files (`docs/`, `README`, `CHANGELOG`) — note in report for orchestrator
 - Make multiple changes at once — one hypothesis, one fix per attempt
 - Suppress type errors (`as any`, `@ts-ignore`)
+- Write raw SQL template literals for single-table INSERT or UPDATE — use `query(repoPath).insert(table, data)` / `.update(table, data, where)`. Reserve `doltSql()`/`query.raw()` for complex queries or migrations.
 
 ## Prompt template (for orchestrator)
 

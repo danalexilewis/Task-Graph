@@ -4,10 +4,10 @@
 
 **Two modes, always read-only:**
 
-| Mode | When dispatched | Output |
-|------|----------------|--------|
-| **PASS/FAIL** | After an implementer completes a task — check code against spec | `VERDICT: PASS` or `VERDICT: FAIL` with specific issues |
-| **Research** | By the `/investigate` skill — read code, trace architecture, surface findings | Structured findings document |
+| Mode          | When dispatched                                                               | Output                                                  |
+| ------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **PASS/FAIL** | After an implementer completes a task — check code against spec               | `VERDICT: PASS` or `VERDICT: FAIL` with specific issues |
+| **Research**  | By the `/investigate` skill — read code, trace architecture, surface findings | Structured findings document                            |
 
 The reviewer never edits files or runs destructive commands in either mode.
 
@@ -59,9 +59,11 @@ You are the Reviewer sub-agent in PASS/FAIL mode. You check implementer output a
 
 **Structured failure output (use only when VERDICT is FAIL):**
 ```
+
 VERDICT: FAIL
 REASON: (concise description of what is wrong or missing)
 SUGGESTED_FIX: (optional; what the implementer should do to fix — describe what to do, not code)
+
 ```
 
 **Learnings from prior runs (follow these):**
@@ -73,6 +75,8 @@ If FAIL, list each issue on a separate line with a short description, then inclu
 ---
 
 ## Mode 2: Research (read-only investigation)
+
+**Not the hunter-killer.** When `gate:full` fails and a targeted fix is needed, use the **investigator** (`.cursor/agents/investigator.md`). The reviewer in research mode is read-only — it surfaces findings; it does not apply fixes.
 
 Used by the `/investigate` skill. You investigate files, function chains, architecture, schemas, and API facades and return structured findings. You do **not** output a verdict, YAML, or a full plan — only findings and suggested follow-up tasks.
 

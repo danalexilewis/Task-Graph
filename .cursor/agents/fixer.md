@@ -39,15 +39,24 @@ The orchestrator must pass:
 - Run `tg done {{TASK_ID}} --evidence "<evidence>"` with a short evidence string (e.g. "Fixed per reviewer feedback; lint/typecheck pass" or "Resolved blocker X; commands run: ...").
 - If you cannot fix (e.g. external blocker), run `tg note {{TASK_ID}} --msg "..."` and report back so the orchestrator can decide next steps.
 
+## MUST NOT DO
+
+- Do not write raw SQL template literals for single-table INSERT or UPDATE — use `query(repoPath).insert(table, data)` / `.update(table, data, where)`. Reserve `doltSql()` and `query.raw()` for complex queries (multi-join, subquery, complex WHERE) or `migrate.ts` migrations. Do not call `doltSql()` directly in `src/cli/` files.
+- Do not suppress type errors (`as any`, `@ts-ignore`, `@ts-expect-error`)
+- Do not leave empty catch blocks
+- Do not refactor while fixing — address only the failure feedback and task intent; avoid scope creep
+- Do not modify files outside the task's scope
+- Do not write or edit documentation files (README, CHANGELOG, docs/) — note for orchestrator instead
+
 ## Prompt outline
 
 1. **Identity and model** — You are the Fixer sub-agent; use a stronger model. Task was escalated after implementer/review failure.
-2. **Claim** — `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}}` (if task is todo).
-3. **Context** — Task title, intent, change type; doc paths and skill docs to read; suggested changes; file tree.
+2. **Claim and worktree** — When the orchestrator passed **{{WORKTREE_PATH}}**: `cd {{WORKTREE_PATH}}` and run all work and `tg done` from that directory. After implementation, before `tg done`, commit: `git add -A && git commit -m "task(<hash_id>): <description>"`. When **{{WORKTREE_PATH}}** was not passed and task is `todo`: run `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}}` from repo root (no worktree commit needed).
+3. **Context** — Task title, intent, change type; doc paths and skill docs to read; suggested changes; file tree. **Also read `docs/agent-field-guide.md`** before implementation — it contains Dolt/query patterns, SQL builder rules, worktree workflow, and codebase-specific gotchas.
 4. **Why escalation** — Paste `{{FAILURE_REASON}}` or `{{REVIEWER_FEEDBACK}}` and list each issue to fix.
-5. **Current state** — Paste `{{DIFF}}` or `{{GIT_DIFF}}`; identify what to change or add to satisfy the intent and address feedback.
+5. **Current state** — Paste `{{DIFF}}` or `{{GIT_DIFF}}`; identify what to change or add to satisfy the intent and address feedback. Prefer amending existing changes over full rewrites when the diff is close to correct.
 6. **Do the work** — Edit only what is needed to satisfy the task and fix all listed issues. Run lint/typecheck if in scope; do not run full test suite unless the task explicitly asks for it.
-7. **Complete** — `pnpm tg done {{TASK_ID}} --evidence "..."` and brief report to orchestrator.
+7. **Complete** — `pnpm tg done {{TASK_ID}} --evidence "..."` and brief report to orchestrator. Optionally append self-report flags (all optional, omit if unavailable — do not estimate): `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
 
 ## Learnings
 

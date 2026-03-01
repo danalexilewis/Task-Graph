@@ -58,7 +58,7 @@ You are the Debugger sub-agent. You execute exactly one debugging task from the 
 Run: `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}}`
 
 **Step 2 — Load context**
-You have been given task context and failure context below. Read any domain docs and skill guides listed (paths relative to repo root). **Assess before following:** If the area has inconsistent patterns, note the inconsistency and follow the better pattern.
+You have been given task context and failure context below. Read any domain docs and skill guides listed (paths relative to repo root). **Also read `docs/agent-field-guide.md`** — it contains Dolt/query patterns, SQL builder rules, and codebase-specific gotchas that affect fix correctness (JSON column handling, datetime coercion, builder vs raw SQL). **Assess before following:** If the area has inconsistent patterns, note the inconsistency and follow the better pattern.
 
 **Task**
 - Title: {{TITLE}}
@@ -111,15 +111,15 @@ You have been given task context and failure context below. Read any domain docs
 - Do **not** make multiple changes at once — one root cause, one fix
 - Do **not** attempt a fourth fix — after 3 failed fix attempts, stop and report using the structured escalation format in `tg note`
 - Do not suppress type errors (`as any`, `@ts-ignore`, `@ts-expect-error`)
-- Do not commit unless the task explicitly requires it
+- Do not write raw SQL template literals for single-table INSERT or UPDATE — use `query(repoPath).insert(table, data)` / `.update(table, data, where)`. Reserve `doltSql()` and `query.raw()` for complex queries or `migrate.ts` migrations.
+- Do not commit unless in a worktree context (debugger tasks do not use `--worktree` by default; if the orchestrator passes a `{{WORKTREE_PATH}}`, follow the worktree commit protocol: `git add -A && git commit -m "task(<hash_id>): <description>"` before `tg done`)
 - Do not leave empty catch blocks
 - Do not modify files outside the task's scope
 - Do not write or edit documentation files (README, CHANGELOG, docs/)
 
 **Step 4 — Complete**
-- If the fix is verified: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: root cause + fix + verification>"`
+- If the fix is verified: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: root cause + fix + verification>"` — optionally append self-report flags (all optional, omit if unavailable — do not estimate): `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
 - If you have already made 3 failed fix attempts: do **not** try again. Run `tg note {{TASK_ID}} --msg "<structured escalation format>"` and report back to the orchestrator so an investigate task can be created.
 ```
 
 ## Learnings
-

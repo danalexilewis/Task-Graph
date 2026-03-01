@@ -101,11 +101,11 @@ You have been given task context below. Read any domain docs and skill guides li
 - Do not modify source code, tests, or config files (no .ts, .js, .json code changes, etc.)
 - Do not modify files outside the task's scope
 - Do not run tests
-- Do not commit unless the task explicitly requires it
+- Do not commit unless in a worktree context (documenter tasks do not use `--worktree` by default; if the orchestrator passes a `{{WORKTREE_PATH}}`, follow the worktree commit protocol: `git add -A && git commit -m "task(<hash_id>): <description>"` before `tg done`)
 - Do not refactor code while documenting (document only)
 
 **Step 4 — Complete the task**
-Run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: files created/updated, or implemented; no test run>"`
+Run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: files created/updated, or implemented; no test run>"` — optionally append self-report flags (all optional, omit if unavailable — do not estimate): `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
 
 Then report back to the orchestrator: task done and the evidence you used.
 

@@ -265,6 +265,16 @@ Or just always coerce at use-site: `String(r.started_at)`, `Number(r.task_count)
 
 Grep for any SQL that references `project` or `plan` without a guard. If it doesn't have `tableExists`, it's wrong in at least one environment.
 
+### 7. SQL / Type Anti-Patterns (always avoid)
+
+These are checked by the `quality-reviewer` and will cause a FAIL verdict:
+
+1. **Raw SQL template literals for single-table INSERT/UPDATE** — e.g. ``doltSql(`INSERT INTO t VALUES ('${sqlEscape(x)}')`)`` where `query(repoPath).insert(table, data)` or `.update(table, data, where)` would suffice. Reserve `doltSql()` / `query.raw()` for complex multi-join queries and migrations.
+2. **Direct `doltSql()` in `src/cli/` files** — route through `query(repoPath)` from `src/db/query.ts`. Direct `doltSql()` is acceptable only in `src/db/`.
+3. **Non-null assertions (`!` postfix)** on values that could be null at runtime without a preceding guard. Use optional chaining (`?.`) or an explicit null-check.
+4. **`as any` / `as unknown as T` type coercions** that bypass type safety. Use type guards or Zod validation instead.
+5. **Empty catch blocks** — always log or rethrow with context; never swallow errors silently.
+
 ---
 
 ## Codebase-Specific Gotchas
