@@ -16,6 +16,15 @@ All commands that accept `<taskId>` (or similar task ID arguments such as `<from
 - **Full UUID**: e.g., `b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11`
 - **Short hash**: e.g., `tg-XXXXXX` (from the task's `hash_id` column)
 
+## The `--plan` Option Convention
+
+All commands that accept `--plan <value>` use the same UUID-dispatch pattern:
+
+- **UUID input** (matches `^[0-9a-fA-F]{8}-...-[0-9a-fA-F]{12}$`): matched against `plan_id`
+- **Non-UUID input**: matched against `title` (case-sensitive exact match)
+
+Both inputs are sanitised with `sqlEscape()` before interpolation. When implementing a new command that accepts `--plan`, grep `src/cli/status.ts` or `src/cli/next.ts` for the existing UUID-dispatch pattern and replicate it exactly.
+
 ## Global Options
 
 All `tg` commands support the following global options:
@@ -595,7 +604,10 @@ tg context <taskId>
 
 - `--json`: Output as JSON: `domains`, `skills` (arrays), `domain_docs`, `skill_docs` (paths), `related_done_by_domain`, `related_done_by_skill`, and when present: `suggested_changes`, `file_tree`, `risks` (plan-level). Includes `token_estimate` (approximate token count of the JSON).
 
-**Configuration:** Optional `context_token_budget` in `.taskgraph/config.json` (number, e.g. `4000` or `8000`) sets a token limit for context output. When the full context exceeds this budget, the command compacts it by slimming `related_done_by_doc` and `related_done_by_skill` (fewer items, `task_id` and `title` only), then reducing further or clearing those lists if still over budget. Omitted or `null` means no limit.
+**Configuration:** Optional keys in `.taskgraph/config.json`:
+
+- **`context_token_budget`** (number, e.g. `4000` or `8000`): Token limit for context output. When the full context exceeds this budget, the command compacts it by slimming `related_done_by_doc` and `related_done_by_skill` (fewer items, `task_id` and `title` only), then reducing further or clearing those lists if still over budget. Omitted or `null` means no limit.
+- **`doc_inline_budget`** (number, optional): When building implementer prompts, the orchestrator may inline doc content so the implementer does not have to read each doc via read_file. This key sets the **token budget** for that inlined content. Omitted or `0` = do not inline (only paths are passed). Positive value = fill in this order until the budget is reached: (1) `docs/agent-field-guide.md`, (2) docs from context `doc_paths`, (3) docs from context `skill_docs`; later items are omitted or truncated if the budget is exceeded. Policy details: `.cursor/rules/subagent-dispatch.mdc` → Doc-inlining policy.
 
 **Output (human):** Task title and ID; change type; domain doc path(s) (`docs/<domain>.md`); skill guide path(s) (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 by skill. If the task has `suggested_changes`, the plan has `file_tree`, or the plan has `risks`, those are printed as well. Ends with approximate context size in tokens.
 

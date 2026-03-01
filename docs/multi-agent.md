@@ -123,6 +123,8 @@ The `--msg` value must be valid JSON. List only files being **actively modified*
 
 - **Task branches from a missing plan branch will target `main` as fallback** (per the merge-target logic above) — but only when `tg done --merge` explicitly passes the merge flag. Without `--merge`, `tg done` marks the task done and cleans up the worktree with no merge at all.
 
+- **Sub-agent aborted mid-task — worktree takeover procedure.** When a sub-agent is aborted and the task is still `doing` with a live task worktree: run `tg worktree list --json` and find the entry for the task's branch (`tg-XXXXXX`). `cd` to its `path` and continue work from there — `tg start` has already been called so do not run it again. Do NOT run `tg start --force`: it overrides the claim check but not worktree/branch creation, so it will fail with "Worktrunk worktree create failed" if the task branch already exists. After completing the work, call `tg done` from inside the task worktree as normal.
+
 ## Using stats for dispatch
 
 `tg stats` shows tasks completed, review pass/fail counts, and average elapsed time per agent. Use it to inform dispatch: rebalance workload (e.g. assign more to faster or less-loaded agents), spot agents with high review fail rates (consider re-dispatch or different reviewer), or choose which agent to assign follow-up tasks.

@@ -16,7 +16,7 @@ The orchestrator must pass:
 
 - `{{TASK_ID}}` — task UUID
 - `{{AGENT_NAME}}` — unique name for this run (e.g. implementer-1 when running in parallel)
-- `{{WORKTREE_PATH}}` — **(optional)** absolute path to the task's worktree. When passed, the task is already started; `cd` to this path in Step 1 and run all work and `tg done` from there. When omitted, run `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree` yourself in Step 1 and obtain the path from `tg worktree list --json`. Sub-agent work uses **Worktrunk** when available (config `useWorktrunk: true` or `wt` on PATH).
+- `{{WORKTREE_PATH}}` — **Normal case (orchestrator pre-starts):** Absolute path to the task's worktree. The task is already started; `cd` to this path in Step 1 and run all work and `tg done` from there. **Fallback (when omitted):** run `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree` yourself in Step 1 and obtain the path from `tg worktree list --json`. Sub-agent work uses **Worktrunk** when available (config `useWorktrunk: true` or `wt` on PATH).
 - `{{CONTEXT_JSON}}` or the following fields:
   - `{{TITLE}}` — task title
   - `{{INTENT}}` — detailed intent
@@ -62,10 +62,15 @@ You are the Implementer sub-agent. You execute exactly one task from the task gr
 
 **At start (optional)** — To see current task state: `pnpm tg status --tasks` (task list only; no plans/initiatives).
 
-**Step 1 — Claim the task and switch to worktree**
-When the orchestrator passed **{{WORKTREE_PATH}}**: the task is already started with a worktree. Run: `cd {{WORKTREE_PATH}}` and do all work (and `tg done`) from that directory.
-When **{{WORKTREE_PATH}}** was not passed: run from repo root: `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree`. Then run `pnpm tg worktree list --json`, find the entry for this task's branch (e.g. `tg-<hash>`), and `cd` to its `path`. All work and `tg done` must run from that worktree directory. (Worktrunk is the standard backend when `wt` is installed; ensure `.taskgraph/config.json` has `useWorktrunk: true` or leave unset for auto-detect.)
-Use a unique agent name (e.g. implementer-1) when running in parallel.
+**Step 1 — Switch to worktree (orchestrator normally injects path)**
+When the orchestrator passed **{{WORKTREE_PATH}}** (normal case): the task is already claimed and the worktree exists. Run `cd {{WORKTREE_PATH}}` and do all work and `tg done` from that directory. No need to run `tg start` or `tg worktree list`.
+When **{{WORKTREE_PATH}}** was not passed (fallback): run from repo root `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree`, then `pnpm tg worktree list --json`, find the entry for this task's branch (e.g. `tg-<hash>` or `tg/<taskId>`), and `cd` to its `path`. All work and `tg done` must run from that worktree directory. (Worktrunk is the standard backend when `wt` is installed; ensure `.taskgraph/config.json` has `useWorktrunk: true` or leave unset for auto-detect.)
+Use the agent name you were given (e.g. implementer-1) when running in parallel.
+
+After `cd` to the worktree (or immediately after `tg start` if no worktree is used), emit a **start heartbeat**:
+`pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"start","files":[]}' --agent {{AGENT_NAME}}`
+
+To check active agents and detect file conflicts before starting work, use `tg agents --json`.
 
 **Step 2 — Load context**
 You have been given task context below. Read any domain docs and skill guides listed — they are paths relative to the repo root (e.g. docs/backend.md, docs/skills/plan-authoring.md). Read those files before coding.
@@ -104,6 +109,9 @@ You have been given task context below. Read any domain docs and skill guides li
 {{LEARNINGS}}
 
 **Step 3 — Do the todo's**
+Before touching files, emit a **mid-work heartbeat** listing the files you plan to modify:
+`pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"mid-work","files":["path/to/file.ts"]}' --agent {{AGENT_NAME}}`
+
 - Implement only what the intent and suggested changes describe. Stay in scope.
 - Do not modify files outside the task's scope. If the file tree or intent names specific files, prefer those.
 - Implement only; optionally run lint or typecheck if in scope. Implementers do not run tests; tests are added and run in dedicated plan-end tasks.
@@ -122,7 +130,12 @@ You have been given task context below. Read any domain docs and skill guides li
 - Do not call sleep or wait for a process to change state more than 3 times in a row without other progress.
 
 **Step 4 — Complete the task**
-When using a worktree, the commit in Step 3 must have happened before `tg done`, so that `tg done --merge` (when the orchestrator uses it) has a commit to squash. From the **worktree directory** (you must be in the worktree path when using worktree isolation), run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: commands run, git ref, or implemented; no test run>"`. If the task was started with `--merge` intent, the orchestrator will run done with `--merge`; you only run `tg done` with evidence.
+When using a worktree, the commit in Step 3 must have happened before `tg done`, so that `tg done --merge` (when the orchestrator uses it) has a commit to squash.
+
+Just before `tg done`, emit a **pre-done heartbeat** with the final list of files modified:
+`pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"pre-done","files":["path/to/file.ts"]}' --agent {{AGENT_NAME}}`
+
+From the **worktree directory** (you must be in the worktree path when using worktree isolation), run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: commands run, git ref, or implemented; no test run>"`. If the task was started with `--merge` intent, the orchestrator will run done with `--merge`; you only run `tg done` with evidence.
 
 If your environment exposes token usage, append the optional self-report flags (all optional, skip if unavailable — do not estimate):
 `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
@@ -163,3 +176,6 @@ If you cannot complete (blocked, unfixable gate/env issue): use the structured f
 - **[2026-03-01]** `process.env.TG_DOLT_SERVER_PORT = value` assigned in test `beforeAll`/`beforeEach` without a matching `delete process.env.TG_DOLT_SERVER_PORT` in teardown. Bun runs all test files in the same process; stale env vars from integration tests leaked into E2E tests and caused `ECONNREFUSED`. Always `delete process.env.VAR` in the matching teardown for every env var set during test setup.
 - **[2026-03-01]** Migration function called `doltCommit` unconditionally even when all indexes/columns already existed — created spurious empty Dolt commits on idempotent re-runs. Every migration that calls `doltCommit` must guard the call behind a flag tracking whether any schema change was actually made. Pattern: `let changed = false; if (!exists) { runDDL(); changed = true; } if (changed) { doltCommit(...); }`. All migrations in `src/db/migrate.ts` should follow this pattern.
 - **[2026-03-01]** Spawned a background `dolt sql-server` with `stdio: "ignore"` — startup panics were invisible and the only failure signal was "did not become ready after 50 attempts" (15 s timeout). Add a `"exit"` event listener on the `ChildProcess` inside the polling loop: if `child.exitCode !== null`, throw immediately with the exit code instead of waiting the full duration. `stdio: "pipe"` during test infrastructure setup is also preferable: captured stderr is invaluable for debugging port conflicts and startup errors.
+- **[2026-03-01]** User-supplied value interpolated into a `query.raw()` template without `sqlEscape()`. The INSERT-specific rule applies universally: every user-supplied value in a `query.raw()` template — in any clause position (WHERE, VALUES, JOIN ON, ORDER BY) — must be wrapped with `sqlEscape()`. No exceptions.
+- **[2026-03-01]** `--plan` CLI filter matched only `plan_id`, missing the UUID-dispatch pattern. All existing `src/cli/` commands (status.ts, next.ts) dispatch to `plan_id` for UUID inputs and `title` for non-UUID, both wrapped in `sqlEscape()`. Before implementing any CLI option that already appears in other `src/cli/` commands, grep for existing implementations and replicate the pattern exactly. Do not implement from spec alone.
+- **[2026-03-01]** `tg start --force` attempted when an aborted sub-agent's task branch already existed — failed with "Worktrunk worktree create failed". `--force` overrides the claim check but not branch creation. When a sub-agent is aborted and the task is still `doing` with a live worktree: run `tg worktree list --json`, find the entry for the task's branch, `cd` to its `path`, and continue directly without re-running `tg start`.
