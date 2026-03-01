@@ -61,27 +61,26 @@ describe("token-estimate", () => {
   });
 
   describe("compactContext", () => {
+    const longEvidence = "e".repeat(300);
+    const longFileTree = "f".repeat(1200);
+
     const baseCtx = (overrides?: Partial<ContextOutput>): ContextOutput => ({
       task_id: "tid",
       title: "Task",
       agent: null,
+      plan_name: "Test Plan",
+      plan_overview: "An overview",
       docs: [],
       skills: [],
       change_type: null,
       suggested_changes: null,
-      file_tree: null,
+      file_tree: longFileTree,
       risks: null,
       doc_paths: [],
       skill_docs: [],
-      related_done_by_doc: [
-        { task_id: "d1", title: "Done 1", plan_id: "p1" },
-        { task_id: "d2", title: "Done 2", plan_id: "p2" },
-        { task_id: "d3", title: "Done 3", plan_id: "p3" },
-        { task_id: "d4", title: "Done 4", plan_id: "p4" },
-      ],
-      related_done_by_skill: [
-        { task_id: "s1", title: "Skill 1", plan_id: "p1" },
-        { task_id: "s2", title: "Skill 2", plan_id: "p2" },
+      immediate_blockers: [
+        { task_id: "b1", title: "Blocker 1", status: "done", evidence: longEvidence },
+        { task_id: "b2", title: "Blocker 2", status: "todo", evidence: null },
       ],
       ...overrides,
     });
@@ -91,58 +90,35 @@ describe("token-estimate", () => {
       const budget = estimateJsonTokens(ctx) + 1000;
       const out = compactContext(ctx, budget);
       expect(out).toEqual(ctx);
-      expect(out.related_done_by_doc).toHaveLength(4);
-      expect(out.related_done_by_doc[0]).toHaveProperty("plan_id", "p1");
+      expect(out.immediate_blockers).toHaveLength(2);
+      expect(out.immediate_blockers[0].evidence).toBe(longEvidence);
     });
 
-    it("stage 1: slims related lists to 3 items with task_id and title only", () => {
-      const ctx = baseCtx();
-      const stage1 = {
-        ...ctx,
-        related_done_by_doc: ctx.related_done_by_doc
-          .slice(0, 3)
-          .map((t) => ({ task_id: t.task_id, title: t.title })),
-        related_done_by_skill: ctx.related_done_by_skill
-          .slice(0, 3)
-          .map((t) => ({ task_id: t.task_id, title: t.title })),
-      };
-      const budget = estimateJsonTokens(stage1) + 5;
+    it("stage 1: trims blocker evidence to 100 chars when over budget", () => {
+      const ctx = baseCtx({ file_tree: null });
+      const budget = estimateJsonTokens(ctx) - estimateTokens(longEvidence) + 1;
       const out = compactContext(ctx, budget);
-      expect(out.related_done_by_doc).toHaveLength(3);
-      expect(out.related_done_by_skill).toHaveLength(2);
-      expect(out.related_done_by_doc[0]).toEqual({
-        task_id: "d1",
-        title: "Done 1",
-      });
-      expect(out.related_done_by_doc[0]).not.toHaveProperty("plan_id");
-      expect(estimateJsonTokens(out)).toBeLessThanOrEqual(budget);
+      const trimmedEvidence = out.immediate_blockers[0].evidence;
+      expect(trimmedEvidence?.length).toBeLessThanOrEqual(102); // 100 + "…"
+      expect(trimmedEvidence).toMatch(/…$/);
     });
 
-    it("stage 2: reduces to 1 item each when stage 1 still over budget", () => {
-      const ctx = baseCtx();
-      const stage1 = compactContext(ctx, 10000);
-      const stage2Ctx: ContextOutput = {
-        ...stage1,
-        related_done_by_doc: stage1.related_done_by_doc.slice(0, 1),
-        related_done_by_skill: stage1.related_done_by_skill.slice(0, 1),
-      };
-      const stage2Size = estimateJsonTokens(stage2Ctx) + 1;
-      const stage1Size = estimateJsonTokens(stage1);
-      const budget = Math.min(stage2Size + 10, stage1Size - 1);
+    it("stage 2: truncates file_tree to 500 chars when still over budget", () => {
+      const ctx = baseCtx({ immediate_blockers: [] });
+      // Budget smaller than ctx but large enough for stage2 output
+      const stage2Size = estimateJsonTokens({ ...ctx, file_tree: longFileTree.slice(0, 501) });
+      const budget = stage2Size + 10;
       const out = compactContext(ctx, budget);
-      expect(out.related_done_by_doc).toHaveLength(1);
-      expect(out.related_done_by_skill).toHaveLength(1);
-      expect(estimateJsonTokens(out)).toBeLessThanOrEqual(budget);
+      expect(out.file_tree?.length).toBeLessThanOrEqual(502); // 500 + "…"
     });
 
-    it("stage 3: clears related lists when still over budget", () => {
+    it("stage 3: drops file_tree entirely when still over budget", () => {
       const ctx = baseCtx({
+        immediate_blockers: [],
         suggested_changes: "x".repeat(500),
-        file_tree: "y".repeat(500),
       });
       const out = compactContext(ctx, 50);
-      expect(out.related_done_by_doc).toHaveLength(0);
-      expect(out.related_done_by_skill).toHaveLength(0);
+      expect(out.file_tree).toBeNull();
       expect(estimateJsonTokens(out)).toBeLessThan(estimateJsonTokens(ctx));
     });
   });

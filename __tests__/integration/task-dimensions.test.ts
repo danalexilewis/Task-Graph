@@ -124,7 +124,7 @@ todos:
     expect(stdout).not.toContain("Schema task");
   });
 
-  it("should return related_done_by_doc and related_done_by_skill in tg context", async () => {
+  it("should return immediate_blockers in tg context", async () => {
     if (!context) throw new Error("Context not initialized");
     const { exitCode, stdout } = await runTgCli(
       `context ${taskIdWithDimensions} --json`,
@@ -132,17 +132,11 @@ todos:
     );
     expect(exitCode).toBe(0);
     const data = JSON.parse(stdout) as {
-      related_done_by_doc: Array<{ task_id: string; title: string }>;
-      related_done_by_skill: Array<{ task_id: string; title: string }>;
+      immediate_blockers: Array<{ task_id: string; title: string; status: string }>;
+      plan_name: string | null;
     };
-    expect(Array.isArray(data.related_done_by_doc)).toBe(true);
-    expect(Array.isArray(data.related_done_by_skill)).toBe(true);
-    // dim-done is done and has doc schema, skill sql-migration; may appear in related
-    expect(data.related_done_by_doc.some((t) => t.title.includes("done"))).toBe(
-      true,
-    );
-    expect(
-      data.related_done_by_skill.some((t) => t.title.includes("done")),
-    ).toBe(true);
+    expect(Array.isArray(data.immediate_blockers)).toBe(true);
+    // plan_name should be populated
+    expect(typeof data.plan_name).toBe("string");
   });
 });

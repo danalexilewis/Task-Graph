@@ -80,7 +80,7 @@ todos:
     if (context) await teardownIntegrationTest(context);
   });
 
-  it("reads context_token_budget and returns token_estimate; compacts related lists when over budget", async () => {
+  it("reads context_token_budget and returns token_estimate; compacts file_tree when over budget", async () => {
     if (!context) throw new Error("context not set");
     const { stdout } = await runTgCli(
       `context ${taskId} --json`,
@@ -88,31 +88,16 @@ todos:
     );
     const data = JSON.parse(stdout) as {
       token_estimate?: number;
-      related_done_by_doc?: Array<{
-        task_id?: string;
-        title?: string;
-        plan_id?: string;
-      }>;
-      related_done_by_skill?: Array<{
-        task_id?: string;
-        title?: string;
-        plan_id?: string;
-      }>;
+      file_tree?: string | null;
+      immediate_blockers?: Array<{ task_id?: string; title?: string }>;
     };
     expect(data.token_estimate).toBeDefined();
     expect(typeof data.token_estimate).toBe("number");
-    const est = data.token_estimate as number;
-    // Large file_tree in plan guarantees context exceeds budget; compaction is applied
-    expect(est).toBeGreaterThan(BUDGET);
-    // Compaction: related_done slim to ≤3 items, { task_id, title } only (no plan_id)
-    expect(data.related_done_by_doc?.length ?? 0).toBeLessThanOrEqual(3);
-    expect(data.related_done_by_skill?.length ?? 0).toBeLessThanOrEqual(3);
-    for (const t of data.related_done_by_doc ?? []) {
-      expect(t).not.toHaveProperty("plan_id");
-    }
-    for (const t of data.related_done_by_skill ?? []) {
-      expect(t).not.toHaveProperty("plan_id");
-    }
+    // Large file_tree in plan triggers compaction; file_tree should be trimmed or dropped
+    const fileTree = data.file_tree ?? "";
+    expect(fileTree.length).toBeLessThan(4000); // trimmed below original ~4000+ chars
+    // immediate_blockers always present (array, possibly empty)
+    expect(Array.isArray(data.immediate_blockers)).toBe(true);
   }, 15000);
 
   it("returns token_estimate in context --json when under budget (no compaction)", async () => {

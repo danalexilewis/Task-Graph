@@ -123,14 +123,18 @@ async function runContext(
   const task = taskRows.value[0];
 
   const planRows = await q.select<{
+    title: string | null;
+    overview: string | null;
     file_tree: string | null;
     risks: string | null;
   }>("project", {
-    columns: ["file_tree", "risks"],
+    columns: ["title", "overview", "file_tree", "risks"],
     where: { plan_id: task.plan_id },
   });
   if (planRows.isErr()) return toToolError(planRows.error);
   const plan = planRows.value[0];
+  const plan_name = plan?.title ?? null;
+  const plan_overview = plan?.overview ?? null;
   const file_tree = plan?.file_tree ?? null;
   let risks: unknown = null;
   if (plan?.risks != null && typeof plan.risks === "string") {
@@ -158,36 +162,51 @@ async function runContext(
   const doc_paths = docs.map((d: string) => `docs/${d}.md`);
   const skill_docs = skills.map((s: string) => `docs/skills/${s}.md`);
 
-  const relatedByDocSql =
-    docs.length > 0
-      ? `SELECT DISTINCT t.task_id, t.title, t.plan_id FROM \`task\` t JOIN \`task_doc\` td ON t.task_id = td.task_id WHERE t.status = 'done' AND t.task_id != '${sqlEscape(taskIdResolved)}' AND td.doc IN (${docs.map((d: string) => `'${sqlEscape(d)}'`).join(",")}) ORDER BY t.updated_at DESC LIMIT 5`
-      : null;
-  const relatedBySkillSql =
-    skills.length > 0
-      ? `SELECT DISTINCT t.task_id, t.title, t.plan_id FROM \`task\` t JOIN \`task_skill\` ts ON t.task_id = ts.task_id WHERE t.status = 'done' AND t.task_id != '${sqlEscape(taskIdResolved)}' AND ts.skill IN (${skills.map((s: string) => `'${sqlEscape(s)}'`).join(",")}) ORDER BY t.updated_at DESC LIMIT 5`
-      : null;
-
-  const runDoc = relatedByDocSql
-    ? q.raw<{ task_id: string; title: string; plan_id: string }>(
-        relatedByDocSql,
-      )
-    : ResultAsync.fromSafePromise(Promise.resolve([]));
-  const runSkill = relatedBySkillSql
-    ? q.raw<{ task_id: string; title: string; plan_id: string }>(
-        relatedBySkillSql,
-      )
-    : ResultAsync.fromSafePromise(Promise.resolve([]));
-
-  const relatedResult = await runDoc.andThen((relatedByDoc) =>
-    runSkill.map((relatedBySkill) => ({ relatedByDoc, relatedBySkill })),
+  const blockerRowsResult = await q.raw<{
+    task_id: string;
+    title: string;
+    status: string;
+  }>(
+    `SELECT e.from_task_id AS task_id, t.title, t.status FROM \`edge\` e JOIN \`task\` t ON e.from_task_id = t.task_id WHERE e.to_task_id = '${sqlEscape(taskIdResolved)}' AND e.type = 'blocks'`,
   );
-  if (relatedResult.isErr()) return toToolError(relatedResult.error);
-  const { relatedByDoc, relatedBySkill } = relatedResult.value;
+  if (blockerRowsResult.isErr()) return toToolError(blockerRowsResult.error);
+  const blockerRows = blockerRowsResult.value;
+
+  const doneBlockerIds = blockerRows
+    .filter((b) => b.status === "done")
+    .map((b) => b.task_id);
+  const evidenceByTaskId = new Map<string, string>();
+  if (doneBlockerIds.length > 0) {
+    const evidenceResult = await q.raw<{ task_id: string; body: string }>(
+      `SELECT task_id, body FROM \`event\` WHERE kind = 'done' AND task_id IN (${doneBlockerIds.map((id) => `'${sqlEscape(id)}'`).join(",")}) ORDER BY created_at DESC`,
+    );
+    if (evidenceResult.isOk()) {
+      for (const ev of evidenceResult.value) {
+        if (!evidenceByTaskId.has(ev.task_id)) {
+          try {
+            const parsed = JSON.parse(ev.body) as { evidence?: string };
+            evidenceByTaskId.set(ev.task_id, parsed.evidence ?? "");
+          } catch {
+            evidenceByTaskId.set(ev.task_id, "");
+          }
+        }
+      }
+    }
+  }
+
+  const immediate_blockers = blockerRows.map((b) => ({
+    task_id: b.task_id,
+    title: b.title,
+    status: b.status,
+    evidence: evidenceByTaskId.get(b.task_id) ?? null,
+  }));
 
   const data: ContextOutput = {
     task_id: task.task_id,
     title: task.title,
     agent: task.agent ?? null,
+    plan_name,
+    plan_overview,
     docs,
     skills,
     change_type: task.change_type ?? null,
@@ -196,16 +215,10 @@ async function runContext(
     risks,
     doc_paths,
     skill_docs,
-    related_done_by_doc: relatedByDoc,
-    related_done_by_skill: relatedBySkill,
+    immediate_blockers,
   };
-  const budget = undefined;
-  const out =
-    budget != null && budget > 0 && estimateJsonTokens(data) > budget
-      ? compactContext(data, budget)
-      : data;
-  const token_estimate = estimateJsonTokens(out);
-  return toToolResult({ ...out, token_estimate });
+  const token_estimate = estimateJsonTokens(data);
+  return toToolResult({ ...data, token_estimate });
 }
 
 async function runNext(

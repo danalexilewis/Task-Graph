@@ -51,15 +51,19 @@ export function contextCommand(program: Command) {
               }
               const task = taskRows[0];
               return q
-                .select<{ file_tree: string | null; risks: string | null }>(
-                  "project",
-                  {
-                    columns: ["file_tree", "risks"],
-                    where: { plan_id: task.plan_id },
-                  },
-                )
+                .select<{
+                  title: string | null;
+                  overview: string | null;
+                  file_tree: string | null;
+                  risks: string | null;
+                }>("project", {
+                  columns: ["title", "overview", "file_tree", "risks"],
+                  where: { plan_id: task.plan_id },
+                })
                 .andThen((planRows) => {
                   const plan = planRows[0];
+                  const plan_name = plan?.title ?? null;
+                  const plan_overview = plan?.overview ?? null;
                   const file_tree = plan?.file_tree ?? null;
                   let risks: unknown = null;
                   if (plan?.risks != null && typeof plan.risks === "string") {
@@ -82,6 +86,8 @@ export function contextCommand(program: Command) {
                         })
                         .map((skillRows) => ({
                           task,
+                          plan_name,
+                          plan_overview,
                           file_tree,
                           risks,
                           docs: docRows.map((r) => r.doc),
@@ -90,97 +96,101 @@ export function contextCommand(program: Command) {
                     );
                 });
             })
-            .andThen(({ task, file_tree, risks, docs, skills }) => {
+            .andThen(({ task, plan_name, plan_overview, file_tree, risks, docs, skills }) => {
               const doc_paths = docs.map((d) => `docs/${d}.md`);
               const skill_docs = skills.map((s) => `docs/skills/${s}.md`);
 
-              const relatedByDocSql =
-                docs.length > 0
-                  ? `SELECT DISTINCT t.task_id, t.title, t.plan_id FROM \`task\` t JOIN \`task_doc\` td ON t.task_id = td.task_id WHERE t.status = 'done' AND t.task_id != '${sqlEscape(resolved)}' AND td.doc IN (${docs.map((d) => `'${sqlEscape(d)}'`).join(",")}) ORDER BY t.updated_at DESC LIMIT 5`
-                  : null;
-              const relatedBySkillSql =
-                skills.length > 0
-                  ? `SELECT DISTINCT t.task_id, t.title, t.plan_id FROM \`task\` t JOIN \`task_skill\` ts ON t.task_id = ts.task_id WHERE t.status = 'done' AND t.task_id != '${sqlEscape(resolved)}' AND ts.skill IN (${skills.map((s) => `'${sqlEscape(s)}'`).join(",")}) ORDER BY t.updated_at DESC LIMIT 5`
-                  : null;
+              return q
+                .raw<{ task_id: string; title: string; status: string }>(
+                  `SELECT e.from_task_id AS task_id, t.title, t.status FROM \`edge\` e JOIN \`task\` t ON e.from_task_id = t.task_id WHERE e.to_task_id = '${sqlEscape(resolved)}' AND e.type = 'blocks'`,
+                )
+                .andThen((blockerRows) => {
+                  const doneBlockerIds = blockerRows
+                    .filter((b) => b.status === "done")
+                    .map((b) => b.task_id);
+                  const evidenceQuery =
+                    doneBlockerIds.length > 0
+                      ? q.raw<{ task_id: string; body: string }>(
+                          `SELECT task_id, body FROM \`event\` WHERE kind = 'done' AND task_id IN (${doneBlockerIds.map((id) => `'${sqlEscape(id)}'`).join(",")}) ORDER BY created_at DESC`,
+                        )
+                      : ResultAsync.fromSafePromise(
+                          Promise.resolve([] as Array<{ task_id: string; body: string }>),
+                        );
 
-              const runDoc = relatedByDocSql
-                ? q.raw<{ task_id: string; title: string; plan_id: string }>(
-                    relatedByDocSql,
-                  )
-                : ResultAsync.fromSafePromise(Promise.resolve([]));
-              const runSkill = relatedBySkillSql
-                ? q.raw<{ task_id: string; title: string; plan_id: string }>(
-                    relatedBySkillSql,
-                  )
-                : ResultAsync.fromSafePromise(Promise.resolve([]));
+                  return evidenceQuery.map((evidenceRows) => {
+                    const evidenceByTaskId = new Map<string, string>();
+                    for (const ev of evidenceRows) {
+                      if (!evidenceByTaskId.has(ev.task_id)) {
+                        try {
+                          const parsed = JSON.parse(ev.body) as {
+                            evidence?: string;
+                          };
+                          evidenceByTaskId.set(ev.task_id, parsed.evidence ?? "");
+                        } catch {
+                          evidenceByTaskId.set(ev.task_id, "");
+                        }
+                      }
+                    }
 
-              return runDoc.andThen((relatedByDoc) =>
-                runSkill.map((relatedBySkill) => {
-                  const data: ContextOutput = {
-                    task_id: task.task_id,
-                    title: task.title,
-                    agent: task.agent ?? null,
-                    docs,
-                    skills,
-                    change_type: task.change_type ?? null,
-                    suggested_changes: task.suggested_changes ?? null,
-                    file_tree,
-                    risks,
-                    doc_paths,
-                    skill_docs,
-                    related_done_by_doc: relatedByDoc,
-                    related_done_by_skill: relatedBySkill,
-                  };
-                  const budget = config.context_token_budget;
-                  if (
-                    budget != null &&
-                    budget > 0 &&
-                    estimateJsonTokens(data) > budget
-                  ) {
-                    return compactContext(data, budget);
-                  }
-                  return data;
-                }),
-              );
+                    const immediate_blockers = blockerRows.map((b) => ({
+                      task_id: b.task_id,
+                      title: b.title,
+                      status: b.status,
+                      evidence: evidenceByTaskId.get(b.task_id) ?? null,
+                    }));
+
+                    const data: ContextOutput = {
+                      task_id: task.task_id,
+                      title: task.title,
+                      agent: task.agent ?? null,
+                      plan_name,
+                      plan_overview,
+                      docs,
+                      skills,
+                      change_type: task.change_type ?? null,
+                      suggested_changes: task.suggested_changes ?? null,
+                      file_tree,
+                      risks,
+                      doc_paths,
+                      skill_docs,
+                      immediate_blockers,
+                    };
+                    const budget = config.context_token_budget;
+                    if (
+                      budget != null &&
+                      budget > 0 &&
+                      estimateJsonTokens(data) > budget
+                    ) {
+                      return compactContext(data, budget);
+                    }
+                    return data;
+                  });
+                });
             });
         }),
       );
 
       result.match(
         (data: unknown) => {
-          const d = data as {
-            task_id: string;
-            title: string;
-            agent: string | null;
-            docs: string[];
-            skills: string[];
-            change_type: string | null;
-            suggested_changes: string | null;
-            file_tree: string | null;
-            risks: unknown;
-            doc_paths: string[];
-            skill_docs: string[];
-            related_done_by_doc: Array<{
-              task_id: string;
-              title: string;
-              plan_id: string;
-            }>;
-            related_done_by_skill: Array<{
-              task_id: string;
-              title: string;
-              plan_id: string;
-            }>;
-          };
-          const token_estimate = estimateJsonTokens(d);
+          const d = data as ContextOutput;
+          const json = JSON.stringify({ ...d, token_estimate: estimateJsonTokens(d) }, null, 2);
+          const charCount = json.length;
+          const tokenCount = estimateJsonTokens(d);
           if (rootOpts(cmd).json) {
-            console.log(JSON.stringify({ ...d, token_estimate }, null, 2));
+            console.log(JSON.stringify({ ...d, token_estimate: tokenCount }, null, 2));
             return;
           }
           console.log(`Task: ${d.title} (${d.task_id})`);
           if (d.agent) console.log(`Agent: ${d.agent}`);
           if (d.change_type) console.log(`Change type: ${d.change_type}`);
-          d.doc_paths.forEach((path) => {
-            console.log(`Doc: ${path}`);
+          if (d.plan_name) {
+            const overviewSnippet = d.plan_overview
+              ? ` — ${d.plan_overview.split("\n")[0].slice(0, 120)}`
+              : "";
+            console.log(`Plan: ${d.plan_name}${overviewSnippet}`);
+          }
+          d.doc_paths.forEach((p) => {
+            console.log(`Doc: ${p}`);
           });
           d.skill_docs.forEach((doc) => {
             console.log(`Skill guide: ${doc}`);
@@ -207,19 +217,14 @@ export function contextCommand(program: Command) {
               },
             );
           }
-          if (d.related_done_by_doc.length > 0) {
-            console.log(`Related done (same doc):`);
-            d.related_done_by_doc.forEach((t) => {
-              console.log(`  ${t.task_id}  ${t.title}`);
+          if (d.immediate_blockers.length > 0) {
+            console.log(`Immediate blockers:`);
+            d.immediate_blockers.forEach((b) => {
+              const ev = b.evidence ? ` [evidence: ${b.evidence}]` : "";
+              console.log(`  ${b.task_id}  ${b.title} (${b.status})${ev}`);
             });
           }
-          if (d.related_done_by_skill.length > 0) {
-            console.log(`Related done (same skill):`);
-            d.related_done_by_skill.forEach((t) => {
-              console.log(`  ${t.task_id}  ${t.title}`);
-            });
-          }
-          console.log(`Context size: ~${token_estimate} tokens`);
+          console.log(`[context: ~${charCount} chars, ~${tokenCount} tokens]`);
         },
         (error: AppError) => {
           console.error(`Error: ${error.message}`);
