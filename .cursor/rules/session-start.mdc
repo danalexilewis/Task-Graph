@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Session Start
 
+## 1. Orient — run status
+
 At the start of every session, run:
 
 - **Orchestrator (main session):** `pnpm tg status --tasks` — full task list (Id, Title, Plan, Status, Owner). Use this so you see all active tasks, not just the 3 next runnable shown by default status.
@@ -34,3 +36,22 @@ Full task list surfaces:
 **When multiple agents are active:** Read the "Active work" section. Avoid picking tasks that touch the same area/files as another agent's doing task. If overlap is detected, leave a `tg note` and pick a different task.
 
 Address any stale `doing` tasks before starting new work. See **taskgraph-workflow.mdc → Recovery** for cleanup steps.
+
+## 2. Model guidance — remind the user
+
+After running status, include a brief model guidance note in your response. Use this table:
+
+| Situation                                                                               | Model      | Why                                                                                                      |
+| --------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
+| **This session** (orchestrator: planning, analysis, conversation)                       | **Sonnet** | Complex reasoning, plan quality, architecture decisions. Default for orchestrator sessions.              |
+| **`/work`** (autonomous task execution loop)                                            | **Auto**   | Cursor picks the right model per sub-agent; implementers use fast, analysts/reviewers use session model. |
+| **Escalating yourself** (direct execution after 2 sub-agent failures; fixer dispatches) | **Opus**   | Maximum capability for subtle bugs, ambiguous intent, and hard reasoning.                                |
+| **Sub-agents** (implementers dispatched during `/work`)                                 | **fast**   | Scoped bounded tasks; the orchestrator dispatches them with `model="fast"`.                              |
+
+**How to communicate this:** At session start, after the status output, add one line:
+
+> Model check: Sonnet recommended for this session — Auto for `/work`, Opus when escalating yourself.
+
+If the user is clearly on a different model (e.g. they tell you, or you can infer from context), flag it:
+
+> You appear to be on [model]. Sonnet is recommended for orchestrator sessions (planning, analysis, complex tasks).

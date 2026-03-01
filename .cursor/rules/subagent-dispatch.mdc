@@ -71,9 +71,13 @@ Use this to decide **re-dispatch** vs **direct execution** vs **escalate to huma
   - Sub-agent error or wrong result with clear fix — re-dispatch once with clearer context or instructions.
   - Environment flake (e.g. transient timeout) — one retry is acceptable; then treat as second failure.
 
+- **Fixer dispatch (Opus) — preferred escalation path**
+  - Sub-agent has failed **twice** on the same task — dispatch the **fixer** agent (`.cursor/agents/fixer.md`) with Opus. Pass the task context plus both failure reports. Log: `tg note <taskId> --msg "Escalated to fixer (Opus): 2 sub-agent failures"`.
+  - Use fixer over direct execution for any non-trivial task; reserve direct execution for trivial or exploratory tasks.
+
 - **Direct execution (orchestrator does the task)**
-  - Sub-agent has failed **twice** on the same task (two re-dispatch attempts) — complete the task yourself; log with `tg note <taskId> --msg "Direct execution: 2 sub-agent failures"`.
-  - Task is **explicitly exploratory or ambiguous** and not suitable for a scoped sub-agent — do start → work → done yourself; log with `tg note <taskId> --msg "Direct execution: exploratory/ambiguous"`.
+  - Fixer also failed, or the task is **explicitly exploratory or ambiguous** and not suitable for any scoped sub-agent — do start → work → done yourself; log with `tg note <taskId> --msg "Direct execution: fixer failed / exploratory"`.
+  - When doing direct execution after failures: consider switching to **Opus** in your own session for this task if you are currently on Sonnet.
 
 - **Architectural escalation** (before human escalation)
   - If the same area has failed across **3+ tasks** (not just retries on one task) — the problem may be architectural, not task-level. Create an **investigate** task targeting that area before creating more fix tasks. Log: `tg note <taskId> --msg "Architectural concern: 3+ failures in <area>"`.
@@ -185,7 +189,7 @@ Place this after the main instructions and before any task-specific context. The
 ## Lifecycle and errors
 
 - Every implementer sub-agent must run `pnpm tg start <taskId> --agent <name> --worktree` at the start (when using worktree isolation) and `pnpm tg done <taskId> --evidence "..."` at the end. Do not skip — the task graph is the source of truth. Use Worktrunk when available (config `useWorktrunk: true` or wt on PATH). In Pattern 1 (parallel batch), pass the worktree path ({{WORKTREE_PATH}}) so the implementer runs from that directory.
-- If a fast sub-agent fails (error, wrong result, or spec-reviewer/quality-reviewer FAIL): re-dispatch once with clearer context or that reviewer's feedback. If it fails again, complete that task yourself with direct execution (session model).
+- If a fast sub-agent fails (error, wrong result, or spec-reviewer/quality-reviewer FAIL): re-dispatch once with clearer context or that reviewer's feedback. If it fails again: either dispatch the **fixer** agent (Opus) for that task, or complete it yourself with direct execution. Prefer fixer dispatch over direct execution when the task is non-trivial.
 - When dispatching in parallel, ensure each task has a distinct agent name (`implementer-1`, etc.) so `tg status` and events stay clear.
 
 ## Building prompts from context JSON

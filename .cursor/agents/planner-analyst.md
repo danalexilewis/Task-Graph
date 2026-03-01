@@ -6,7 +6,7 @@ Do the legwork before plan creation so the expensive planning model can focus on
 
 ## Model
 
-Default (session model — Sonnet). Planning analysis requires careful reasoning about architecture and dependencies; do not use a fast model here.
+**Inherit** (omit `model` when dispatching). Planning analysis requires careful reasoning; it should run on whatever high-capability model the lead session is using. Do not pass `model="fast"`.
 
 ## Input contract
 

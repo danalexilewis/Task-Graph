@@ -12,7 +12,7 @@ Resolve a task that the fast implementer (and optionally reviewer) could not com
 
 ## Model
 
-**Stronger model** (not `fast`) — escalation is for harder reasoning, subtle bugs, or aligning implementation with feedback. Use a higher-capability model when invoking this agent.
+**Opus** — escalation is for harder reasoning, subtle bugs, or aligning implementation with feedback. Use Opus (the highest-capability model) when invoking this agent. Do not use `fast`.
 
 ## Input contract
 
