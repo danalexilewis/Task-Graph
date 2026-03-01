@@ -193,6 +193,7 @@ isProject: false
     expect(stdout).toContain("Active Plans");
     expect(stdout).toContain("Status Test Plan A");
     expect(stdout).toContain("Todo");
+    expect(stdout).toContain("Initiative");
     expect(stdout).toContain("Doing");
     expect(stdout).toContain("Done");
     expect(stdout).toContain("Blocked");

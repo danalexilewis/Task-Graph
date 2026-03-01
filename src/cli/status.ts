@@ -1298,9 +1298,10 @@ function getActivePlansSectionContent(
   if (maxRows != null && maxRows > 0) {
     plans = plans.slice(0, maxRows - 1);
   }
-  const planRows = plans.map((p) => [
-    p.title,
-    String(p.todo),
+const planRows = plans.map((p) => [
+  p.title,
+  p.initiative_title ?? "—",
+  String(p.todo),
     p.actionable > 0 ? chalk.greenBright(String(p.actionable)) : "0",
     p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
     p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
@@ -1313,6 +1314,7 @@ function getActivePlansSectionContent(
   const sumReady = d.activePlans.reduce((s, p) => s + Number(p.actionable), 0);
   const aggRow = [
     chalk.dim("Total"),
+    "",
     String(sumTodo),
     sumReady > 0 ? chalk.greenBright(String(sumReady)) : "0",
     sumDoing > 0 ? chalk.cyan(String(sumDoing)) : "0",
@@ -1320,18 +1322,19 @@ function getActivePlansSectionContent(
     sumDone > 0 ? chalk.green(String(sumDone)) : "0",
   ];
   const headers = narrow
-    ? ["Project name", "To", "Rdy", "Do", "Blk", "Done"]
-    : ["Project name", "Todo", "Ready", "Doing", "Blocked", "Done"];
-  const numericHeaders = headers.slice(1);
+    ? ["Project name", "Init", "To", "Rdy", "Do", "Blk", "Done"]
+    : ["Project name", "Initiative", "Todo", "Ready", "Doing", "Blocked", "Done"];
+  const numericHeaders = headers.slice(2);
   const numericColW = Math.max(...numericHeaders.map((h) => h.length));
   return renderTable({
     headers,
     rows: [...planRows, aggRow],
     maxWidth: innerW,
     minWidths: narrow
-      ? [8, numericColW, numericColW, numericColW, numericColW, numericColW]
-      : [12, numericColW, numericColW, numericColW, numericColW, numericColW],
+      ? [8, 10, numericColW, numericColW, numericColW, numericColW, numericColW]
+      : [12, 10, numericColW, numericColW, numericColW, numericColW, numericColW],
     maxWidths: [
+      undefined,
       undefined,
       numericColW,
       numericColW,
