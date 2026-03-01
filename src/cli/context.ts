@@ -229,21 +229,42 @@ export function contextCommand(program: Command) {
   program
     .command("context")
     .description(
-      "Output doc paths, skill guide paths, and related done tasks for one or more tasks (run before starting work)",
+      "Output context for one or more tasks. With no IDs, returns all currently doing tasks (hive-mind sync).",
     )
-    .argument("<taskIds...>", "One or more task IDs (space or comma separated)")
+    .argument(
+      "[taskIds...]",
+      "Task IDs (space or comma separated). Omit to return all doing tasks.",
+    )
     .action(async (rawIds: string[], _options, cmd) => {
       // Support both space-separated and comma-separated IDs
       const taskIds = rawIds.flatMap((id) => id.split(",")).filter(Boolean);
 
-      const result = await readConfig().asyncAndThen((config: Config) =>
-        ResultAsync.combine(taskIds.map((id) => getOneContext(id, config))),
-      );
+      const result = await readConfig().asyncAndThen((config: Config) => {
+        if (taskIds.length > 0) {
+          return ResultAsync.combine(
+            taskIds.map((id) => getOneContext(id, config)),
+          );
+        }
+        // No IDs — return context for all doing tasks
+        return query(config.doltRepoPath)
+          .select<{ task_id: string }>("task", {
+            columns: ["task_id"],
+            where: { status: "doing" },
+          })
+          .andThen((rows) =>
+            ResultAsync.combine(
+              rows.map((r) => getOneContext(r.task_id, config)),
+            ),
+          );
+      });
 
       result.match(
         (items) => {
           const isJson = rootOpts(cmd).json;
-          if (taskIds.length === 1) {
+          // Single explicit ID → single object (backward-compat).
+          // No IDs or multiple IDs → always array.
+          const singleObject = taskIds.length === 1;
+          if (singleObject) {
             const d = items[0];
             if (isJson) {
               console.log(
@@ -269,10 +290,14 @@ export function contextCommand(program: Command) {
                 ),
               );
             } else {
-              items.forEach((d, i) => {
-                if (i > 0) console.log("---");
-                printOneContext(d);
-              });
+              if (items.length === 0) {
+                console.log("No doing tasks.");
+              } else {
+                items.forEach((d, i) => {
+                  if (i > 0) console.log("---");
+                  printOneContext(d);
+                });
+              }
             }
           }
         },

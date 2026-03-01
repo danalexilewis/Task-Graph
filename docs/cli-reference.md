@@ -634,19 +634,20 @@ tg export markdown --plan <planId> [--out <path>]
 - YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy). Suitable for re-import via `tg import --format cursor`.
 - Prints the destination path to stdout (unless `--json`).
 
-### `tg context <taskIds...>`
+### `tg context [taskIds...]`
 
-Outputs domain doc path, skill guide path, related done tasks, and (when present) task suggested changes and plan file tree/risks. Run after `tg start` to load the right docs before doing work. Accepts one or more task IDs; multiple IDs are fetched in parallel and returned as a JSON array.
+Outputs doc paths, skill guides, related done tasks, and (when present) suggested changes and plan file tree/risks for one or more tasks.
 
 ```bash
-tg context <taskId>                          # single task
+tg context                                   # no args — returns all currently doing tasks (hive-mind sync)
+tg context tg-abc123                         # single task — returns single object (backward-compat)
 tg context tg-abc123 tg-def456 tg-789ghi    # multiple tasks — parallel fetch, returns array
 tg context tg-abc123,tg-def456              # comma-separated also works
 ```
 
 **Arguments:**
 
-- `<taskIds...>`: One or more task IDs (space-separated or comma-separated).
+- `[taskIds...]`: Optional. One or more task IDs (space-separated or comma-separated). When omitted, returns context for all `doing` tasks so any agent can sync with active work without knowing task IDs upfront.
 
 **Options:**
 
