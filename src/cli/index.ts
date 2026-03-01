@@ -32,6 +32,7 @@ import { statusCommand } from "./status";
 import { syncCommand } from "./sync";
 import { taskCommand } from "./task";
 import { templateCommand } from "./template";
+import { task01CliCommand } from "./task-01-cli-command";
 import { readConfig, rootOpts } from "./utils";
 import { worktreeCommand } from "./worktree";
 
@@ -118,6 +119,7 @@ export function createProgram(): Command {
   cycleCommand(program);
   initiativeCommand(program);
   templateCommand(program);
+  task01CliCommand(program);
   worktreeCommand(program);
   syncCommand(program);
   serverCommand(program);
