@@ -1,5 +1,7 @@
 # Test Infrastructure Mapper
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 Fast, read-only analysis of the test infrastructure: runner configs, CI setup, shared utilities, and structural consistency. Does not modify code — returns a structured report to the orchestrator.

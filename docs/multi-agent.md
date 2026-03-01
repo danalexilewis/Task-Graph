@@ -67,6 +67,7 @@ See [cli-reference.md](cli-reference.md) (worktree section) and `.cursor/rules/s
 2. **Read Active work** before picking a task. Avoid overlap.
 3. **Leave notes** when changing shared interfaces or discovering anything relevant beyond the current task's scope. Notes are the transmission vehicle between an agent focused introspectively on one task and agents working connectively across many tasks. See [agent-strategy.md](agent-strategy.md#communication-notes-as-cross-dimensional-transmission) for the architectural framing.
 4. **Do not pick** tasks in the same area as another doing task without human approval.
+5. **Context hub (agent-context):** You may read from the SQLite context hub (`tg agent-context query` / `status`) and use it to inform your own decisions (e.g. avoid file conflicts, see who is doing what). **Do not start solving other agents' problems** — focus on your own task and take others' context under advisement only. See [agent-context.md](agent-context.md#use-of-the-context-hub--scope-discipline).
 
 ## Event Body Conventions
 

@@ -124,7 +124,7 @@ export function showCommand(program: Command) {
               (task as { hash_id?: string | null }).hash_id ?? task.task_id;
             console.log(`Task Details (ID: ${taskIdDisplay}):`);
             console.log(`  Title: ${task.title}`);
-            console.log(`  Plan: ${task.plan_title} (ID: ${task.plan_id})`);
+            console.log(`  Project: ${task.plan_title} (ID: ${task.plan_id})`);
             console.log(`  Status: ${task.status}`);
             console.log(`  Owner: ${task.owner}`);
             console.log(`  Area: ${task.area ?? "N/A"}`);

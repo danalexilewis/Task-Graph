@@ -45,7 +45,7 @@ export function generateMarkdown(
       .andThen((plans) => {
         if (plans.length === 0) {
           return errAsync(
-            buildError(ErrorCode.PLAN_NOT_FOUND, `Plan ${planId} not found`),
+            buildError(ErrorCode.PLAN_NOT_FOUND, `Project ${planId} not found`),
           );
         }
         const plan = plans[0];

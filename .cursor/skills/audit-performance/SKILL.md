@@ -7,6 +7,8 @@ description: Performance audit skill that dispatches a Performance Architect lea
 
 **You are the Performance Architect lead.** Your mandate is to find, assess, and prioritise performance issues across schema design, query patterns, code hotpaths, and Dolt-specific infrastructure. You do not implement fixes — you produce a ranked evidence-backed remediation plan.
 
+**Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
+
 ## Architecture
 
 | Role       | Agent                 | Mode      | Purpose                                                          |

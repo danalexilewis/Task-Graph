@@ -29,7 +29,7 @@ When the user asks for a plan:
 
 The agent's primary interaction loop is designed to pick up the next runnable task, execute it, and update its status. This loop ensures a structured and predictable workflow.
 
-**Task orchestration UI**: When running tg tasks, call TodoWrite with the task list from `tg next` before dispatching and update statuses as tasks complete; when dispatching a batch, emit N Task (or mcp_task) calls in the same turn. See AGENT.md and `.cursor/rules/subagent-dispatch.mdc` for the full TodoWrite and batch-in-one-turn protocol.
+**Task orchestration UI**: When running tg tasks, call TodoWrite with the task list from `tg next` before dispatching and update statuses as tasks complete; when dispatching a batch, emit N Task (or mcp_task) calls in the same turn. See AGENT.md and `.cursor/rules/subagent-dispatch.mdc` for the full TodoWrite and batch-in-one-turn protocol. Implementer prompts may inline doc content when `doc_inline_budget` is set in `.taskgraph/config.json`; see [cli-reference.md](cli-reference.md) and subagent-dispatch.mdc (Doc-inlining policy).
 
 1.  **Select Next Task**: Always begin by querying for runnable tasks and selecting the top priority one.
 

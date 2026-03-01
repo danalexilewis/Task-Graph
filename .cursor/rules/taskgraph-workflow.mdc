@@ -16,6 +16,8 @@ alwaysApply: true
 - **Typecheck:** `pnpm typecheck` runs typecheck only on **changed** `src/**/*.ts` (from git); `pnpm typecheck:all` runs full `tsc --noEmit`. Default is changed-files so sub-agents and gate stay fast. See `.cursor/rules/changed-files-default.mdc`.
 - **Gate:** `pnpm gate` runs `scripts/cheap-gate.sh` (lint + typecheck on changed files + affected tests). `pnpm gate:full` runs lint + full typecheck + full test suite.
 - **Recommendation:** After making changes, run `pnpm gate` (or `bash scripts/cheap-gate.sh`) to validate before committing.
+- **Long-running commands (gate:full, builds):** If a shell command exceeds `block_until_ms` and backgrounds, use the **terminal-file polling pattern** — incremental sleep + tail on the terminal file until the `exit_code:` footer appears. Never chain `sleep N && tail` in one shell call. Full pattern: `docs/agent-field-guide.md § Shell / Long-Running Commands`.
+  > **Note:** Terminal-file polling is for backgrounded **shell commands** only (e.g. `gate:full` or long CLI commands sent with `block_until_ms: 0`). **Task tool sub-agent calls are synchronous** — they block until the sub-agent returns and deliver results directly to the orchestrator. Never use `sleep && cat` to monitor Task tool sub-agents.
 
 ## Orientation
 

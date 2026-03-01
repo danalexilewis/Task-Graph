@@ -432,7 +432,9 @@ export function fetchStatusData(
             else if (row.status === "done") entry.done = row.count;
           }
         }
-        const activePlans = Array.from(planMap.values());
+        const activePlans = Array.from(planMap.values()).filter(
+          (p) => p.todo > 0 || p.doing > 0 || p.blocked > 0,
+        );
 
         const statusCounts: Record<string, number> = {};
         statusRows.forEach((r) => {
@@ -793,9 +795,8 @@ export function statusCommand(program: Command) {
           console.error("tg status --dashboard does not support --json");
           process.exit(1);
         }
-        const { runOpenTUILiveInitiatives } = await import(
-          "./tui/live-opentui.js"
-        );
+        const { runOpenTUILiveInitiatives } =
+          await import("./tui/live-opentui.js");
         try {
           await runOpenTUILiveInitiatives(config, statusOptions);
           return;
@@ -932,9 +933,8 @@ export function statusCommand(program: Command) {
         const config = configResult.value;
 
         if (viewMode === "projects") {
-          const { runOpenTUILiveProjects } = await import(
-            "./tui/live-opentui.js"
-          );
+          const { runOpenTUILiveProjects } =
+            await import("./tui/live-opentui.js");
           try {
             await runOpenTUILiveProjects(config, statusOptions);
             return;
@@ -1148,9 +1148,10 @@ function getCompletedSectionContent(d: StatusData): string {
   );
 }
 
-/** One-line footer for dashboard: agent count, sub-agent runs, total agent minutes. */
+/** One-line footer for dashboard: active workers (doing), agent count, sub-agent runs, total agent hours. */
 export function getDashboardFooterLine(d: StatusData): string {
-  return `Types of Agents: ${d.agentCount}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
+  const activeWorkers = d.statusCounts.doing ?? 0;
+  return `Active workers: ${activeWorkers}  Types of Agents: ${d.agentCount}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}`;
 }
 
 const NARROW_PLAN_WIDTH = 50;

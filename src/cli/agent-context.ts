@@ -25,14 +25,10 @@ function getAgentContextDbPath(config: Config): string {
 function runCollect(dbPath: string): ResultAsync<void, AppError> {
   return ResultAsync.fromPromise(
     new Promise<void>((resolve, reject) => {
-      const child = spawn(
-        "bun",
-        [COLLECT_SCRIPT, "--db", dbPath],
-        {
-          cwd: process.cwd(),
-          stdio: "inherit",
-        },
-      );
+      const child = spawn("bun", [COLLECT_SCRIPT, "--db", dbPath], {
+        cwd: process.cwd(),
+        stdio: "inherit",
+      });
       child.on("error", (e) => reject(e));
       child.on("exit", (code, signal) => {
         if (code === 0) resolve();
@@ -87,9 +83,7 @@ function runQuery(
     try {
       const out = JSON.parse(result.stdout) as QueryOutput;
       if (out.error) {
-        return errAsync(
-          buildError(ErrorCode.UNKNOWN_ERROR, out.error),
-        );
+        return errAsync(buildError(ErrorCode.UNKNOWN_ERROR, out.error));
       }
       return okAsync(out);
     } catch (e) {
@@ -105,7 +99,10 @@ function runQuery(
 }
 
 /** Map agent_events to table rows (headers + string rows). */
-function eventsToTableRows(events: AgentEventRow[]): { headers: string[]; rows: string[][] } {
+function eventsToTableRows(events: AgentEventRow[]): {
+  headers: string[];
+  rows: string[][];
+} {
   if (events.length === 0) {
     return { headers: ["agent", "task_id", "kind", "timestamp"], rows: [] };
   }
@@ -152,7 +149,7 @@ export function agentContextCommand(program: Command) {
     .option("--since <ms>", "Unix ms; only events after this", parseInt)
     .option("--agent <id>", "Filter by agent")
     .option("--task <id>", "Filter by task ID")
-    .option("--limit <n>", "Max events to return", "100", parseInt)
+    .option("--limit <n>", "Max events to return", parseInt, 100)
     .action(async (opts, cmd) => {
       const configResult = readConfig();
       if (configResult.isErr()) {
@@ -185,7 +182,9 @@ export function agentContextCommand(program: Command) {
         (e: AppError) => {
           console.error(`Error: ${e.message}`);
           if (json) {
-            console.log(JSON.stringify({ status: "error", message: e.message }));
+            console.log(
+              JSON.stringify({ status: "error", message: e.message }),
+            );
           }
           process.exit(1);
         },
@@ -194,7 +193,9 @@ export function agentContextCommand(program: Command) {
 
   agentContext
     .command("status")
-    .description("One-shot: events per agent in last 5 min, most recent per agent")
+    .description(
+      "One-shot: events per agent in last 5 min, most recent per agent",
+    )
     .action(async (opts, cmd) => {
       const configResult = readConfig();
       if (configResult.isErr()) {
@@ -215,7 +216,8 @@ export function agentContextCommand(program: Command) {
             if (!byAgent.has(agent)) byAgent.set(agent, []);
             byAgent.get(agent)!.push(e);
           }
-          const statusRows: { agent: string; count: number; latest: string }[] = [];
+          const statusRows: { agent: string; count: number; latest: string }[] =
+            [];
           for (const [agent, list] of byAgent.entries()) {
             const sorted = [...list].sort(
               (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
@@ -251,7 +253,9 @@ export function agentContextCommand(program: Command) {
         (e: AppError) => {
           console.error(`Error: ${e.message}`);
           if (json) {
-            console.log(JSON.stringify({ status: "error", message: e.message }));
+            console.log(
+              JSON.stringify({ status: "error", message: e.message }),
+            );
           }
           process.exit(1);
         },

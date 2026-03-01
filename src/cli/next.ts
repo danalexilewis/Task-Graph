@@ -9,7 +9,7 @@ export function nextCommand(program: Command) {
   program
     .command("next")
     .description("Select runnable tasks")
-    .option("--plan <planId>", "Optional filter by plan ID or title")
+    .option("--plan <planId>", "Optional filter by project ID or title")
     .option(
       "--domain <domain>",
       "Filter by task domain (maps to docs/<domain>.md)",
@@ -107,7 +107,7 @@ export function nextCommand(program: Command) {
               tasksArray.forEach((task) => {
                 const id = task.hash_id ?? task.task_id;
                 console.log(
-                  `  ID: ${id}, Title: ${task.title}, Plan: ${task.plan_title}, Risk: ${task.risk}, Estimate: ${task.estimate_mins ?? "N/A"}`,
+                  `  ID: ${id}, Title: ${task.title}, Project: ${task.plan_title}, Risk: ${task.risk}, Estimate: ${task.estimate_mins ?? "N/A"}`,
                 );
               });
             } else {

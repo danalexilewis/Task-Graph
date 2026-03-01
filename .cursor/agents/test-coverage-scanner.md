@@ -1,5 +1,7 @@
 # Test Coverage Scanner
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 Fast, read-only scan of the codebase to identify untested modules, missing test files, and coverage gaps. Does not modify code — returns a structured report to the orchestrator.

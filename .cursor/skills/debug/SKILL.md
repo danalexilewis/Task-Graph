@@ -5,7 +5,7 @@ description: Systematic debugging for unclear root cause, failing tests with unk
 
 # Debug (systematic)
 
-**Lead documentation:** See [docs/leads/debug.md](../../../docs/leads/debug.md).
+**Lead documentation:** See [docs/leads/debug.md](../../../docs/leads/debug.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
 
 Use this skill when root cause is unclear: failing test with unknown cause, user says `/debug`, or tasks that require methodical diagnosis before any fix.
 
@@ -19,10 +19,10 @@ Use this skill when root cause is unclear: failing test with unknown cause, user
 
 - **You (orchestrator / debug lead)**: Run the four-phase process; may do investigation and fix in-session or dispatch investigator for Phase 1–2 and implementer for Phase 4. Escalate after 3 failed fix attempts.
 - **Sub-agents** (optional, as needed):
-  | Agent        | Purpose                          | Permission   |
+  | Agent | Purpose | Permission |
   | ------------ | -------------------------------- | ------------- |
-  | investigator | Root cause and pattern analysis  | read-only    |
-  | implementer  | Single-change fixes, verification| read+write   |
+  | investigator | Root cause and pattern analysis | read-only |
+  | implementer | Single-change fixes, verification| read+write |
 
 **Constraint**: No fix (no code edit intended to fix the bug) until Phase 1 is complete. After 3 failed fix attempts, stop and report; orchestrator creates an investigate task or escalates to human.
 

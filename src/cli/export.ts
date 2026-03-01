@@ -19,7 +19,7 @@ export function exportCommand(program: Command) {
 function exportMermaidCommand(): Command {
   return new Command("mermaid")
     .description("Output Mermaid graph TD text to stdout")
-    .option("--plan <planId>", "Filter by plan ID")
+    .option("--plan <planId>", "Filter by project ID")
     .option("--feature <featureKey>", "Filter by feature key")
     .action(async (options, cmd) => {
       const result = await readConfig().asyncAndThen((_config: Config) => {
@@ -52,7 +52,7 @@ function exportMermaidCommand(): Command {
 function exportDotCommand(): Command {
   return new Command("dot")
     .description("Output Graphviz DOT text to stdout")
-    .option("--plan <planId>", "Filter by plan ID")
+    .option("--plan <planId>", "Filter by project ID")
     .option("--feature <featureKey>", "Filter by feature key")
     .action(async (options, cmd) => {
       const result = await readConfig().asyncAndThen((_config: Config) => {
@@ -85,9 +85,9 @@ function exportDotCommand(): Command {
 function exportMarkdownCommand(): Command {
   return new Command("markdown")
     .description(
-      "Export plan and tasks in Cursor format to exports/ (never overwrites plans/)",
+      "Export project and tasks in Cursor format to exports/ (never overwrites plans/)",
     )
-    .requiredOption("--plan <planId>", "Plan ID to export")
+    .requiredOption("--plan <planId>", "Project ID to export")
     .option(
       "--out <path>",
       "Write to this path (default: exports/<planId>.md). Cannot write into plans/.",

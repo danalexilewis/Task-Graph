@@ -5,7 +5,7 @@ description: Runs a quick high-level investigation from the end of the chat (sum
 
 # Investigate
 
-**Lead documentation:** See [docs/leads/investigator.md](docs/leads/investigator.md).
+**Lead documentation:** See [docs/leads/investigator.md](docs/leads/investigator.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
 
 ## Architecture
 

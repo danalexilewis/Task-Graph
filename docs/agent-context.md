@@ -66,6 +66,17 @@ The CLI spawns the collector as a Bun subprocess because the compiled Node CLI b
   - `tg agent-context status` — one-shot summary: events per agent in the last 5 minutes, most recent per agent.
 - **Programmatic:** The query logic lives in a Bun script that reads from the SQLite DB and prints JSON to stdout. The Node CLI spawns it and parses stdout; no direct DB access from the Node binary.
 
+## Use of the context hub — scope discipline
+
+Agents may **read** from the SQLite context hub (`tg agent-context query`, `tg agent-context status`, or the underlying store) and use that information however they want to make decisions **within their own scope of purpose**.
+
+**You must not:**
+
+- **Solve other agents' problems.** If you see another agent's task, heartbeat, or failure in the hub, do not start implementing fixes for their task, editing their files, or running commands intended to complete their work.
+- **Act on another agent's context as if it were your task.** Use other agents' activity as **advisory only** (e.g. to avoid file conflicts, to know who is doing what). Focus on your own task; take others' context under advisement.
+
+**Summary:** Use the context hub to inform your own decisions. Do not start solving their problems; focus on your own and take theirs under advisement.
+
 ## Decisions / gotchas
 
 - **bun:sqlite isolation:** `bun:sqlite` is a Bun built-in, not available in the Node-compiled CLI. The collector and query reader are **standalone Bun scripts** (e.g. `scripts/collect-agent-events.ts`, `scripts/query-agent-events.ts`). The CLI in `src/cli/agent-context.ts` only spawns them as subprocesses. No `bun:sqlite` import in `src/` code that gets built into `dist/`.

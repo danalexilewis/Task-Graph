@@ -1,5 +1,7 @@
 # Reviewer sub-agent
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 **Two modes, always read-only:**

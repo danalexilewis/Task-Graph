@@ -7,6 +7,8 @@ description: Post-plan pattern mining; analyses task diffs from a completed plan
 
 When this skill is invoked, analyse the completed plan's diffs for implementation anti-patterns and route findings as learnings to agent templates and docs. Do not stop to ask the human unless the plan branch cannot be located.
 
+**Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md). When routing learnings, prefer appending to the utility belt for cross-cutting patterns; keep agent-specific learnings in the agent file.
+
 ## Purpose
 
 Review completed plan execution history (task diffs on the plan branch) to identify code patterns that required follow-up fixes. Route findings as learnings to agent templates (`implementer.md`, `quality-reviewer.md`) or new/updated docs/skills. Complements the automated session-end `learningMode` hook — evolve is targeted (plan-scoped, diff-grounded) rather than session-broad.
@@ -16,9 +18,9 @@ Review completed plan execution history (task diffs on the plan branch) to ident
 - **Lead (orchestrator):** Resolves the plan, collects diffs from the plan branch, dispatches a reviewer in research mode, synthesises findings, routes learnings to agent files.
 - **Sub-agent:** Reviewer (read-only, inherit session model — do NOT pass `model="fast"`; pattern analysis requires reasoning quality). Tactical directive: analyse diffs for anti-patterns, classify, return structured findings.
 
-| Agent | Purpose | Permission | Model |
-|---|---|---|---|
-| reviewer (research mode) | Analyse plan diffs for anti-patterns | read-only | inherit (session model) |
+| Agent                    | Purpose                              | Permission | Model                   |
+| ------------------------ | ------------------------------------ | ---------- | ----------------------- |
+| reviewer (research mode) | Analyse plan diffs for anti-patterns | read-only  | inherit (session model) |
 
 ## Permissions
 
@@ -121,15 +123,18 @@ Output the findings table and a summary of what was written. Do not import or cr
 ## Evolve: Plan "<name>" — <YYYY-MM-DD>
 
 ### Findings
-| Category | Pattern | File | Routed to |
-|---|---|---|---|
+
+| Category    | Pattern                     | File             | Routed to                            |
+| ----------- | --------------------------- | ---------------- | ------------------------------------ |
 | SQL pattern | raw INSERT template literal | src/cli/start.ts | implementer.md + quality-reviewer.md |
 
 ### Learnings written
+
 - `implementer.md ## Learnings`: N entries added
 - `quality-reviewer.md ## Learnings`: N entries added
 
 ### Durable patterns (suggest doc update)
+
 - (none)
 - OR: docs/skills/cli-command-implementation.md — add SQL builder rule
 ```

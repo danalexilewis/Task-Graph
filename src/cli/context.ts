@@ -208,7 +208,7 @@ export function contextCommand(program: Command) {
             const overviewSnippet = d.plan_overview
               ? ` — ${d.plan_overview.split("\n")[0].slice(0, 120)}`
               : "";
-            console.log(`Plan: ${d.plan_name}${overviewSnippet}`);
+            console.log(`Project: ${d.plan_name}${overviewSnippet}`);
           }
           d.doc_paths.forEach((p) => {
             console.log(`Doc: ${p}`);
@@ -221,11 +221,11 @@ export function contextCommand(program: Command) {
             console.log(d.suggested_changes);
           }
           if (d.file_tree) {
-            console.log(`Plan file tree:`);
+            console.log(`Project file tree:`);
             console.log(d.file_tree);
           }
           if (d.risks != null && Array.isArray(d.risks) && d.risks.length > 0) {
-            console.log(`Plan risks:`);
+            console.log(`Project risks:`);
             d.risks.forEach(
               (r: {
                 description?: string;

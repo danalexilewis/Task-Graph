@@ -5,7 +5,7 @@ description: Autonomous task execution loop. Grinds through plan tasks using sub
 
 # Work — Autonomous Task Execution
 
-**Lead documentation:** See [docs/leads/execution.md](docs/leads/execution.md).
+**Lead documentation:** See [docs/leads/execution.md](docs/leads/execution.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
 
 When this skill is invoked, enter an autonomous execution loop. Do not stop to ask the human unless a sub-agent fails twice or you hit an ambiguity you cannot resolve.
 
@@ -96,8 +96,8 @@ while true:
   5. Emit all Task/mcp_task calls for this batch in the same turn (batch-in-one-turn).
   6. for each task in batch:
        a. context = tg context <taskId> --json
-       b. (Worktrunk) Run tg start <taskId> --agent <name> --worktree from repo root. Get worktree path from tg worktree list --json (or started event). On the first tg start --worktree for a plan, capture the plan branch from the started event or from tg worktree list --json and store it in the plan_id map. Inject {{WORKTREE_PATH}} and {{PLAN_BRANCH}} in the implementer prompt (so the implementer has plan branch context even though each task has its own worktree). After obtaining the worktree path: `touch <worktree_path>/.tg-dispatch-marker` to set a baseline timestamp for the overseer's staleness detection.
-       c. build implementer prompt from .cursor/agents/implementer.md + context + {{WORKTREE_PATH}} + {{PLAN_BRANCH}}
+       b. Pre-start: run tg start <taskId> --agent <name> --worktree from repo root. When all starts in the batch have completed, run tg worktree list --json once and match each task to its entry (branch tg/<taskId> or tg-<hash_id>); inject {{WORKTREE_PATH}} per task. On the first tg start --worktree for a plan, capture plan_branch and store in the plan_id map; inject {{PLAN_BRANCH}}. Optionally after obtaining each worktree path: touch <worktree_path>/.tg-dispatch-marker for overseer staleness detection.
+       c. build implementer prompt from .cursor/agents/implementer.md + context + {{WORKTREE_PATH}} + {{PLAN_BRANCH}}. When `doc_inline_budget` in `.taskgraph/config.json` is set (positive), inline doc content per subagent-dispatch.mdc (fill agent-field-guide, then doc_paths, then skill_docs within budget).
        d. dispatch sub-agent (Task tool or mcp_task, model=fast)
   7. wait for all sub-agents to complete
   8. for each completed sub-agent:
@@ -133,9 +133,11 @@ Order: run plan-merge for all completed plans first, then **Final action — com
 ## Sub-Agent Watchdog Protocol
 
 **Optional: Start the overseer daemon** before the first wave of dispatches:
+
 ```bash
 bash scripts/overseer.sh /tmp/tg-overseer-status.json &
 ```
+
 The daemon runs in the background, writing filesystem staleness data every 180s for active worktrees. No action needed if the script is absent or Dolt is unavailable — it degrades to an empty status file.
 
 Implementers run with a soft 10-minute budget (set `block_until_ms: 600000` when dispatching via Task tool).

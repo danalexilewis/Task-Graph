@@ -5,18 +5,18 @@ description: Create a rich project plan with codebase analysis, file trees, risk
 
 # Plan — Rich Plan Creation
 
-**Lead documentation:** See [docs/leads/planner-analyst.md](docs/leads/planner-analyst.md).
+**Lead documentation:** See [docs/leads/planner-analyst.md](docs/leads/planner-analyst.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
 
 ## Architecture
 
 - **You (orchestrator / planner lead)**: Classifies request mode, dispatches analyst (and optional mode-specific sub-agents), applies critique checklist, writes the plan, presents for review.
 - **Sub-agents**:
 
-  | Agent | Purpose | Permission | Model |
-  |-------|---------|------------|-------|
-  | planner-analyst | Gathers codebase context and rough task breakdown | read-only | default (Sonnet) |
-  | spec-reviewer | Assesses current impl vs intent (Pivot mode only) | read-only | default (Sonnet) |
-  | explore | Maps current behavior (Pivot/Refactor modes) | read-only | fast |
+  | Agent           | Purpose                                           | Permission | Model            |
+  | --------------- | ------------------------------------------------- | ---------- | ---------------- |
+  | planner-analyst | Gathers codebase context and rough task breakdown | read-only  | default (Sonnet) |
+  | spec-reviewer   | Assesses current impl vs intent (Pivot mode only) | read-only  | default (Sonnet) |
+  | explore         | Maps current behavior (Pivot/Refactor modes)      | read-only  | fast             |
 
 The analyst gathers facts; the orchestrator owns architecture, dependencies, and task design.
 
@@ -30,14 +30,14 @@ The analyst gathers facts; the orchestrator owns architecture, dependencies, and
 
 Before dispatching the analyst, classify the request into one of these modes. The mode shapes the analyst prompt focus and whether additional sub-agents run.
 
-| Mode | When | Keywords / signals |
-|------|------|--------------------|
-| **Greenfields** | New feature or subsystem with no existing code | "add", "build", "create", "implement" + new area |
-| **Improvement** | Enhancing or extending an existing feature | "improve", "enhance", "extend", "update", "upgrade" |
-| **Refactor** | Structural change without behavior change | "refactor", "restructure", "clean up", "simplify", "rename" |
-| **Pivot/Rescope** | Feature exists but direction has changed; tasks already done but result isn't right | "rescope", "this isn't right", "instead of", "change X to Y", tasks already done but UX/behavior is wrong |
-| **Bug fix** | Something is broken | "fix", "broken", "not working", "bug", "error" → **redirect to `/investigate` or `/debug`** unless the fix is small and clearly scoped |
-| **Unclear** | Request is ambiguous | Ask one clarifying question before dispatching analyst |
+| Mode              | When                                                                                | Keywords / signals                                                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Greenfields**   | New feature or subsystem with no existing code                                      | "add", "build", "create", "implement" + new area                                                                                       |
+| **Improvement**   | Enhancing or extending an existing feature                                          | "improve", "enhance", "extend", "update", "upgrade"                                                                                    |
+| **Refactor**      | Structural change without behavior change                                           | "refactor", "restructure", "clean up", "simplify", "rename"                                                                            |
+| **Pivot/Rescope** | Feature exists but direction has changed; tasks already done but result isn't right | "rescope", "this isn't right", "instead of", "change X to Y", tasks already done but UX/behavior is wrong                              |
+| **Bug fix**       | Something is broken                                                                 | "fix", "broken", "not working", "bug", "error" → **redirect to `/investigate` or `/debug`** unless the fix is small and clearly scoped |
+| **Unclear**       | Request is ambiguous                                                                | Ask one clarifying question before dispatching analyst                                                                                 |
 
 ```mermaid
 flowchart TD
@@ -100,10 +100,12 @@ flowchart TD
 ### Phase 2 additions per mode
 
 **Refactor plans** must:
+
 - Each task must preserve observable behavior (tests must still pass after each task)
 - Include a "behavior contract" task at the start: add/verify tests that lock in current behavior before any structural changes
 
 **Pivot/Rescope plans** must include in the plan body:
+
 - **Current state** — What exists and how it behaves today (from analyst + spec-reviewer)
 - **Desired state** — What the user said it should do
 - **Gaps** — The delta between current and desired, task by task

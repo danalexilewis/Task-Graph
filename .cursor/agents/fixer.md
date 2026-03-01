@@ -1,5 +1,7 @@
 # Fixer sub-agent
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 Resolve a task that the fast implementer (and optionally reviewer) could not complete correctly. You are dispatched when the orchestrator escalates to a stronger model after one or more implementer attempts failed (e.g. reviewer FAIL, or two implementer failures). You receive the same task context plus failure feedback, then implement or correct the work and complete the task.

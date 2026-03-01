@@ -40,16 +40,17 @@ Dispatch the fixer with the same task context plus failure feedback (e.g. `{{FAI
 
 The Cursor Task tool has exactly **two model states** — there are no named model strings to pass:
 
-| State | How to invoke | When to use |
-|-------|--------------|-------------|
-| **fast** | `model="fast"` in the Task tool call | High-volume, well-scoped work: implementers, explorers |
-| **inherit** | Omit `model` entirely | The sub-agent runs on whatever model the lead session is using |
+| State       | How to invoke                        | When to use                                                    |
+| ----------- | ------------------------------------ | -------------------------------------------------------------- |
+| **fast**    | `model="fast"` in the Task tool call | High-volume, well-scoped work: implementers, explorers         |
+| **inherit** | Omit `model` entirely                | The sub-agent runs on whatever model the lead session is using |
 
 **Never name a specific model** (e.g. "Sonnet", "Opus", "claude-3-5-sonnet") in an agent file or dispatch call — those strings are not valid Task tool values and will be ignored or error.
 
 **Practical implication:** If you want a sub-agent to use a high-capability model (planner-analyst, reviewers, fixer), omit `model` so it inherits from the lead. The quality of the result depends entirely on what model the orchestrator session is running. This is why the session-start rule recommends running the orchestrator on Sonnet — all inherit-model sub-agents get Sonnet for free.
 
 Agent tiers in this repo:
+
 - **fast** — implementer, explorer, test-quality-auditor, test-infra-mapper, test-coverage-scanner
 - **inherit** — planner-analyst, spec-reviewer, quality-reviewer, reviewer, fixer, investigator, debugger
 
@@ -91,7 +92,7 @@ Example:
 
 - **Injection**: When building a sub-agent prompt, the orchestrator reads the `## Learnings` section and injects it as `{{LEARNINGS}}` in the prompt (after instructions, before task context).
 - **Consolidation**: When learnings exceed ~10 entries, the orchestrator folds recurring patterns into the main prompt template and prunes the individual entries. This keeps the section high-signal.
-- **Scope**: Learnings are per-agent (implementer learnings stay in implementer.md). Cross-cutting patterns that apply to all agents go into `.cursor/rules/subagent-dispatch.mdc` or `.cursor/memory.md` instead.
+- **Scope**: Learnings are per-agent (implementer learnings stay in implementer.md). Cross-cutting patterns that apply to all agents live in [.cursor/agent-utility-belt.md](../agent-utility-belt.md); every agent persona and skill that invokes sub-agents should link to it. Orchestrator-specific patterns go in `.cursor/rules/subagent-dispatch.mdc` or `.cursor/memory.md`.
 
 ## Naming conventions
 
@@ -105,7 +106,7 @@ Example:
 2. For each task, orchestrator runs `tg context <taskId> --json` and optionally runs the explorer.
 3. Orchestrator reads the appropriate agent template (e.g. `implementer.md`), replaces placeholders with the task's context.
 4. Orchestrator dispatches the sub-agent: Task tool, `agent` CLI, or mcp_task. Pass `model="fast"` for fast-tier agents; omit `model` for inherit-tier agents (see [Model tier](#model-tier)).
-5. Sub-agent runs in its own context. When using worktree isolation (Worktrunk standard): orchestrator runs `tg start <taskId> --agent <name> --worktree` and passes **{{WORKTREE_PATH}}**; sub-agent `cd`s there and runs work and `tg done` from that directory. Otherwise sub-agent runs `tg start <taskId> --agent <name>` (and optionally `--worktree` then gets path from `tg worktree list --json`), does the work, runs `tg done <taskId> --evidence "..."`.
+5. Sub-agent runs in its own context. **Worktrees — orchestrator pre-starts and injects path by default.** The orchestrator runs `pnpm tg start <taskId> --agent <name> --worktree` for each task, obtains the worktree path from `tg worktree list --json`, and injects **`{{WORKTREE_PATH}}`** so the implementer skips claiming and path lookup. Step 1 for the implementer is then: `cd {{WORKTREE_PATH}}`, emit start heartbeat, then implement. When `{{WORKTREE_PATH}}` is omitted (e.g. batch too large to pre-start), the implementer self-starts in Step 1.
 
 Placeholders commonly used:
 
@@ -131,6 +132,7 @@ Placeholders commonly used:
 
 ## References
 
+- **Shared learnings (all agents):** [.cursor/agent-utility-belt.md](../agent-utility-belt.md)
 - Dispatch rule: `.cursor/rules/subagent-dispatch.mdc`
 - Skill guide: `docs/skills/subagent-dispatch.md`
 - Task graph workflow: `.cursor/rules/taskgraph-workflow.mdc`

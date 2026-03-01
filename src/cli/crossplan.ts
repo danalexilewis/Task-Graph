@@ -29,12 +29,12 @@ export function crossplanCommand(program: Command) {
   const crossplan = program
     .command("crossplan")
     .description(
-      "Cross-plan analysis: domains, skills, file overlaps, and proposed edges",
+      "Cross-project analysis: domains, skills, file overlaps, and proposed edges",
     );
 
   crossplan
     .command("domains")
-    .description("Show domains shared across multiple plans with task counts")
+    .description("Show domains shared across multiple projects with task counts")
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
       const result = readConfig().asyncAndThen((config: Config) =>
@@ -63,7 +63,7 @@ export function crossplanCommand(program: Command) {
 
   crossplan
     .command("skills")
-    .description("Show skills shared across multiple plans with task counts")
+    .description("Show skills shared across multiple projects with task counts")
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
       const result = readConfig().asyncAndThen((config: Config) =>
@@ -82,9 +82,9 @@ export function crossplanCommand(program: Command) {
             }[]
           ).forEach((r) => {
             console.log(
-              `${r.skill}: ${r.plan_count} plans, ${r.task_count} tasks`,
+              `${r.skill}: ${r.plan_count} projects, ${r.task_count} tasks`,
             );
-            console.log(`  Plans: ${r.plan_titles.join(", ")}`);
+            console.log(`  Projects: ${r.plan_titles.join(", ")}`);
           });
         }
       });
@@ -92,7 +92,7 @@ export function crossplanCommand(program: Command) {
 
   crossplan
     .command("files")
-    .description("Find files touched by multiple plans (from plan file_tree)")
+    .description("Find files touched by multiple projects (from project file_tree)")
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
       const result = readConfig().asyncAndThen((config: Config) =>
@@ -109,8 +109,8 @@ export function crossplanCommand(program: Command) {
               plan_titles: string[];
             }[]
           ).forEach((r) => {
-            console.log(`${r.file}: ${r.plan_count} plans`);
-            console.log(`  Plans: ${r.plan_titles.join(", ")}`);
+            console.log(`${r.file}: ${r.plan_count} projects`);
+            console.log(`  Projects: ${r.plan_titles.join(", ")}`);
           });
         }
       });
@@ -119,7 +119,7 @@ export function crossplanCommand(program: Command) {
   crossplan
     .command("edges")
     .description(
-      "Propose cross-plan edges (blocks from file overlap, relates from domain overlap)",
+      "Propose cross-project edges (blocks from file overlap, relates from domain overlap)",
     )
     .option("--dry-run", "Show proposals without writing to Dolt", false)
     .option("--json", "Output as JSON")
@@ -164,7 +164,7 @@ export function crossplanCommand(program: Command) {
   crossplan
     .command("plans")
     .description(
-      "Summary of tasks by plan: task counts per plan (optionally by status)",
+      "Summary of tasks by project: task counts per project (optionally by status)",
     )
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
@@ -199,7 +199,7 @@ export function crossplanCommand(program: Command) {
   crossplan
     .command("summary")
     .description(
-      "All cross-plan analysis in one output: domains, skills, files, proposed edges",
+      "All cross-project analysis in one output: domains, skills, files, proposed edges",
     )
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
@@ -266,7 +266,7 @@ function runPlans(
       SUM(CASE WHEN t.status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
       SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS done,
       SUM(CASE WHEN t.status = 'canceled' THEN 1 ELSE 0 END) AS canceled
-    FROM \`plan\` p
+    FROM \`project\` p
     LEFT JOIN \`task\` t ON p.plan_id = t.plan_id
     WHERE p.status != 'abandoned'
     GROUP BY p.plan_id, p.title, p.status

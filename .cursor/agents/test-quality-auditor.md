@@ -1,5 +1,7 @@
 # Test Quality Auditor
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 Fast, read-only audit of existing test files for quality anti-patterns, assertion strength, and structural issues. Does not modify code — returns a structured report to the orchestrator.

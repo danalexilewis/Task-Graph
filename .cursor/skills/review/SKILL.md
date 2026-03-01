@@ -5,7 +5,7 @@ description: Read-only review of code health and system health using sub-agents;
 
 # Review (read-only)
 
-**Lead documentation:** See [docs/leads/review.md](../../docs/leads/review.md).
+**Lead documentation:** See [docs/leads/review.md](../../docs/leads/review.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
 
 This skill is **read-only**: no file edits, no database writes, no destructive commands. The orchestrator coordinates sub-agents that gather and assess; you synthesize their findings into a single report.
 

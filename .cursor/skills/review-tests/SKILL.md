@@ -5,7 +5,7 @@ description: Review and audit the project's testing approach, coverage, quality,
 
 # Test Review
 
-**Lead documentation:** See [docs/leads/test-review.md](docs/leads/test-review.md).
+**Lead documentation:** See [docs/leads/test-review.md](docs/leads/test-review.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
 
 Orchestrates a comprehensive review of the project's testing approach by dispatching three fast subagents in parallel, synthesising their findings, writing a report, and **creating a Cursor-format plan** that can be imported into taskgraph. Each task in the plan records which sub-agent should execute it so the execution loop can run `tg start <taskId> --agent <agent>` and dispatch efficiently.
 
@@ -24,12 +24,12 @@ Orchestrates a comprehensive review of the project's testing approach by dispatc
 - **Propagation**: Phase 1 scanners MUST use readonly=true. Implementer tasks (from plan) are read-write.
 - **Sub-agents**:
 
-  | Agent | Permission | Phase |
-  |-------|------------|-------|
-  | test-coverage-scanner | read-only | 1 (scanning) |
-  | test-quality-auditor | read-only | 1 (scanning) |
-  | test-infra-mapper | read-only | 1 (scanning) |
-  | implementer | read-write | Plan execution (after import) |
+  | Agent                 | Permission | Phase                         |
+  | --------------------- | ---------- | ----------------------------- |
+  | test-coverage-scanner | read-only  | 1 (scanning)                  |
+  | test-quality-auditor  | read-only  | 1 (scanning)                  |
+  | test-infra-mapper     | read-only  | 1 (scanning)                  |
+  | implementer           | read-write | Plan execution (after import) |
 
 ## Decision tree
 

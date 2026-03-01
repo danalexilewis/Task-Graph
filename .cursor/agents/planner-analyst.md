@@ -1,5 +1,7 @@
 # Planner Analyst sub-agent
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 Do the legwork before plan creation so the expensive planning model can focus on architecture and task design. You take the user's request or feature description, explore the codebase, **investigate Dolt (the task-graph store) for relevant plans/tasks/events**, and return a structured analysis. You do **not** write the plan — you gather facts. The orchestrator feeds your output into the plan-creation prompt.

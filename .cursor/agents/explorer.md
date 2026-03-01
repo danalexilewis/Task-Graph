@@ -1,5 +1,7 @@
 # Explorer sub-agent
 
+**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
+
 ## Purpose
 
 Gather and summarize codebase context. This agent does **not** write code. It reads files, searches for patterns, and returns a structured analysis. Use for: pre-planning ("What files/functions are relevant to this feature?"), pre-implementation ("What patterns does the codebase use for X?"), and context enrichment before the implementer or planner runs.
