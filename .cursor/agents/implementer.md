@@ -33,6 +33,13 @@ The orchestrator must pass:
 
 - Run `tg done <taskId> --evidence "..."` with a short evidence string (commands run, git ref, or implemented; no test run).
 - Return a brief completion message to the orchestrator (e.g. "Task X done. Evidence: ...").
+- **Self-report (optional):** If your environment exposes token usage, pass it to `tg done`:
+  - `--tokens-in <n>` — input tokens for this session
+  - `--tokens-out <n>` — output tokens generated
+  - `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
+  - `--attempt <n>` — 1 for first attempt, 2 after a reviewer FAIL, etc.
+  - All flags are optional; omit if unavailable. Do not spend effort estimating.
+  - Example: `pnpm tg done tg-xxxx --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1`
 - If you hit environment or gate issues you could not fix (e.g. missing tool, typecheck failure in another area), run `tg note <taskId> --msg "..."` so the orchestrator can decide whether to create follow-up tasks.
 
 **Structured failure output (when you cannot complete the task):**  
@@ -111,6 +118,9 @@ You have been given task context below. Read any domain docs and skill guides li
 
 **Step 4 — Complete the task**
 From the **worktree directory** (you must be in the worktree path when using worktree isolation), run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: commands run, git ref, or implemented; no test run>"`. If the task was started with `--merge` intent, the orchestrator will run done with `--merge`; you only run `tg done` with evidence.
+
+If your environment exposes token usage, append the optional self-report flags (all optional, skip if unavailable — do not estimate):
+`--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
 
 Then report back to the orchestrator: task done and the evidence you used.
 
