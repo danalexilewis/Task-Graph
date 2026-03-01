@@ -86,7 +86,7 @@ describe.serial("Agent context collector and query integration", () => {
   let tmpDir: string;
   let terminalsDir: string;
   let dbPath: string;
-  let collectorPid: number | undefined;
+  let _collectorPid: number | undefined;
   let pidFilePath: string;
   const envVarsSet: string[] = [];
 
@@ -120,7 +120,7 @@ describe.serial("Agent context collector and query integration", () => {
     if (pid === undefined) {
       throw new Error("Collector spawn failed: no PID");
     }
-    collectorPid = pid;
+    _collectorPid = pid;
     child.unref();
 
     fs.writeFileSync(pidFilePath, String(pid), "utf8");

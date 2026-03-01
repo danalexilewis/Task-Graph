@@ -6,6 +6,8 @@ Shared learnings for all agent personas and sub-agents. When building prompts or
 
 ## Result / error handling
 
+- **[2026-03-01]** Empty early-return inside a `.andThen()` chain — do not use `Promise.resolve({ isOk: () => true, value: [] }) as unknown as ResultAsync<T, E>`; that bypasses neverthrow's interface and will not chain. Use `okAsync(value)` (or `okAsync([])`) for trivially-known early returns inside `ResultAsync` chains.
+- **[2026-03-01]** `Result.map()` / `ResultAsync.map()` used with a void callback (side-effects only, no return) — this is a forEach misuse and triggers biome `lint/suspicious/useIterableCallbackReturn`. At a boundary where you only want to act on success, use `.isOk()` + direct property access: `if (r.isOk() && r.value.length > 0) { ... }`. Only use `.map()` when transforming the inner value.
 - **[2026-03-01]** `ResultAsync.fromPromise` error mapper written as `(e) => e as AppError` — unsafe cast; runtime exceptions are silently miscast. Instead: `(e) => buildError(ErrorCode.UNKNOWN_ERROR, e instanceof Error ? e.message : String(e), e)`.
 - **[2026-03-01]** In `ResultAsync.fromPromise` and catch blocks, do not use `(e as Error).message` — non-Error rejections can throw. Use `e instanceof Error ? e.message : String(e)` for the message and pass the rejection as the third argument to `buildError`.
 - **[2026-03-01]** When building `AppError` from script or subprocess output (e.g. `out.error`), pass the raw output or parsed object as the third argument (cause) to `buildError` so logs and tools can inspect it.
@@ -17,6 +19,7 @@ Shared learnings for all agent personas and sub-agents. When building prompts or
 - **[2026-03-01]** 2+ independent queries should not be nested `.andThen()` chains — that runs them serially. Use `ResultAsync.combine([q.raw(sql1), q.raw(sql2)])` for parallel execution. Nested `.andThen()` is correct only when one query depends on the previous result.
 - **[2026-03-01]** Dolt does NOT auto-create secondary indexes for FK declarations (unlike MySQL InnoDB). Every FK column and every high-frequency filter column (WHERE, JOIN subquery) needs an explicit `CREATE INDEX idx_<table>_<col>` in the same migration.
 - **[2026-03-01]** `ensureMigrations` probes spawn a dolt subprocess each. When adding a migration, batch `tableExists`/`columnExists`/`viewExists` checks into as few probes as possible. Every new probe adds to every CLI command cold-start.
+- **[2026-03-01]** `execa dolt` without `DOLT_DISABLE_UPDATE_CHECK: "1"` makes a ~16s blocking network call on every invocation to check for updates — this causes `tg status`, `tg done`, and every other CLI command to appear to hang. Always include `DOLT_DISABLE_UPDATE_CHECK: "1"` in the `env` object for every `execa dolt` call, alongside `DOLT_READ_ONLY: "false"`. (Fixed in connection.ts, branch.ts, commit.ts, sync.ts on 2026-03-01.)
 - **[2026-03-01]** Migration calling `doltCommit` unconditionally creates spurious empty Dolt commits on idempotent re-runs. Guard: `let changed = false; if (!exists) { runDDL(); changed = true; } if (changed) { doltCommit(...); }`.
 - **[2026-03-01]** `dolt sql-server` spawned with `stdio: "ignore"` — startup panics invisible; only signal was "did not become ready after 50 attempts". Add an `"exit"` event listener in the polling loop: if `child.exitCode !== null`, throw immediately. Prefer `stdio: "pipe"` in test infra setup.
 
@@ -26,6 +29,7 @@ Shared learnings for all agent personas and sub-agents. When building prompts or
 - **[2026-03-01]** New CLI flags on `tg done`/`tg start` won't be used by agents until they appear in agent templates. When new flags are added to task-graph CLI commands, update all agent templates that call those commands immediately.
 - **[2026-03-01]** Extract domain-style logic (e.g. group-by agent, sort, latest-per-key) from command handlers into pure functions; keep handlers to config read, call pure fn, then format/output. Do not put large aggregation blocks inside `.match()` callbacks.
 - **[2026-03-01]** When multiple subcommands share the same sequence (readConfig → isErr exit → path resolution → operation → .match err handling), deduplicate via a shared helper (e.g. `withConfig(cmd, fn)`) so each action only supplies the operation.
+- **[2026-03-01]** Double `readConfig()` in one action handler — when a pre-step (e.g. auto-recovery) also needs config, extract it once: `const config = readConfig(); if (config.isOk()) { preStep(config.value); }` then thread `config.asyncAndThen(...)` into the main chain. Do not call `readConfig()` a second time for the main query.
 
 ## Test infrastructure
 

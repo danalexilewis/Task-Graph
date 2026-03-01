@@ -1505,33 +1505,12 @@ export function applyPlanHashIdMigration(
   cache?: QueryCache,
   probe?: MigrationProbeResult,
 ): ResultAsync<void, AppError> {
-  if (probe) {
-    if (probe.columns["plan.hash_id"])
-      return ResultAsync.fromSafePromise(Promise.resolve());
-    const table = probe.tables.project ? "project" : "plan";
-    return doltSql(
-      `ALTER TABLE \`${table}\` ADD COLUMN \`hash_id\` VARCHAR(20) NULL`,
-      repoPath,
-    )
-      .map(() => {
-        cache?.clear();
-        return undefined;
-      })
-      .andThen(() =>
-        doltSql(
-          `UPDATE \`${table}\` SET hash_id = CONCAT('p-', LOWER(SUBSTR(HEX(plan_id), 1, 6))) WHERE hash_id IS NULL OR hash_id = ''`,
-          repoPath,
-        ),
-      )
-      .map(() => undefined)
-      .andThen(() =>
-        doltCommit(
-          "db: add plan hash_id column and backfill",
-          repoPath,
-          noCommit,
-        ),
-      )
-      .map(() => undefined);
+  // Use probe only for the fast-exit (column already exists). Do NOT use probe.tables.project
+  // for table selection: applyPlanToProjectRenameMigration runs before this in ensureMigrations,
+  // so by the time we run, `plan` may already be a VIEW (not a table). The stale probe would
+  // incorrectly select `plan` (the view) and Dolt would reject ALTER TABLE on a view.
+  if (probe?.columns["plan.hash_id"]) {
+    return ResultAsync.fromSafePromise(Promise.resolve());
   }
   return planColumnExists(repoPath, "hash_id", cache).andThen((hasCol) => {
     if (hasCol) return ResultAsync.fromSafePromise(Promise.resolve());

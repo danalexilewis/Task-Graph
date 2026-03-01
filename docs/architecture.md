@@ -46,6 +46,7 @@ The project adheres to a structured repository layout to separate concerns and i
 | `learningMode`               | boolean (optional)        | When true, orchestrator may append learnings to agent files after runs.                            |
 | `context_token_budget`       | number or null (optional) | Max tokens for `tg context` output; null or omitted = unlimited. Typical: 4000–8000.               |
 | `context_inline_doc_budget`  | number (optional)         | Token budget for inlining doc content into implementer prompts; omitted or 0 = no inlining. Positive = max tokens per task (typical: 8000). See subagent-dispatch.mdc → Doc-inlining policy. |
+| `general_context_budget`    | number (optional)         | Cap in tokens for the **general context** block (e.g. `{{GENERAL_CONTEXT}}`). When set, orchestrator/tooling that fills general context uses this value; when unset, use the default (2000 tokens) per subagent-dispatch.mdc. |
 | `mainBranch`                 | string (optional)         | Branch to merge agent branches into when using `tg start --branch` and `tg done`. Default: `main`. |
 
 - **Agent branches**: Use `tg start <taskId> --branch` to create and checkout a Dolt branch for that task. When you run `tg done <taskId>`, the CLI merges that branch into the main branch (or `mainBranch` from config) and deletes the agent branch. If the merge has conflicts, an error is reported and the branch is left for manual resolution.

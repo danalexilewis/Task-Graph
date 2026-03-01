@@ -5,7 +5,11 @@ import { doltSqlServer, getServerPool } from "./connection";
 
 const doltPath = () => process.env.DOLT_PATH || "dolt";
 
-const doltEnv = () => ({ ...process.env, DOLT_READ_ONLY: "false" });
+const doltEnv = () => ({
+  ...process.env,
+  DOLT_READ_ONLY: "false",
+  DOLT_DISABLE_UPDATE_CHECK: "1",
+});
 
 /**
  * Create a new branch in the Dolt repo. Branch is created from current HEAD.

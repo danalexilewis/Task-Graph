@@ -196,7 +196,7 @@ export function agentContextCommand(program: Command) {
     .description(
       "One-shot: events per agent in last 5 min, most recent per agent",
     )
-    .action(async (opts, cmd) => {
+    .action(async (_opts, cmd) => {
       const configResult = readConfig();
       if (configResult.isErr()) {
         console.error(configResult.error.message);
@@ -214,7 +214,7 @@ export function agentContextCommand(program: Command) {
           for (const e of events) {
             const agent = e.agent ?? "—";
             if (!byAgent.has(agent)) byAgent.set(agent, []);
-            byAgent.get(agent)!.push(e);
+            byAgent.get(agent)?.push(e);
           }
           const statusRows: { agent: string; count: number; latest: string }[] =
             [];

@@ -164,6 +164,7 @@ export function doltSql(
           env: {
             ...process.env,
             DOLT_READ_ONLY: "false",
+            DOLT_DISABLE_UPDATE_CHECK: "1",
           },
         },
       ),

@@ -19,7 +19,11 @@ function runDolt(
   return ResultAsync.fromPromise(
     execa(doltPath(), ["--data-dir", doltRepoPath, ...args], {
       cwd: doltRepoPath,
-      env: { ...process.env, DOLT_READ_ONLY: "false" },
+      env: {
+        ...process.env,
+        DOLT_READ_ONLY: "false",
+        DOLT_DISABLE_UPDATE_CHECK: "1",
+      },
     }),
     (e) =>
       buildError(

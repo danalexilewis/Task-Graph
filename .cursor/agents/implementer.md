@@ -20,7 +20,8 @@ The orchestrator must pass:
 
 - `{{TASK_ID}}` — task UUID
 - `{{AGENT_NAME}}` — unique name for this run (e.g. implementer-1 when running in parallel)
-- `{{WORKTREE_PATH}}` — **Normal case (orchestrator pre-starts):** Absolute path to the task's worktree. The task is already started; `cd` to this path in Step 1 and run all work and `tg done` from there. **Fallback (when omitted):** run `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree` yourself in Step 1 and obtain the path from `tg worktree list --json`. Sub-agent work uses **Worktrunk** when available (config `useWorktrunk: true` or `wt` on PATH).
+- `{{WORKTREE_PATH}}` — Absolute path to the task's worktree (for file editing and `git add/commit` only). **Normal case (orchestrator pre-starts):** The task is already started; `cd` to this path for file work. **Fallback (when omitted):** run `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree` yourself in Step 1 and obtain the path from `tg worktree list --json`. Sub-agent work uses **Worktrunk** when available (config `useWorktrunk: true` or `wt` on PATH).
+- `{{REPO_PATH}}` — Absolute path to the main repo root. **All `pnpm tg` CLI commands (note, done, status, context) must run from this path**, not from `{{WORKTREE_PATH}}`. For Worktrunk worktrees (sibling dirs like `Repo.tg-abc123`), `pnpm tg` won't work from the worktree — there's no `dist/`, `node_modules/`, or `.taskgraph/` there.
 - `{{CONTEXT_JSON}}` or the following fields:
   - `{{TITLE}}` — task title
   - `{{INTENT}}` — detailed intent
@@ -43,7 +44,7 @@ The orchestrator must pass:
   - `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
   - `--attempt <n>` — 1 for first attempt, 2 after a reviewer FAIL, etc.
   - All flags are optional; omit if unavailable. Do not spend effort estimating.
-  - Example: `pnpm tg done tg-xxxx --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1`
+  - Example (from `{{REPO_PATH}}`): `pnpm tg done tg-xxxx --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1`
 - If you hit environment or gate issues you could not fix (e.g. missing tool, typecheck failure in another area), run `tg note <taskId> --msg "..."` so the orchestrator can decide whether to create follow-up tasks.
 
 **Structured failure output (when you cannot complete the task):**  
@@ -67,12 +68,17 @@ You are the Implementer sub-agent. You execute exactly one task from the task gr
 **At start (optional)** — To see current task state: `pnpm tg status --tasks` (task list only; no plans/initiatives).
 
 **Step 1 — Switch to worktree (orchestrator normally injects path)**
-When the orchestrator passed **{{WORKTREE_PATH}}** (normal case): the task is already claimed and the worktree exists. Run `cd {{WORKTREE_PATH}}` and do all work and `tg done` from that directory. No need to run `tg start` or `tg worktree list`.
-When **{{WORKTREE_PATH}}** was not passed (fallback): run from repo root `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree`, then `pnpm tg worktree list --json`, find the entry for this task's branch (e.g. `tg-<hash>` or `tg/<taskId>`), and `cd` to its `path`. All work and `tg done` must run from that worktree directory. (Worktrunk is the standard backend when `wt` is installed; ensure `.taskgraph/config.json` has `useWorktrunk: true` or leave unset for auto-detect.)
+
+> **Worktrunk worktrees are sibling directories** (e.g. `/path/to/Repo.tg-abc123`). They have no `node_modules/`, `dist/`, or `.taskgraph/`. **All `pnpm tg` CLI commands must run from `{{REPO_PATH}}` (the main repo root), not the worktree.** Only file editing and `git add/commit` run from `{{WORKTREE_PATH}}`.
+
+When the orchestrator passed **{{WORKTREE_PATH}}** and **{{REPO_PATH}}** (normal case): the task is already claimed and the worktree exists. `cd {{WORKTREE_PATH}}` for editing files and committing. Run `pnpm tg` commands (note, done, status, context) as `(cd {{REPO_PATH}} && pnpm tg ...)` or by `cd`-ing back to `{{REPO_PATH}}` first. No need to run `tg start` or `tg worktree list`.
+
+When **{{WORKTREE_PATH}}** was not passed (fallback): from the repo root run `pnpm tg start {{TASK_ID}} --agent {{AGENT_NAME}} --worktree`, then `pnpm tg worktree list --json`, find the entry for this task's branch (e.g. `tg-<hash>` or `tg/<taskId>`), and note its `path` as your worktree. All file editing and git commits happen there; all `pnpm tg` commands run from the repo root. (Worktrunk is the standard backend when `wt` is installed; ensure `.taskgraph/config.json` has `useWorktrunk: true` or leave unset for auto-detect.)
+
 Use the agent name you were given (e.g. implementer-1) when running in parallel.
 
-After `cd` to the worktree (or immediately after `tg start` if no worktree is used), emit a **start heartbeat**:
-`pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"start","files":[]}' --agent {{AGENT_NAME}}`
+After locating the worktree, emit a **start heartbeat** (from repo root):
+`(cd {{REPO_PATH}} && pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"start","files":[]}' --agent {{AGENT_NAME}})`
 
 **Spidey sense (passive):** Run `pnpm tg context --json` once to see what other agents are currently doing. Glance at the file lists for obvious conflicts with your own task. Then ignore it — this is background awareness only. Do not adjust your scope, approach, or priorities based on other agents' work. Your job is your task; theirs is theirs.
 
@@ -114,8 +120,8 @@ You have been given task context below. Read any domain docs and skill guides li
 **Learnings from prior runs (follow these):** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md). {{LEARNINGS}}
 
 **Step 3 — Do the todo's**
-Before touching files, emit a **mid-work heartbeat** listing the files you plan to modify:
-`pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"mid-work","files":["path/to/file.ts"]}' --agent {{AGENT_NAME}}`
+Before touching files, emit a **mid-work heartbeat** listing the files you plan to modify (run from repo root):
+`(cd {{REPO_PATH}} && pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"mid-work","files":["path/to/file.ts"]}' --agent {{AGENT_NAME}})`
 
 - Implement only what the intent and suggested changes describe. Stay in scope.
 - Do not modify files outside the task's scope. If the file tree or intent names specific files, prefer those.
@@ -139,22 +145,22 @@ Before touching files, emit a **mid-work heartbeat** listing the files you plan 
 **Step 4 — Complete the task**
 When using a worktree, the commit in Step 3 must have happened before `tg done`, so that `tg done --merge` (when the orchestrator uses it) has a commit to squash.
 
-Just before `tg done`, emit a **pre-done heartbeat** with the final list of files modified:
-`pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"pre-done","files":["path/to/file.ts"]}' --agent {{AGENT_NAME}}`
+Just before `tg done`, emit a **pre-done heartbeat** with the final list of files modified (run from repo root):
+`(cd {{REPO_PATH}} && pnpm tg note {{TASK_ID}} --msg '{"type":"heartbeat","agent":"{{AGENT_NAME}}","phase":"pre-done","files":["path/to/file.ts"]}' --agent {{AGENT_NAME}})`
 
-From the **worktree directory** (you must be in the worktree path when using worktree isolation), run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: commands run, git ref, or implemented; no test run>"`. If the task was started with `--merge` intent, the orchestrator will run done with `--merge`; you only run `tg done` with evidence.
+From **`{{REPO_PATH}}` (the main repo root)**, run: `pnpm tg done {{TASK_ID}} --evidence "<brief evidence: commands run, git ref, or implemented; no test run>"`. Do NOT run `tg done` from the worktree path — `tg done` reads the worktree location from the database; it only needs the main repo's `.taskgraph/config.json`. If the task was started with `--merge` intent, the orchestrator will run done with `--merge`; you only run `tg done` with evidence.
 
 If your environment exposes token usage, append the optional self-report flags (all optional, skip if unavailable — do not estimate):
 `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
 
 Then report back to the orchestrator: task done and the evidence you used.
 
-**Loop budget:** You have a 10-minute implementation budget. If you have attempted the same approach 3+ times without progress, or read the same terminal path 5+ times in a row without an intervening file change, you are stuck. Stop. Run `pnpm tg note {{TASK_ID}} --msg 'STUCK: <brief pattern description>'`, then call `pnpm tg done {{TASK_ID}} --evidence 'STUCK: exiting early to allow reassignment'` and return:
+**Loop budget:** You have a 10-minute implementation budget. If you have attempted the same approach 3+ times without progress, or read the same terminal path 5+ times in a row without an intervening file change, you are stuck. Stop. From `{{REPO_PATH}}`, run `pnpm tg note {{TASK_ID}} --msg 'STUCK: <brief pattern description>'`, then `pnpm tg done {{TASK_ID}} --evidence 'STUCK: exiting early to allow reassignment'` and return:
 VERDICT: FAIL
 REASON: stuck-loop (<pattern>)
 SUGGESTED_FIX: reassign via watchdog - fixer if partial work, re-dispatch if no work
 
-If you cannot complete (blocked, unfixable gate/env issue): use the structured failure format (VERDICT: FAIL, REASON: ..., SUGGESTED_FIX: ...) in your reply or in `tg note {{TASK_ID}} --msg "..."`.
+If you cannot complete (blocked, unfixable gate/env issue): use the structured failure format (VERDICT: FAIL, REASON: ..., SUGGESTED_FIX: ...) in your reply or in `(cd {{REPO_PATH}} && pnpm tg note {{TASK_ID}} --msg "...")`.
 ```
 
 ## Learnings

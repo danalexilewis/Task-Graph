@@ -28,7 +28,11 @@ export function doltCommit(
   }
 
   const dolt = doltPath();
-  const doltEnv = { ...process.env, DOLT_READ_ONLY: "false" };
+  const doltEnv = {
+    ...process.env,
+    DOLT_READ_ONLY: "false",
+    DOLT_DISABLE_UPDATE_CHECK: "1",
+  };
   return ResultAsync.fromPromise(
     execa(dolt, ["--data-dir", repoPath, "add", "-A"], {
       cwd: repoPath,

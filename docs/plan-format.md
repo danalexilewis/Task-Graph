@@ -9,6 +9,8 @@ triggers:
 
 This document defines the **enhanced Cursor plan format**: analysis-rich plans with file trees, risks, tests, per-task intent and suggested code changes, and a structured markdown body. It extends the base Cursor format described in [Plan Import](plan-import.md) and is the reference for [Plan Authoring](.cursor/rules/plan-authoring.mdc).
 
+**Plan files are authoring artifacts.** They live in `plans/` (e.g. `plans/yy-mm-dd_name.md`) and are the source for human and agent editing. **Import creates Projects:** when you run `tg import plans/<file> --plan "<name>" --format cursor`, the CLI creates or updates a **project** row in the task graph database and upserts tasks. The project is the persisted entity; the plan file is the document you edit.
+
 All new fields are **optional**. Existing plans without these fields continue to import and behave as before.
 
 ---
@@ -29,18 +31,25 @@ All new fields are **optional**. Existing plans without these fields continue to
 
 | Field       | Required | Description                           |
 | ----------- | -------- | ------------------------------------- |
-| `name`      | yes      | Plan title.                           |
-| `overview`  | yes      | Brief description; can be multi-line. |
+| `name`      | yes      | Plan/project title.                   |
+| `overview`  | yes      | Brief description; can be multi-line. Stored in `project.overview` when present. |
 | `todos`     | yes      | Array of task objects (see below).    |
 | `isProject` | no       | Boolean; default false.               |
 
 ### Plan-Level Optional Fields (Rich Planning)
 
-| Field      | Type   | Stored in Dolt   | Description                                                                         |
-| ---------- | ------ | ---------------- | ----------------------------------------------------------------------------------- |
-| `fileTree` | string | `plan.file_tree` | Tree of files affected by the plan (e.g. paths with `(create)` / `(modify)`).       |
-| `risks`    | array  | `plan.risks`     | List of `{description, severity, mitigation}`. `severity`: `low`, `medium`, `high`. |
-| `tests`    | array  | `plan.tests`     | List of strings describing tests that should be created.                            |
+Optional frontmatter fields that map to the **project** row when the plan is imported: `overview` (also in required fields), `objectives`, `outcomes`, `outputs`, `initiative`, plus the rich-planning fields below.
+
+| Field        | Type   | Stored in Dolt                | Description                                                                         |
+| ------------ | ------ | ----------------------------- | ----------------------------------------------------------------------------------- |
+| `overview`   | string | `project.overview`             | Brief description (also required above); stored on project on import.                 |
+| `objectives` | array  | `project.objectives`           | Optional list of objectives (JSON).                                                 |
+| `outcomes`   | array  | `project.outcomes`             | Optional list of outcomes (JSON).                                                   |
+| `outputs`    | array  | `project.outputs`              | Optional list of outputs (JSON).                                                    |
+| `initiative` | string | assigns `project.initiative_id` | Optional initiative ID or title to link the project to an initiative on import.   |
+| `fileTree`   | string | `project.file_tree`            | Tree of files affected (e.g. paths with `(create)` / `(modify)`).                   |
+| `risks`      | array  | `project.risks`                | List of `{description, severity, mitigation}`. `severity`: `low`, `medium`, `high`. |
+| `tests`      | array  | `project.tests`                | List of strings describing tests that should be created.                            |
 
 ### Todo (Task) Fields
 
@@ -340,5 +349,5 @@ If it fails, the error message includes the parse cause. Strip frontmatter down 
 
 - **Import behavior**: [Plan Import](plan-import.md) — how `tg import --format cursor` works and how base Cursor fields are mapped.
 - **Authoring guidance**: [Plan Authoring](.cursor/rules/plan-authoring.mdc) — when to use rich fields, mermaid, suggested changes, and the original prompt.
-- **Schema**: [Schema](schema.md) — `plan.file_tree`, `plan.risks`, `plan.tests`, `task.suggested_changes`, `task.intent`.
+- **Schema**: [Schema](schema.md) — `project.file_tree`, `project.risks`, `project.tests`, `project.overview`, `task.suggested_changes`, `task.intent`.
 - **CLI**: [CLI Reference](cli-reference.md) — `tg context` output when suggested_changes, file_tree, or risks are present.

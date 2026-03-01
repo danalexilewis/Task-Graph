@@ -28,6 +28,7 @@ Domain guide for build tooling, CI validation, package publishing, and Dolt data
 - **Lint**: `pnpm lint` (Biome check). `pnpm lint:fix` to apply fixes.
 - **Typecheck**: `pnpm typecheck` runs on **changed** `src/**/*.ts` only; `pnpm typecheck:all` for full `tsc --noEmit`. See `.cursor/rules/changed-files-default.mdc`.
 - **Gate**: `pnpm gate` runs `scripts/cheap-gate.sh` (lint + typecheck changed + affected tests). `pnpm gate:full` runs full test suite.
+- **Progress output**: `cheap-gate.sh` prints an upfront pipeline (e.g. `lint → typecheck → tests (targeted)` or with `--full` sub-phases db/mcp/rest), then per-step lines `→ [N/M] Step ...` and `✓ Step done (Ns)`. Use `bash scripts/cheap-gate.sh [--full] 2>&1` to see progress during long runs.
 - **Integration tests**: Require built CLI; run `pnpm build` before `pnpm test:integration` if `src/` changed. Golden template and Dolt identity are configured in `__tests__/integration/global-setup.ts`.
 
 ## Dolt
@@ -36,6 +37,7 @@ Domain guide for build tooling, CI validation, package publishing, and Dolt data
 - **Repo location**: `.taskgraph/dolt/` by default. Config in `.taskgraph/config.json` (`doltRepoPath`).
 - **Auto-migrate**: Every CLI command (except `init` and `setup`) runs idempotent migrations at startup. See [schema.md](schema.md).
 - **Writable sessions**: All Dolt invocations use `--data-dir <repoPath>` and `DOLT_READ_ONLY=false` in env when the repo allows writes.
+- **Update check**: Dolt makes a blocking HTTP request to check for updates on every process invocation. Without `DOLT_DISABLE_UPDATE_CHECK=1`, this times out at ~16s per call — causing every `tg` command to appear to hang. Always set `DOLT_DISABLE_UPDATE_CHECK: "1"` alongside `DOLT_READ_ONLY: "false"` in every `execa dolt` env object.
 
 ### Dolt sql-server mode
 
@@ -57,15 +59,16 @@ TaskGraph supports an optional **sql-server mode** that replaces the default `do
 
 ## Environment variables
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `TG_QUERY_CACHE_TTL_MS` | number (optional) | `0` | Query result cache TTL in milliseconds. `0` = disabled (default). Dashboard mode uses a `1500 ms` floor regardless of this setting. |
-| `TG_DOLT_SERVER_PORT` | number (optional) | unset | Port of a running `dolt sql-server`. When set with `TG_DOLT_SERVER_DATABASE`, activates mysql2 pool mode for all queries. |
-| `TG_DOLT_SERVER_DATABASE` | string (optional) | unset | Database name to use with the mysql2 pool. Must be non-empty to enable pool mode. |
-| `TG_DOLT_SERVER_HOST` | string (optional) | `127.0.0.1` | Host for the Dolt SQL server (pool mode). |
-| `TG_DOLT_SERVER_USER` | string (optional) | `root` | MySQL user for the Dolt SQL server (pool mode). |
-| `TG_DOLT_SERVER_PASSWORD` | string (optional) | unset | MySQL password for the Dolt SQL server (pool mode). |
-| `TG_SKIP_MIGRATE` | flag (optional) | unset | When set, skips `ensureMigrations` in the CLI preAction hook. Intended for test environments where migrations have already been applied. CLI prints a warning when this flag is active. |
+| Variable                  | Type              | Default     | Description                                                                                                                                                                             |
+| ------------------------- | ----------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TG_QUERY_CACHE_TTL_MS`   | number (optional) | `0`         | Query result cache TTL in milliseconds. `0` = disabled (default). Dashboard mode uses a `1500 ms` floor regardless of this setting.                                                     |
+| `TG_DOLT_SERVER_PORT`     | number (optional) | unset       | Port of a running `dolt sql-server`. When set with `TG_DOLT_SERVER_DATABASE`, activates mysql2 pool mode for all queries.                                                               |
+| `TG_DOLT_SERVER_DATABASE` | string (optional) | unset       | Database name to use with the mysql2 pool. Must be non-empty to enable pool mode.                                                                                                       |
+| `TG_DOLT_SERVER_HOST`     | string (optional) | `127.0.0.1` | Host for the Dolt SQL server (pool mode).                                                                                                                                               |
+| `TG_DOLT_SERVER_USER`     | string (optional) | `root`      | MySQL user for the Dolt SQL server (pool mode).                                                                                                                                         |
+| `TG_DOLT_SERVER_PASSWORD` | string (optional) | unset       | MySQL password for the Dolt SQL server (pool mode).                                                                                                                                     |
+| `TG_SKIP_MIGRATE`         | flag (optional)   | unset       | When set, skips `ensureMigrations` in the CLI preAction hook. Intended for test environments where migrations have already been applied. CLI prints a warning when this flag is active. |
+| `DOLT_DISABLE_UPDATE_CHECK` | `"1"` (optional) | unset       | Set to `"1"` to skip Dolt's update-check HTTP call at startup. **Must be set in every `execa dolt` env** — omitting it causes a ~16s blocking timeout per CLI invocation. |
 
 ## Decisions / gotchas
 

@@ -58,6 +58,17 @@ tg done <taskId> --evidence "<text>" [--checks <json>]
     `
     The `--evidence` should include: - Tests run and their outcomes. - Summaries of command outputs. - Relevant Git commit hash(es) if code changes were made. - Optionally, `--checks` can be used to report on specific acceptance criteria met.
 
+## General context at start
+
+Sub-agents receive a small **general context** block at start to give them background "spider sense" — transient project state and optional awareness of other agents — without loading full docs.
+
+**Contents:**
+
+1. **`.cursor/memory.md`** (or a capped excerpt): Transient dev context, environment quirks, recent corrections. Kept lean; see [memory.mdc](../.cursor/rules/memory.mdc).
+2. **Optional one-line summary of other agents**: e.g. output of `tg agent-context status` or a short summary of currently doing tasks, so the sub-agent knows who else is active.
+
+**Scope discipline:** General context is **advisory only**. The sub-agent must not expand its task scope based on it. Use it to avoid file conflicts or to interpret memory; do not start solving other agents' tasks or adding work that is not in the task's intent and scope.
+
 ## When Blocked
 
 If the agent encounters a situation where it cannot proceed with a task due to an external dependency or prerequisite, it must follow this protocol:

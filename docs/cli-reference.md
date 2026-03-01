@@ -7,7 +7,7 @@ triggers:
 
 # CLI Reference
 
-The Task Graph Command Line Interface (`tg`) provides a comprehensive set of commands for managing plans, tasks, dependencies, events, and portfolio views. This document details each command, its options, and examples.
+The Task Graph Command Line Interface (`tg`) provides a comprehensive set of commands for managing **projects** (formerly called plans in the schema), tasks, dependencies, events, initiatives, and portfolio views. This document details each command, its options, and examples. Where the database entity is a project, we use "project" in descriptions; the command name may still be `tg plan` for backward compatibility.
 
 ## Task IDs
 
@@ -18,7 +18,7 @@ All commands that accept `<taskId>` (or similar task ID arguments such as `<from
 
 ## The `--plan` Option Convention
 
-All commands that accept `--plan <value>` use the same UUID-dispatch pattern:
+Commands that accept `--plan <value>` refer to a **project** (stored in the `project` table; `plan_id` is the primary key). The same UUID-dispatch pattern applies:
 
 - **UUID input** (matches `^[0-9a-fA-F]{8}-...-[0-9a-fA-F]{12}$`): matched against `plan_id`
 - **Non-UUID input**: matched against `title` (case-sensitive exact match)
@@ -95,7 +95,7 @@ tg setup --force
 
 ### `tg plan new <title>`
 
-Creates a new high-level plan.
+Creates a new **project** (high-level container for tasks). The underlying table is `project`; the command name remains `plan` for compatibility.
 
 ```bash
 tg plan new "<title>"
@@ -103,11 +103,11 @@ tg plan new "<title>"
 
 **Arguments:**
 
-- `<title>`: The title of the new plan.
+- `<title>`: The title of the new project.
 
 **Options:**
 
-- `--intent <intent>`: A detailed intent or goal of the plan.
+- `--intent <intent>`: A detailed intent or goal of the project.
 - `--source <path>`: Path to the source Cursor Plan document (e.g., `plans/feature-x.md`).
 
 **Example:**
@@ -120,7 +120,7 @@ tg plan new "User Onboarding Flow" --intent "Streamline the process for new user
 
 ### `tg plan list` / `tg plan ls`
 
-Lists all plans with their ID, title, and status. Use to discover plan IDs for `tg next --plan`, `tg export --plan`, and other commands.
+Lists all **projects** with their ID, title, and status. Use to discover project (plan) IDs for `tg next --plan`, `tg export --plan`, and other commands.
 
 ```bash
 tg plan list
@@ -130,7 +130,7 @@ tg plan ls
 
 **Output (human-readable):**
 
-- One line per plan: `plan_id  title  (status)`
+- One line per project: `plan_id  title  (status)`
 - Ordered by `created_at` DESC (newest first)
 
 **Options:**
@@ -149,7 +149,7 @@ tg plan list
 
 ### `tg task new <title>`
 
-Creates a new task within an existing plan.
+Creates a new task within an existing project.
 
 ```bash
 tg task new "<title>" --plan <planId>
@@ -161,7 +161,7 @@ tg task new "<title>" --plan <planId>
 
 **Options:**
 
-- `--plan <planId>`: **(Required)** The ID of the parent plan.
+- `--plan <planId>`: **(Required)** The ID (or title) of the parent project.
 - `--feature <featureKey>`: A key for portfolio analysis (e.g., `auth`, `billing`).
 - `--area <area>`: The functional area of the task (e.g., `frontend`, `backend`, `db`, `infra`).
 - `--acceptance <json>`: A JSON array of acceptance criteria checks for the task.
@@ -218,7 +218,7 @@ tg next
 
 **Output fields (human-readable):**
 
-- `task_id`, `title`, `plan title`, `risk`, `estimate`, `blockers count`.
+- `task_id`, `title`, project title, `risk`, `estimate`, `blockers count`.
 
 **Example:**
 
@@ -276,7 +276,7 @@ tg show b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11
 # Output:
 # Task Details (ID: b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11):
 #   Title: Develop Signup Form
-#   Plan: User Onboarding Flow (ID: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11)
+#   Project: User Onboarding Flow (ID: a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11)
 #   Status: todo
 #   Owner: agent
 #   Area: frontend
@@ -679,6 +679,7 @@ tg context tg-abc123,tg-def456              # comma-separated also works
 
 - **`context_token_budget`** (number, e.g. `4000` or `8000`): Token limit for context output. When the full context exceeds this budget, the command compacts it by slimming `related_done_by_doc` and `related_done_by_skill` (fewer items, `task_id` and `title` only), then reducing further or clearing those lists if still over budget. Omitted or `null` means no limit.
 - **`context_inline_doc_budget`** (number, optional): Token budget for inlining doc content into implementer prompts so the implementer does not have to read each doc via read_file. **Omitted or `0`** = do not inline (only `{{DOC_PATHS}}` and `{{SKILL_DOCS}}` paths are passed). **Positive value** = max tokens for inlined content per task (typical: 8000); when token counts are not available, use chars/4 as an approximation. Fill order until budget is reached: (1) `docs/agent-field-guide.md`, (2) docs from context `doc_paths`, (3) docs from context `skill_docs`; later items are omitted or truncated. Policy and placeholder `{{DOC_CONTENT}}`: `.cursor/rules/subagent-dispatch.mdc` → Doc-inlining policy. Config table: [architecture.md](architecture.md#configuration-taskgraphconfigjson).
+- **`general_context_budget`** (number, optional): Cap in tokens for the general context block (e.g. `{{GENERAL_CONTEXT}}`). When set in `.taskgraph/config.json`, orchestrator/tooling that fills general context uses this value; when unset, use the default (2000 tokens) per `.cursor/rules/subagent-dispatch.mdc` → General context (spider sense).
 
 **Output (human):** Task title and ID; change type; domain doc path(s) (`docs/<domain>.md`); skill guide path(s) (`docs/skills/<skill>.md`); up to 5 related done tasks by domain; up to 5 by skill. If the task has `suggested_changes`, the plan has `file_tree`, or the plan has `risks`, those are printed as well. Ends with approximate context size in tokens.
 
@@ -760,9 +761,9 @@ tg dashboard [--tasks] [--projects]
 
 ### `tg status`
 
-Quick overview: plans count, task counts by status, next runnable tasks.
+Quick overview: project count, task counts by status, next runnable tasks.
 
-**Dashboard and focused views:** By default, `tg status` shows the **dashboard** (Completed, Active Plans, Active & next). When a **current cycle** exists (today between a cycle's start and end date), the default view may show a **cycle banner** (e.g. current cycle name and dates). Focused views: `--tasks` (single-table tasks: Id, Title, Project, Status, Owner), `--projects` (single-table plans: Project name, Status, Todo, Doing, Blocked, Done), `--initiatives` (initiatives table when the `initiative` table exists). Use `--filter active` with `--tasks` or `--projects` to restrict to active items (tasks: todo/doing/blocked; plans: not done/abandoned). Use `--filter upcoming` with `--initiatives` for draft or future cycles. Only one of `--tasks`, `--projects`, or `--initiatives` may be used at a time. Add `--dashboard` for a live-updating TUI (2s refresh) for any of these views.
+**Dashboard and focused views:** By default, `tg status` shows the **dashboard** (Completed, Active Projects, Active & next). When a **current cycle** exists (today between a cycle's start and end date), the default view may show a **cycle banner** (e.g. current cycle name and dates). Focused views: `--tasks` (single-table tasks: Id, Title, Project, Status, Owner), `--projects` (single-table projects: Project name, Status, Todo, Doing, Blocked, Done), `--initiatives` (initiatives table when the `initiative` table exists). Use `--filter active` with `--tasks` or `--projects` to restrict to active items (tasks: todo/doing/blocked; projects: not done/abandoned). Use `--filter upcoming` with `--initiatives` for draft or future cycles. Only one of `--tasks`, `--projects`, or `--initiatives` may be used at a time. Add `--dashboard` for a live-updating TUI (2s refresh) for any of these views.
 
 ```bash
 tg status [--plan <planId>] [--domain <domain>] [--skill <skill>] [--change-type <type>] [--tasks] [--projects] [--initiatives] [--filter active|upcoming] [--stale-threshold <hours>] [--dashboard]
@@ -776,7 +777,7 @@ tg status [--plan <planId>] [--domain <domain>] [--skill <skill>] [--change-type
 - `--change-type <type>`: Filter by change type.
 - `--all`: Include canceled tasks and abandoned plans.
 - `--tasks`: Show a single table of tasks: columns Id (hash or task_id), Title, Project, Status, Owner. Reuses `--plan`, `--domain`, `--skill`, `--change-type`, `--all`. With `--filter active`, restrict to task status in (todo, doing, blocked). One-shot or with `--dashboard` (refreshes every 2s).
-- `--projects`: Show a single table of projects (plans): columns Project name, Status, Todo, Doing, Blocked, Done. Uses the `plan` table; filters `--plan`, `--domain`, `--skill`, `--all` apply.
+- `--projects`: Show a single table of projects: columns Project name, Status, Todo, Doing, Blocked, Done. Uses the `project` table; filters `--plan`, `--domain`, `--skill`, `--all` apply.
 - `--initiatives`: Show initiatives table (Initiative, Status, Cycle Start, Cycle End, Projects). Requires the `initiative` table; if it does not exist, prints a stub message and exits 0. One-shot or with `--dashboard`.
 - `--filter <filter>`: For `--projects`, use `active` to show only plans whose status is not `done` or `abandoned`. For `--tasks`, use `active` to show only tasks with status todo, doing, or blocked. For `--initiatives`, use `upcoming` to show initiatives with status `draft` or `cycle_start` &gt; today.
 - `--stale-threshold <hours>`: Hours threshold for the stale doing-task warning (default: 2). When any task has been in `doing` status for longer than this threshold, a yellow "⚠ Stale Doing Tasks" warning section appears in the dashboard. With `--json`, stale tasks are included as `stale_tasks` array.
@@ -800,7 +801,7 @@ Use `tg done <taskId> --evidence "completed previously" --force` to clear stale 
 - **Tasks view (`--tasks`):** A single boxen-wrapped table with columns Id, Title, Project, Status, Owner. One-shot or with `--dashboard` (refreshes every 2s).
 - **Projects view (`--projects`):** A single boxen-wrapped table with columns Project name, Status, Todo, Doing, Blocked, Done. One-shot or with `--dashboard` (refreshes every 2s).
 - **Initiatives view (`--initiatives`):** If the `initiative` table does not exist, prints a stub message (e.g. "Initiatives view requires the Initiative-Project hierarchy...") and exits 0. If it exists, a single boxen-wrapped table with columns Initiative, Status, Cycle Start, Cycle End, Projects; one-shot or with `--dashboard` (refreshes every 2s).
-- Plans: count
+- Projects: count
 - Tasks: summary line with counts **not done**, **in progress**, **blocked**, **actionable** (e.g. `Tasks: 12 not done (3 in progress, 2 blocked, 4 actionable)`)
 - Task counts by status: todo, doing, blocked, done, canceled (each only if &gt; 0). The **blocked** count shows tasks with `task.status = 'blocked'`, which is materialized from the dependency graph (see [schema](schema.md)).
 - **Active & next:** Single section: doing tasks first (Id, Task, Plan, Status, Agent), then up to 3 runnable todo tasks (Agent "—"). Id column shows short id (hash_id or truncated), not full UUID.
@@ -1017,7 +1018,8 @@ tg import <filePath> --plan "<planTitleOrId>" [--format cursor|legacy] [--force]
 
 **Options:**
 
-- `--plan <planTitleOrId>`: **(Required)** The title or ID of the plan to associate the imported tasks with. If a plan with the given title/ID does not exist, a new one will be created.
+- `--plan <planTitleOrId>`: **(Required)** The title or ID of the **project** to associate the imported tasks with. If a project with the given title/ID does not exist, a new one will be created.
+- `--initiative <initiativeId>`: (Optional) Assign the created or matched project to this initiative. When omitted, the project is assigned to the default Unassigned initiative.
 - `--format <format>`: Plan format. `cursor` for Cursor plans (YAML frontmatter with todos); `legacy` for TASK:/TITLE:/BLOCKED_BY: format (default).
 - `--no-suggest`: Disable auto-suggestion of docs/skills from plan file tree and task file patterns. When enabled (default), tasks with no docs/skills get suggestions and a console warning is printed.
 - `--force`: Proceed with import even when existing tasks would be unmatched (e.g. todo ids changed between imports). Unmatched tasks are left as-is; new tasks from the file are added. May create duplicates.
@@ -1029,7 +1031,7 @@ tg import <filePath> --plan "<planTitleOrId>" [--format cursor|legacy] [--force]
 tg import plans/new-feature.md --plan "New Feature Development"
 # Output:
 # Created new plan 'New Feature Development' with ID: a1b2c3d4-e5f6-7890-1234-567890abcdef
-# Successfully imported tasks and edges from plans/new-feature.md to plan a1b2c3d4-e5f6-7890-1234-567890abcdef.
+# Successfully imported tasks and edges from plans/new-feature.md to project a1b2c3d4-e5f6-7890-1234-567890abcdef.
 ```
 
 ### `tg template apply <file>`
