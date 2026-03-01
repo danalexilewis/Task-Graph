@@ -634,17 +634,19 @@ tg export markdown --plan <planId> [--out <path>]
 - YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy). Suitable for re-import via `tg import --format cursor`.
 - Prints the destination path to stdout (unless `--json`).
 
-### `tg context <taskId>`
+### `tg context <taskIds...>`
 
-Outputs domain doc path, skill guide path, related done tasks, and (when present) task suggested changes and plan file tree/risks. Run after `tg start` to load the right docs before doing work.
+Outputs domain doc path, skill guide path, related done tasks, and (when present) task suggested changes and plan file tree/risks. Run after `tg start` to load the right docs before doing work. Accepts one or more task IDs; multiple IDs are fetched in parallel and returned as a JSON array.
 
 ```bash
-tg context <taskId>
+tg context <taskId>                          # single task
+tg context tg-abc123 tg-def456 tg-789ghi    # multiple tasks — parallel fetch, returns array
+tg context tg-abc123,tg-def456              # comma-separated also works
 ```
 
 **Arguments:**
 
-- `<taskId>`: The ID of the task.
+- `<taskIds...>`: One or more task IDs (space-separated or comma-separated).
 
 **Options:**
 

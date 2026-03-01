@@ -417,6 +417,20 @@ export function createPlanBranchAndWorktree(
     const resolvedRepo = fs.realpathSync(path.resolve(repoPath));
 
     if (backend === "worktrunk") {
+      const resolveWorktreePath = () =>
+        listWorktrees(repoPath, backend).andThen((list) => {
+          const entry = list.find((e) => e.branch === branchName);
+          if (!entry?.path) {
+            return errAsync(
+              buildError(
+                ErrorCode.UNKNOWN_ERROR,
+                `Could not find worktree path for branch ${branchName} after creation`,
+              ),
+            );
+          }
+          return okAsync(entry.path);
+        });
+
       return ResultAsync.fromPromise(
         execa("wt", ["switch", baseBranch, "-C", resolvedRepo], {
           cwd: resolvedRepo,
@@ -450,22 +464,39 @@ export function createPlanBranchAndWorktree(
                 `Worktrunk worktree create failed for ${branchName}`,
                 e,
               ),
-          ),
-        )
-        .andThen(() =>
-          listWorktrees(repoPath, backend).andThen((list) => {
-            const entry = list.find((e) => e.branch === branchName);
-            if (!entry?.path) {
-              return errAsync(
-                buildError(
-                  ErrorCode.UNKNOWN_ERROR,
-                  `Could not find worktree path for branch ${branchName} after creation`,
+          ).orElse((e) => {
+            // Branch already exists in git but has no worktree yet —
+            // use wt switch without --create to create the worktree.
+            const msg = e.message.toLowerCase();
+            if (
+              msg.includes("already exists") ||
+              msg.includes("worktree create failed")
+            ) {
+              return ResultAsync.fromPromise(
+                execa(
+                  "wt",
+                  [
+                    "switch",
+                    branchName,
+                    "--no-cd",
+                    "--yes",
+                    "-C",
+                    resolvedRepo,
+                  ],
+                  { cwd: resolvedRepo },
                 ),
+                (e2) =>
+                  buildError(
+                    ErrorCode.UNKNOWN_ERROR,
+                    `Worktrunk worktree create failed for existing branch ${branchName}`,
+                    e2,
+                  ),
               );
             }
-            return okAsync(entry.path);
+            return errAsync(e);
           }),
-        );
+        )
+        .andThen(resolveWorktreePath);
     }
 
     const wtPath = path.join(resolvedRepo, WORKTREES_DIR, branchName);
