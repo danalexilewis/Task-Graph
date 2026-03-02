@@ -17,8 +17,9 @@ Analyze the working tree (or staged) diff, do a **rough groupBy** into N logical
 4. **Branches and worktrees** — Record current branch (e.g. `main`) as the merge target. Create **one branch per group** from current HEAD, e.g. `chore/grouped-commits-YYYY-MM-DD-g1`, `-g2`, … `-gN`. Then create **one git worktree per group** so each committer has an isolated working directory (parallel agents sharing one repo overwrite each other's checkouts; see utility belt § Parallel sub-agent dispatch):
    - From repo root: `git worktree add <worktree-path-i> chore/grouped-commits-YYYY-MM-DD-gi` for each i. Use e.g. `../commit-worktrees-YYYY-MM-DD/g1`, `…/g2`, … (or `.taskgraph/commit-wt/g1`; clean up after).
    - **Copy each group's files** from the main repo's working tree into that group's worktree (same relative paths). Each worktree then has only that group's modified files to stage.
-5. **TodoWrite** — Register one todo per group (e.g. "Commit 1: feat(cli) dashboard TUI", "Commit 2: feat(cli) cancel --include-done", …). Use `merge: false` with status `pending` (all in progress once dispatched).
-6. **Dispatch committer sub-agents in parallel** — Emit **all N** committer invocations in the **same turn**. Pass to each:
+5. **Stash on main (coordination)** — **Before** dispatching committers, stash the working tree on the merge target: `git stash push -m "commit-messages pre-dispatch"`. Main is then clean. This way, when you later merge g1, g2, … gN (in order), git never hits "local changes would be overwritten by merge". Do this **once**, after all worktrees are ready; no per-branch or per-agent coordination — only the orchestrator runs this before dispatch. Committer agents never touch main; they only work in their worktrees.
+6. **TodoWrite** — Register one todo per group (e.g. "Commit 1: feat(cli) dashboard TUI", "Commit 2: feat(cli) cancel --include-done", …). Use `merge: false` with status `pending` (all in progress once dispatched).
+7. **Dispatch committer sub-agents in parallel** — Emit **all N** committer invocations in the **same turn**. Pass to each:
    - `{{WORKTREE_PATH}}` — absolute path to that group's worktree (they run all git commands here; branch already checked out).
    - `{{BRANCH}}` — that group’s branch name (for reporting).
    - `{{GROUP_INDEX}}` — 1-based (e.g. "Commit 1 of 8").
@@ -26,18 +27,18 @@ Analyze the working tree (or staged) diff, do a **rough groupBy** into N logical
    - `{{EXCLUDE_PATHS}}` — paths no group should stage.
    - `{{SUGGESTED_TYPE}}` / `{{SUGGESTED_SCOPE}}` / `{{ONE_LINE_HINT}}` — from groupBy.
      After all N complete, set all todos to `completed`.
-7. **Merge and tag** — After all N committers have finished:
-   - From repo root (on main): Merge each group branch in order: `git merge --no-ff chore/grouped-commits-YYYY-MM-DD-g1`, then `-g2`, … then `-gN`. Create a tag (e.g. `grouped-commits-YYYY-MM-DD`) at the tip.
-8. **Add bundle to daily initiative** — Record the work in the task graph so it appears under the daily initiative:
+8. **Merge and tag** — After all N committers have finished, main is still clean (we stashed in step 5). From repo root (on main): Merge each group branch in order: `git merge --no-ff chore/grouped-commits-YYYY-MM-DD-g1`, then `-g2`, … then `-gN`. Create a tag (e.g. `grouped-commits-YYYY-MM-DD`) at the tip. **Drop the stash** (`git stash drop`) — do not pop; the merged commits already contain that content.
+9. **Add bundle to daily initiative** — Record the work in the task graph so it appears under the daily initiative:
    - **Resolve daily initiative:** Run `pnpm tg initiative list --json` (or `tg initiative list --json`). Find an initiative whose title is "Daily" or "Today" (case-insensitive). If none exists, use the default Unassigned initiative ID `00000000-0000-4000-8000-000000000000`, or create one: `pnpm tg initiative new "Daily"` and capture the returned `initiative_id` from output or a follow-up `tg initiative list --json`.
    - **Create project with meaningful summary:** Run `pnpm tg plan new "<title>"` with a title that meaningfully summarizes what was committed (e.g. "Grouped commits: dashboard TUI, cancel --include-done, db fixes, docs" or "2026-03-02 grouped commits (8) — CLI, db, docs, cursor"). Optionally add `--intent "<short summary>"` (e.g. one line listing the main areas or commit types). Capture the new project’s `plan_id` from the command output.
    - **Assign to daily initiative:** Run `pnpm tg initiative assign-project <dailyInitiativeId> <planId>` so the new project appears under the daily initiative.
    - Report to the user: branch name, N commits, tag name, **new project title and ID**, assignment to daily initiative, and any excluded paths they might want to add to `.gitignore`.
-9. **Clean-up** — Run from repo root so no temporary artifacts remain:
-   - **Remove worktrees:** For each group worktree: `git worktree remove <worktree-path-i>` (or `git worktree remove --force <path-i>` if the worktree is dirty or already removed). Then run `git worktree prune` to drop stale worktree metadata.
-   - **Delete worktree directory:** If you used a single parent dir for all worktrees (e.g. `../commit-worktrees-YYYY-MM-DD/` or `.taskgraph/commit-wt/`), remove it: `rm -rf <worktree-root>` so the directory is gone.
-   - **Delete merged group branches:** `git branch -d chore/grouped-commits-YYYY-MM-DD-g1 chore/grouped-commits-YYYY-MM-DD-g2 … -gN` so merged group branches don’t accumulate. If any branch didn’t merge cleanly, skip that ref or use `-D` only when intentional.
-   - **Ensure checkout:** Confirm `git checkout <merge-target>` (e.g. `main`) so the repo is left on the target branch with a clean state.
+10. **Clean-up** — Run from repo root so no temporary artifacts remain:
+
+- **Remove worktrees:** For each group worktree: `git worktree remove <worktree-path-i>` (or `git worktree remove --force <path-i>` if the worktree is dirty or already removed). Then run `git worktree prune` to drop stale worktree metadata.
+- **Delete worktree directory:** If you used a single parent dir for all worktrees (e.g. `../commit-worktrees-YYYY-MM-DD/` or `.taskgraph/commit-wt/`), remove it: `rm -rf <worktree-root>` so the directory is gone.
+- **Delete merged group branches:** `git branch -d chore/grouped-commits-YYYY-MM-DD-g1 chore/grouped-commits-YYYY-MM-DD-g2 … -gN` so merged group branches don’t accumulate. If any branch didn’t merge cleanly, skip that ref or use `-D` only when intentional.
+- **Ensure checkout:** Confirm `git checkout <merge-target>` (e.g. `main`) so the repo is left on the target branch with a clean state.
 
 ## Committer sub-agent prompt (per group)
 
@@ -91,7 +92,7 @@ Avoid: one commit per file, or one giant commit with a vague message.
 
 ## Parallel dispatch (worktrees)
 
-Parallel committers **must not share one git working tree** or they overwrite each other’s checkouts. Use **one worktree per group** (orchestrator creates them and copies each group’s files in). Then **emit all N committer sub-agent invocations in the same turn**; each runs in its own worktree. After all complete, orchestrator merges the group branches (in order), tags, adds to daily initiative, then runs **Clean-up** (remove worktrees, delete worktree dir, delete merged group branches). See `.cursor/agent-utility-belt.md` § Parallel sub-agent dispatch.
+Parallel committers **must not share one git working tree** or they overwrite each other’s checkouts. Use **one worktree per group** (orchestrator creates them and copies each group’s files in). Then **emit all N committer sub-agent invocations in the same turn**; each runs in its own worktree. Orchestrator stashes on main **before** dispatch (after copying into worktrees) so main stays clean for merges; no per-branch coordination. After all complete, orchestrator merges the group branches (in order), tags, drops the stash, adds to daily initiative, then runs **Clean-up** (remove worktrees, delete worktree dir, delete merged group branches). See `.cursor/agent-utility-belt.md` § Parallel sub-agent dispatch.
 
 ## Exclude list
 
@@ -119,9 +120,9 @@ The new **project title** should meaningfully summarize the commits (e.g. "Group
 
 - [ ] Ran `git status` and `git diff` (or `--staged`).
 - [ ] Built exclude list and N groups with file lists and suggested type/scope/hint.
-- [ ] Created one branch and one worktree per group; copied each group’s files into its worktree; TodoWrite with N items.
+- [ ] Created one branch and one worktree per group; copied each group’s files into its worktree; stashed on main (pre-dispatch); TodoWrite with N items.
 - [ ] Dispatched all N committer sub-agents **in parallel** (same turn), each with its own `WORKTREE_PATH`.
-- [ ] Merged all group branches into original (in order); created tag.
+- [ ] Merged all group branches into original (in order); created tag; dropped stash.
 - [ ] Resolved daily initiative; created project with meaningful title; assigned project to initiative.
 - [ ] **Clean-up:** Removed worktrees; ran `git worktree prune`; deleted worktree directory; deleted merged group branches; confirmed checkout on merge target.
 - [ ] Reported branch, commits, tag, new project, initiative assignment, and any .gitignore suggestions.
