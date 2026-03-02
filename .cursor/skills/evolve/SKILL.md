@@ -263,6 +263,22 @@ Assign one label per finding so consumers can prioritize. Emit the label with ea
 
 **Pattern Learnings:** The **Findings** table (including **Confidence** and **Recurrence** per row), **Learnings written**, and **Durable patterns** are the canonical slots for pattern and directive capture and for routing and filtering by confidence.
 
+## Acceptance criteria for behavior-change validation
+
+Closed-loop verification needs a clear pass/fail definition for "did this learning actually change behavior?" After evolve routes learnings to agent files or docs, use the following criteria to validate that the learning had an effect. A learning is considered to have **changed behavior (PASS)** when at least one of the following holds on a subsequent run or measurement:
+
+| Criterion | Definition | How to verify |
+| --------- | ---------- | ------------- |
+| **Scenario non-repetition** | The next run of the same scenario (same plan type, task types, or code paths) does not repeat the anti-pattern that was learned. | Re-run a similar plan or task set; confirm the finding (e.g. raw SQL, wrong-file edit, missed context) does not appear in the diff or in reviewer findings. |
+| **Reviewer pass rate** | Reviewer pass rate for the relevant category (e.g. SQL pattern, Type pattern) improves after the learning was routed. | Compare VERDICT: PASS rate (or count of same-pattern findings) over N tasks before the learning was added vs N tasks after. |
+| **Metric delta** | A defined metric improves before/after. | Examples: recurrence count for that pattern drops to 0 in the next plan; confidence-weighted recurrence decreases; number of findings in the learned category decreases while sample_size/diff_lines remain sufficient. |
+| **Explicit negative check** | The learning was a "do not do X" directive; a subsequent run shows no violations of X. | Run evolve or reviewer on a later plan; if the check for X finds no violations → PASS; if violations are found → FAIL. |
+
+**Pass:** At least one of the above criteria is satisfied on the next relevant run or measurement.  
+**Fail:** The same anti-pattern recurs in the next run of a similar scenario, or the chosen metric (pass rate, recurrence, violations) does not improve or worsens.
+
+When designing or running closed-loop verification, pick one or more criteria and the measurement method (e.g. "recurrence of pattern P in next plan", "reviewer pass rate for SQL pattern in next 5 tasks") so the result is unambiguous.
+
 ## Fallback: no plan branch
 
 If the plan branch has already been merged and the squash commit cannot be found via grep:
