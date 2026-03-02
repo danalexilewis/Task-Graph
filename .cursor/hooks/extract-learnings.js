@@ -4,9 +4,11 @@
  * sessionEnd hook: extract conversation content for learnings processing.
  *
  * Runs when a Composer conversation ends (user closes/archives chat). Reads
- * .taskgraph/config.json for learningMode flag. When enabled, finds the most
- * recent agent transcript and writes a digest to .cursor/pending-learnings.md
+ * .taskgraph/config.json for learningMode flag. When enabled:
+ * - Copies the latest agent-transcripts session to .taskgraph/transcripts/<register_id>/
+ * - Finds the most recent agent transcript and writes a digest to .cursor/pending-learnings.md
  * for the next session's agent to route into formal docs or memory.
+ * See docs/transcript-collection.md for layout and learningMode behaviour.
  */
 
 const fs = require('fs');
@@ -32,6 +34,9 @@ process.stdin.on('end', () => {
 
 		const transcriptsDir = findTranscriptsDir(root);
 		if (!transcriptsDir) return;
+
+		// Copy latest session to .taskgraph/transcripts/<register_id>/ (same gate as digest: learningMode)
+		copyLatestTranscript(root, transcriptsDir);
 
 		const digest = buildDigest(transcriptsDir);
 		if (!digest) return;
@@ -82,6 +87,60 @@ function findTranscriptsDir(root) {
 		if (fs.existsSync(dir)) return dir;
 	}
 	return null;
+}
+
+/** Copy latest session dir to .taskgraph/transcripts/<register_id>/. Overwrites if exists. */
+function copyLatestTranscript(root, transcriptsDir) {
+	const dirs = fs
+		.readdirSync(transcriptsDir, { withFileTypes: true })
+		.filter((d) => d.isDirectory())
+		.map((d) => ({
+			name: d.name,
+			mtime: fs.statSync(path.join(transcriptsDir, d.name)).mtimeMs
+		}))
+		.sort((a, b) => b.mtime - a.mtime);
+	if (dirs.length === 0) return;
+
+	const registerId = dirs[0].name;
+	const sourceDir = path.join(transcriptsDir, registerId);
+	const destBase = path.join(root, '.taskgraph', 'transcripts');
+	const destDir = path.join(destBase, registerId);
+
+	try {
+		if (!fs.existsSync(destBase)) fs.mkdirSync(destBase, { recursive: true });
+		if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true });
+		fs.mkdirSync(destDir, { recursive: true });
+		copyRecursive(sourceDir, destDir);
+		const meta = {
+			register_id: registerId,
+			source_uuid: registerId,
+			copied_at: new Date().toISOString()
+		};
+		fs.writeFileSync(
+			path.join(destDir, 'meta.json'),
+			JSON.stringify(meta, null, 2),
+			'utf8'
+		);
+		console.error(
+			'[cursor hook] Copied transcript to .taskgraph/transcripts/' + registerId
+		);
+	} catch (err) {
+		console.error('[cursor hook] transcript copy failed:', err.message);
+	}
+}
+
+function copyRecursive(src, dest) {
+	const entries = fs.readdirSync(src, { withFileTypes: true });
+	for (const e of entries) {
+		const srcPath = path.join(src, e.name);
+		const destPath = path.join(dest, e.name);
+		if (e.isDirectory()) {
+			fs.mkdirSync(destPath, { recursive: true });
+			copyRecursive(srcPath, destPath);
+		} else {
+			fs.copyFileSync(srcPath, destPath);
+		}
+	}
 }
 
 function buildDigest(transcriptsDir) {

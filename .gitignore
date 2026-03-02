@@ -21,6 +21,8 @@ exports/
 .taskgraph/tg-golden-server-pid.txt
 .taskgraph/tg-dolt-server-port.txt
 .taskgraph/sitrep-breadcrumb.json
+# Collected agent transcripts (sessionEnd hook copy)
+.taskgraph/transcripts/
 
 # Test & coverage
 coverage/
