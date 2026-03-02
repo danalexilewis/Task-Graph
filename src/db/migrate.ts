@@ -18,7 +18,7 @@ const CACHE_TTL_MS = 60_000;
  * Adding any migration here (or reordering) increments the version and
  * forces a fresh probe on the next `tg` invocation.
  */
-const MIGRATION_CHAIN = [
+export const MIGRATION_CHAIN = [
   "applyPlanRichFieldsMigration",
   "applyTaskDimensionsMigration",
   "applyTaskSuggestedChangesMigration",

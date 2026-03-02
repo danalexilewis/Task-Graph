@@ -61,7 +61,7 @@ When blocked
 
 Data safety (task graph)
 
-- Never run DELETE, DROP TABLE, or TRUNCATE on the task graph database. Use `tg cancel <planId|taskId> --reason "..."` for soft-delete (plan→abandoned, task→canceled). See `.cursor/rules/no-hard-deletes.mdc`.
+- Never run DELETE, DROP TABLE, or TRUNCATE on the task graph database. Use `tg cancel <projectId|taskId> --reason "..."` for soft-delete (project→abandoned, task→canceled). For initiatives: `tg cancel <initiativeId> --type initiative --reason "..."`. See `.cursor/rules/no-hard-deletes.mdc`.
 
 Decisions
 

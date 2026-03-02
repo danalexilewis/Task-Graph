@@ -4,7 +4,19 @@ Created by the **/work** skill. Autonomous task execution loop: grind through pl
 
 ## When
 
-Invoked when the user says **/work**, **go**, **execute**, or **grind**.
+- **/work** (no args) — Self-orient via sitrep, then execute.
+- **/work** (with plan context), **go**, **execute**, **grind** — Execute directly (skip sitrep).
+
+## Self-Orientation (Phase 0)
+
+When `/work` is invoked **without** a specific plan or directive:
+
+1. Check for a recent sitrep (< 1h in `reports/sitrep-*.md`).
+2. If none, generate one (dispatch sitrep-analyst, write to `reports/sitrep-YYYY-MM-DD-HHmm.md`); otherwise reuse the existing file.
+3. Self-select lead role from the sitrep formation (see .cursor/rules/available-agents.mdc § Lead Roles and Formation).
+4. Enter the role-specific workflow: execution-lead → existing loop; overseer → watchdog/monitor; investigator-lead → hunter-killer; planner-lead → /plan.
+
+When a plan is specified (by context or user), skip Phase 0 and go straight to the loop.
 
 ## Agent files (workers)
 
@@ -13,6 +25,8 @@ Invoked when the user says **/work**, **go**, **execute**, or **grind**.
 - **spec-reviewer**, **quality-reviewer** — two-stage review: spec compliance then quality.
 
 ## Pattern
+
+**Phase 0** (only when no plan specified): Self-orient via sitrep, then enter the loop or another role workflow as above.
 
 1. **Loop:** `tg next` (plan name or multi-plan) -> get runnable tasks.
 2. **Dispatch:** Use **Worktrunk** for worktree isolation when available (config `useWorktrunk: true` or `wt` on PATH). Send up to **5** implementers in parallel (one task per implementer). **Default:** omit `WORKTREE_PATH` — each implementer runs its own `tg start --worktree` and self-starts in its Step 1. **Exception:** pre-start yourself (run `tg start <taskId> --agent <name> --worktree`, then `tg worktree list --json` to get the path) only when you need the started-event data before building prompts — for example, to capture `plan_branch` for injection into subsequent implementer prompts as `{{WORKTREE_PATH}}`.
@@ -33,7 +47,9 @@ Orchestrator coordinates; implementers and reviewers are workers.
 
 ## Input
 
-- **Plan name** (single plan), or **multi-plan** (multiple plans) — determines which tasks are runnable via `tg next`.
+- **No input (default)** — Self-orient via sitrep, pick role and plan from formation; then run the loop.
+- **Plan name** (single plan) — Skip sitrep, execute that plan.
+- **Multi-plan** — Skip sitrep, work across all active plans.
 
 ## Output
 
