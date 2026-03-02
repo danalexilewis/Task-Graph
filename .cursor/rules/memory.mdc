@@ -62,6 +62,8 @@ When a learning doesn't fit an existing doc, check if it's substantial enough to
 
 **Keep it lean**: under 150 lines. When entries accumulate, promote durable knowledge to formal docs and remove the memory entry.
 
+**Periodic audit:** Run the prune-learnings skill (`.cursor/skills/prune-learnings/SKILL.md`) weekly or after every N plans to prune stale and duplicate learnings from memory.md, agent-utility-belt.md, and agent `## Learnings` sections. The skill defines what "stale" and "duplicate" mean and the exact steps.
+
 **Agents do not manually update memory during normal work.** The `extract-learnings` sessionEnd hook captures conversation context when you close/archive the chat. The next session processes it via step 2 above. The only exception: if the user explicitly asks you to record something to memory, do it immediately.
 
 ## 4. Config flag
