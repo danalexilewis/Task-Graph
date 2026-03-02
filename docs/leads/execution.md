@@ -15,7 +15,7 @@ Invoked when the user says **/work**, **go**, **execute**, or **grind**.
 ## Pattern
 
 1. **Loop:** `tg next` (plan name or multi-plan) -> get runnable tasks.
-2. **Dispatch:** Use **Worktrunk** for worktree isolation when available (config `useWorktrunk: true` or `wt` on PATH). **Default:** pre-start each task (run `tg start <taskId> --agent <name> --worktree`), get worktree path from `tg worktree list --json`, and inject **`{{WORKTREE_PATH}}`** so implementers skip claiming and path lookup. Implementers then `cd {{WORKTREE_PATH}}` and start work. Capture `plan_branch` on first start per plan for **`{{PLAN_BRANCH}}`**. Send runnable non-conflicting tasks in parallel (one task per implementer); Cursor decides concurrency.
+2. **Dispatch:** Use **Worktrunk** for worktree isolation when available (config `useWorktrunk: true` or `wt` on PATH). Send up to **5** implementers in parallel (one task per implementer). **Default:** omit `WORKTREE_PATH` — each implementer runs its own `tg start --worktree` and self-starts in its Step 1. **Exception:** pre-start yourself (run `tg start <taskId> --agent <name> --worktree`, then `tg worktree list --json` to get the path) only when you need the started-event data before building prompts — for example, to capture `plan_branch` for injection into subsequent implementer prompts as `{{WORKTREE_PATH}}`.
 3. **Review:** Two-stage — spec-reviewer then quality-reviewer (or reviewer when single-stage).
 4. **Repeat** until no runnable tasks or plan complete.
 

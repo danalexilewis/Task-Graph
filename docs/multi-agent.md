@@ -2,17 +2,7 @@
 triggers:
   files: ["src/cli/**", ".cursor/rules/**", "docs/multi-agent.md"]
   change_types: ["create", "modify"]
-  keywords:
-    [
-      "worktree",
-      "multi-agent",
-      "tg start",
-      "tg done",
-      "plan branch",
-      "context sharing",
-      "tg context",
-      "tg note",
-    ]
+  keywords: ["worktree", "multi-agent", "tg start", "tg done", "plan branch"]
 ---
 
 # Multi-Agent Centaur Model
@@ -54,24 +44,6 @@ When `tg done <taskId> --merge` is called on a task that was started with `--wor
 
 Multiple implementers working on tasks in the same plan each get their own task worktree (all branching from the plan branch). As each task finishes, `tg done --merge` merges the task branch into the plan branch. Because they all target the same plan branch, their changes accumulate there without touching main until the plan is ready to merge.
 
-### Worktree and merge flow
-
-The following diagram summarizes how branches and worktrees interact when using `tg start --worktree` and `tg done --merge`. See "Per-plan branch and worktree" and "Merge target is the plan branch" above for details.
-
-```mermaid
-flowchart TD
-  main["main branch"]
-  planBranch["plan branch (plan-p-*)"]
-  taskBranch["task branches (tg-*)"]
-
-  main -->|"tg start --worktree (first task)"| planBranch
-  planBranch -->|"tg start --worktree (per task)"| taskBranch
-  taskBranch -->|"tg done --merge"| planBranch
-  planBranch -.->|"plan complete (manual or cleanup)"| main
-```
-
-When the plan is complete, merge the plan branch into main (e.g. from the plan worktree or repo root) and remove the plan worktree.
-
 ### Backend selection
 
 Task-Graph uses **Worktrunk (wt)** as the standard backend when available: set `"useWorktrunk": true` in `.taskgraph/config.json`, or ensure the `wt` CLI is on PATH (auto-detect). Raw git worktrees are supported when `useWorktrunk` is false or `wt` is not installed. The orchestrator passes the worktree path (from `tg worktree list --json` or the started event) to implementers as **WORKTREE_PATH** so they `cd` there and run all work and `tg done` from that directory.
@@ -89,32 +61,12 @@ See [cli-reference.md](cli-reference.md) (worktree section) and `.cursor/rules/s
 | `tg status`                                            | Shows "Active work" section with doing tasks, agent_id, plan title, started_at    |
 | `tg stats [--agent <name>] [--plan <planId>] [--json]` | Derive agent metrics from events: tasks_done, review pass/fail, avg elapsed time  |
 
-## Collaboration: fast read, async write
-
-Effective multi-agent collaboration depends on **deliberate, high-efficiency read communication**. Writes can be async (fire-and-forget); reads must be **extremely fast** so any agent can observe shared state without blocking or polling heavily.
-
-| Channel                   | Read (fast path)                                                                                      | Write (async)                                                          |
-| ------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Task graph**            | `tg context <taskId>`, `tg status [--tasks]`, `tg next --json`                                        | `tg note`, `tg start`, `tg done`, `tg block`                           |
-| **Context hub**           | `tg agent-context query`, `tg agent-context status`                                                   | `[tg:event]` lines in terminal output (collector ingests)              |
-| **Shell / script**        | Env vars, `grep`/pipeline on CLI output                                                               | `export WIRE=... HOIST=...`; later steps or other agents read them     |
-| **Long-running commands** | Read/tail on terminal file (see [agent-field-guide.md](agent-field-guide.md) § Terminal-file polling) | Shell streams stdout to terminal file; consumer polls for `exit_code:` |
-
-**Patterns:**
-
-- **Context sharing**: One agent (or the human) does work; another reads via `tg context` (sibling notes, plan, task spec) or `tg status` to see who is doing what and what was written. Notes are the boundary-crossing mechanism — see [agent-strategy.md](agent-strategy.md#communication-notes-as-cross-dimensional-transmission).
-- **Handoff via env or IDs**: Set task IDs (or other handoff data) in environment variables or a small KV store before dispatching; the next agent or script reads them. Example: `WIRE=... HOIST=...` then `tg status --tasks | grep ...` to verify a dependency before running `tg block $HOIST --on $WIRE`.
-- **Tailing each other’s output**: When one process streams to a terminal file (e.g. long `gate:full` run), another reads that file incrementally until a completion signal. Same idea: write is async, read is on a shared medium optimized for fast, polling-free or low-latency reads where possible.
-
-**Principle:** Optimize for **read speed and clarity**. Writes (notes, env vars, events, DB state) can be async; the collaboration fails if readers cannot get a fresh view of shared state quickly (e.g. `tg context` and `tg status` must stay cheap and authoritative).
-
 ## Conventions
 
 1. **Always pass `--agent`** when multiple agents may be active.
 2. **Read Active work** before picking a task. Avoid overlap.
 3. **Leave notes** when changing shared interfaces or discovering anything relevant beyond the current task's scope. Notes are the transmission vehicle between an agent focused introspectively on one task and agents working connectively across many tasks. See [agent-strategy.md](agent-strategy.md#communication-notes-as-cross-dimensional-transmission) for the architectural framing.
 4. **Do not pick** tasks in the same area as another doing task without human approval.
-5. **Context hub (agent-context):** You may read from the SQLite context hub (`tg agent-context query` / `status`) and use it to inform your own decisions (e.g. avoid file conflicts, see who is doing what). **Do not start solving other agents' problems** — focus on your own task and take others' context under advisement only. See [agent-context.md](agent-context.md#use-of-the-context-hub--scope-discipline).
 
 ## Event Body Conventions
 
@@ -146,11 +98,11 @@ The outer `agent` and `timestamp` fields match the existing note body convention
 
 ### Phase values
 
-| Phase      | When to emit                  | `files` value                      |
-| ---------- | ----------------------------- | ---------------------------------- |
-| `start`    | Immediately after `tg start`  | `[]` (no files touched yet)        |
-| `mid-work` | Before touching files         | List of files about to be modified |
-| `pre-done` | Just before calling `tg done` | Final list of files modified       |
+| Phase | When to emit | `files` value |
+| ----------- | ------------------------------------ | ------------------------------------------ |
+| `start` | Immediately after `tg start` | `[]` (no files touched yet) |
+| `mid-work` | Before touching files | List of files about to be modified |
+| `pre-done` | Just before calling `tg done` | Final list of files modified |
 
 ### Command template
 
@@ -170,8 +122,6 @@ The `--msg` value must be valid JSON. List only files being **actively modified*
 - **Verify plan branch exists before dispatching Wave 1.** After the first `tg start --worktree` for a new plan, run `tg worktree list --json` and confirm a `plan-p-XXXXXX` entry appears. If only task branches (`tg-XXXXXX`) are visible but no `plan-p-*` worktree, the plan branch was not created. When sub-agents subsequently call `tg done` from their worktrees, the task worktrees are cleaned up without merging — all commits are silently destroyed. Root cause: `plan_worktree` row was not written (possible Dolt server startup timing, missing `hash_id` on the plan, or `tg start` error that was swallowed). Fix: create the plan branch manually before dispatching, or investigate why the row is missing.
 
 - **Task branches from a missing plan branch will target `main` as fallback** (per the merge-target logic above) — but only when `tg done --merge` explicitly passes the merge flag. Without `--merge`, `tg done` marks the task done and cleans up the worktree with no merge at all.
-
-- **Sub-agent aborted mid-task — worktree takeover procedure.** When a sub-agent is aborted and the task is still `doing` with a live task worktree: run `tg worktree list --json` and find the entry for the task's branch (`tg-XXXXXX`). `cd` to its `path` and continue work from there — `tg start` has already been called so do not run it again. Do NOT run `tg start --force`: it overrides the claim check but not worktree/branch creation, so it will fail with "Worktrunk worktree create failed" if the task branch already exists. After completing the work, call `tg done` from inside the task worktree as normal.
 
 ## Using stats for dispatch
 

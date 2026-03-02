@@ -9,56 +9,11 @@ triggers:
 
 Tables in the CLI are rendered with `renderTable()` (`src/cli/table.ts`) using `cli-table3` and wrapped in `boxedSection()` (`src/cli/tui/boxen.ts`) for visual grouping.
 
-## Terminal padding and spacing (guideline)
-
-Use this when adding or changing boxed content (tables, footer, sections).
-
-### Standard box (tables, section content)
-
-- **Border**: 1 char per side → 2 total
-- **Padding**: 1 char per side (boxen `padding: 1`) → 2 total
-- **Inner buffer**: 2 chars per side → 4 total (keeps content clear of box edge)
-- **Total horizontal deduction**: 8 chars
-
-**Use for**: Tables, plan/task sections, any content that should have clear space inside the box.
-
-- Content width: `getBoxInnerWidth(outerWidth)` → `outerWidth - 8`, floored at 20.
-- Call: `boxedSection(title, content, width)` (default padding 1).
-
-### Tight box (dashboard footer, compact stats)
-
-- **Border**: 1 char per side → 2 total
-- **Padding**: 0 (boxen `padding: 0`)
-- **Buffer**: 1 char per side → 2 total
-- **Total horizontal deduction**: 4 chars
-
-**Use for**: Compact blocks where spacing should match table density (e.g. dashboard Stats footer).
-
-- Content width: `getBoxInnerWidthTight(outerWidth)` → `outerWidth - 4`, floored at 20.
-- Call: `boxedSection(title, content, width, { padding: 0, ... })`.
-
-### When to use which
-
-| Content type              | Padding | Inner width helper           |
-| ------------------------- | ------- | ---------------------------- |
-| Tables (plans, tasks)     | 1       | `getBoxInnerWidth(w)`        |
-| Section titles + content  | 1       | `getBoxInnerWidth(w)`        |
-| Dashboard Stats footer    | 0       | `getBoxInnerWidthTight(w)`   |
-| Other compact grids      | 0       | `getBoxInnerWidthTight(w)`   |
-
-### Footer grid columns
-
-The dashboard Stats footer uses a responsive column count so wider terminals get more columns:
-
-- **Min column width**: 20 chars (`FOOTER_COL_MIN` in `status.ts`).
-- **Column count**: 1 (narrow) up to 5 (wide). Thresholds: 2 cols ≥ 40, 3 ≥ 60, 4 ≥ 80, 5 ≥ 100 (inner width).
-- Use `getBoxInnerWidthTight(width)` for the footer content width so the grid fits inside the tight box.
-
 ## Width Calculation
 
-### Box deductions (standard)
+### Box deductions
 
-`boxedSection` defaults to `padding: 1`. The total horizontal deduction from outer terminal width:
+`boxedSection` uses `boxen` with `padding: 1`. The total horizontal deduction from outer terminal width:
 
 - **Border**: 1 char per side = 2
 - **Padding**: 1 char per side = 2
@@ -182,13 +137,9 @@ Tasks that just became done appear in the Active tasks section with a green ✓ 
 
 Column order for all plan tables (dashboard default and `--projects`):
 
-**Project name, Todo, Blocked, Ready, Doing, Done**
+**Project name, Todo, Ready, Doing, Blocked, Done**
 
-(For `--projects`, the table also has Initiative and Status; the numeric columns are Todo, Blocked, Doing, Done — no Ready.)
-
-**Blocked** counts tasks that are blocked (and therefore **not done**); they stay in this column until unblocked.
-
-**Ready** (actionable count) is the runnable subset of todo; it follows Blocked so the todo/blocked/ready relationship is clear at a glance.
+Ready (actionable count) immediately follows Todo so the ratio is obvious at a glance.
 
 Both `getActivePlansSectionContent` and `formatDashboardProjectsView` append a **Total** row after the plan rows. The totals use `Number(p.x)` coercion before summing to guard against string values from the DB.
 
@@ -205,7 +156,7 @@ Fix: add `/// <reference path="../ansi-diff.d.ts" />` at the top of `dashboard.t
 
 The default dashboard (`tg dashboard` with no flags) shows only two tables, one on top of the other, so the screen does not scroll:
 
-1. **Active Projects** — plan rows (Plan, Todo, Blocked, Ready, Doing, Done) plus a **Total** row. Row count is capped using `getDashboardRowLimits(terminalRows)` so the table fits the terminal height.
+1. **Active Projects** — plan rows (Plan, Todo, Ready, Doing, Blocked, Done) plus a **Total** row. Row count is capped using `getDashboardRowLimits(terminalRows)` so the table fits the terminal height.
 2. **Active tasks and upcoming** — merged doing + next runnable tasks (Id, Task, Plan, Status, Agent). Similarly capped by height.
 
 `getTerminalHeight()` (from `src/cli/terminal.ts`) provides `process.stdout.rows` or a default of 24. `getDashboardRowLimits(height)` reserves 12 lines for borders, titles, and the completed summary, then allocates ~40% of the remaining lines to the plans table and ~60% to the tasks table (each at least 2). Implemented in `getActivePlansSectionContent(..., maxRows)` and `getMergedActiveNextContent(..., maxRows)`.

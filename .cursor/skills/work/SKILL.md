@@ -5,7 +5,7 @@ description: Autonomous task execution loop. Grinds through plan tasks using sub
 
 # Work — Autonomous Task Execution
 
-**Lead documentation:** See [docs/leads/execution.md](docs/leads/execution.md). **Shared learnings for sub-agents:** [.cursor/agent-utility-belt.md](../../agent-utility-belt.md).
+**Lead documentation:** See [docs/leads/execution.md](docs/leads/execution.md).
 
 When this skill is invoked, enter an autonomous execution loop. Do not stop to ask the human unless a sub-agent fails twice or you hit an ambiguity you cannot resolve.
 
@@ -64,7 +64,7 @@ When executing tasks from tg, **always structure work so Cursor surfaces the "Ta
 
 **Before each batch:**
 
-1. Get runnable tasks: `tg next [--plan <planId>] --json --limit 8`. **Dispatch at most 8 sub-agents per batch** (same turn); more tasks run in the next loop.
+1. Get runnable tasks: `tg next [--plan <planId>] --json --limit 20` (feed all; Cursor decides concurrency)
 2. **Call TodoWrite with the task list** (see subagent-dispatch.mdc TodoWrite protocol) — pass the tasks from step 1 before dispatching any sub-agents. TodoWrite is the progress report for the orchestration panel; it surfaces the batch in Cursor's "Task orchestration for autonomous execution" UI.
 3. Keep `.cursor/agents/implementer.md` in context when starting the loop — the orchestration panel is often tied to that agent context.
 4. Dispatch sub-agents via the Task tool or mcp_task; **emit all Task/mcp_task calls for the current batch in the same turn** so the batch runs as intended. Cursor will populate the orchestration panel with task status as work progresses.
@@ -79,7 +79,7 @@ When executing tasks from tg, **always structure work so Cursor surfaces the "Ta
    pnpm tg import plans/<filename> --plan "<Plan Name>" --format cursor
    ```
    Use the plan’s filename and the exact `name` from its frontmatter. If the plan is already imported, the command will still succeed (upsert behavior).
-3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 8` so work focuses on that plan’s tasks first. Otherwise proceed in multi-plan mode (see below).
+3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 20` so work focuses on that plan’s tasks first. Otherwise proceed in multi-plan mode (see below).
 
 If no plan is indicated by context or the user, skip import and use multi-plan mode.
 
@@ -89,15 +89,15 @@ If no plan is indicated by context or the user, skip import and use multi-plan m
 
 ```
 while true:
-  1. tasks = tg next [--plan <planId|planName>] --json --limit 8
+  1. tasks = tg next [--plan <planId|planName>] --json --limit 20
   2. if tasks is empty → for each plan that completed this session, run **Plan-merge step** (below); then report summary, then run **Final action — commit .taskgraph/dolt**; stop
-  3. batch = first 8 non-conflicting tasks from tasks (no file overlap); **max 8 sub-agents per batch** — keeps latency manageable
+  3. batch = all non-conflicting tasks from tasks (no file overlap); do not cap size — Cursor decides concurrency
   4. TodoWrite with the task list (from step 1) before dispatching — this is the orchestration panel progress report.
   5. Emit all Task/mcp_task calls for this batch in the same turn (batch-in-one-turn).
   6. for each task in batch:
        a. context = tg context <taskId> --json
-       b. Pre-start: run tg start <taskId> --agent <name> --worktree from repo root **synchronously** (wait for each shell result — they complete in seconds). **Do not poll for completion.** The task graph (hive) is the source of truth: once `tg start` returns, the DB has the task as doing and the started event has worktree_path. When all N start commands have returned, run tg worktree list --json once and match each task to its entry (branch tg/<taskId> or tg-<hash_id>); inject {{WORKTREE_PATH}} per task. On the first tg start --worktree for a plan, capture plan_branch and store in the plan_id map; inject {{PLAN_BRANCH}}. Optionally after obtaining each worktree path: touch <worktree_path>/.tg-dispatch-marker for overseer staleness detection.
-       c. build implementer prompt from .cursor/agents/implementer.md + context + {{WORKTREE_PATH}} + {{PLAN_BRANCH}}. When `doc_inline_budget` in `.taskgraph/config.json` is set (positive), inline doc content per subagent-dispatch.mdc (fill agent-field-guide, then doc_paths, then skill_docs within budget).
+       b. (Worktrunk) Run tg start <taskId> --agent <name> --worktree from repo root. Get worktree path from tg worktree list --json (or started event). On the first tg start --worktree for a plan, capture the plan branch from the started event or from tg worktree list --json and store it in the plan_id map. Inject {{WORKTREE_PATH}} and {{PLAN_BRANCH}} in the implementer prompt (so the implementer has plan branch context even though each task has its own worktree). After obtaining the worktree path: `touch <worktree_path>/.tg-dispatch-marker` to set a baseline timestamp for the overseer's staleness detection.
+       c. build implementer prompt from .cursor/agents/implementer.md + context + {{WORKTREE_PATH}} + {{PLAN_BRANCH}}
        d. dispatch sub-agent (Task tool or mcp_task, model=fast)
   7. wait for all sub-agents to complete
   8. for each completed sub-agent:
@@ -133,11 +133,9 @@ Order: run plan-merge for all completed plans first, then **Final action — com
 ## Sub-Agent Watchdog Protocol
 
 **Optional: Start the overseer daemon** before the first wave of dispatches:
-
 ```bash
 bash scripts/overseer.sh /tmp/tg-overseer-status.json &
 ```
-
 The daemon runs in the background, writing filesystem staleness data every 180s for active worktrees. No action needed if the script is absent or Dolt is unavailable — it degrades to an empty status file.
 
 Implementers run with a soft 10-minute budget (set `block_until_ms: 600000` when dispatching via Task tool).
@@ -151,7 +149,7 @@ Implementers run with a soft 10-minute budget (set `block_until_ms: 600000` when
 1. Read the terminal file for that agent (last 60 lines). Terminal files are at `~/.cursor/projects/<project>/terminals/<id>.txt`; the PID is in the file header (`pid:` field).
 2. Evaluate stall heuristics — any one is sufficient to declare stall:
    - a. 5+ consecutive reads of the same file path with no intervening file write between them
-   - b. 2+ consecutive `sleep` or `wait` calls with no other tool call between them (terminal-file polling sleeps interleave with file reads and are NOT stalls). **Exception:** Sleeping after a short CLI/DB op (e.g. `tg import`, create plan, `tg start`, `tg done`) is a misapplication — those commands finish in seconds; sleeping 15–60s for them is a stall (see docs/agent-field-guide.md § When NOT to use).
+   - b. 3+ consecutive `sleep` or `wait` calls with no other tool call between them
    - c. Same error message repeated 3+ times without a different tool call between repeats
 3. **If stall confirmed:** kill the agent:
    ```bash
@@ -203,25 +201,6 @@ At the end of the loop (plan complete or all tasks done), emit a full summary:
   Skipped: 0
   Duration: ~4 min
 ```
-
-## Benchmark runs — self-report checklist
-
-When executing tasks from a benchmark plan, instruct implementer agents to pass self-report flags to `tg done`. This standardizes performance metrics across runs.
-
-When dispatching implementers for benchmark-plan tasks, include a note in the prompt:
-
-> **Benchmark run:** When you call `tg done`, include self-report flags if your environment exposes them:
-> `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
-> All flags are optional; omit if unavailable. Do not spend effort estimating.
-
-Checklist before marking each benchmark task done:
-
-- [ ] `--tokens-in <n>` — input tokens for this session
-- [ ] `--tokens-out <n>` — output tokens generated
-- [ ] `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
-- [ ] `--attempt <n>` — attempt number (1 for first attempt, 2 after a reviewer FAIL, etc.)
-
-Example: `(cd {{REPO_PATH}} && pnpm tg done <taskId> --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1)`
 
 ## Final action — commit task graph state
 
@@ -275,7 +254,7 @@ After the full summary and **after** the **Plan-merge step** has run for all com
 
 ## Multi-Plan Mode
 
-If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 8` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency. The orchestrator maintains the map `plan_id -> { worktree_path, plan_branch }` for **all** active plans that use worktrees. When the loop exits (tasks empty), run the **Plan-merge step** for each plan that completed in this session, then the **Final action — commit .taskgraph/dolt**.
+If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 20` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency. The orchestrator maintains the map `plan_id -> { worktree_path, plan_branch }` for **all** active plans that use worktrees. When the loop exits (tasks empty), run the **Plan-merge step** for each plan that completed in this session, then the **Final action — commit .taskgraph/dolt**.
 
 ## Gate strategy — cheap gate per batch, gate:full once at plan end
 

@@ -24,7 +24,7 @@ import {
   formatProjectsAsString,
   formatStatusAsString,
   formatTasksAsString,
-  getDashboardFooterBox,
+  getDashboardFooterLine,
 } from "../status.js";
 import { getTerminalWidth } from "../terminal.js";
 import type { Config } from "../utils.js";
@@ -281,7 +281,7 @@ export async function runOpenTUILiveDashboardTasks(
       const newContent =
         formatDashboardTasksView(data, activeRows, width) +
         "\n\n" +
-        getDashboardFooterBox(data, width);
+        getDashboardFooterLine(data);
       if (!updateRootTextContent(renderer, STATUS_ROOT_ID, newContent)) {
         replaceRootWithNewBox(
           renderer,
@@ -420,7 +420,7 @@ export async function runOpenTUILiveDashboardProjects(
       const newContent =
         formatDashboardProjectsView(data, width) +
         "\n\n" +
-        getDashboardFooterBox(data, width);
+        getDashboardFooterLine(data);
       if (!updateRootTextContent(renderer, STATUS_ROOT_ID, newContent)) {
         replaceRootWithNewBox(
           renderer,

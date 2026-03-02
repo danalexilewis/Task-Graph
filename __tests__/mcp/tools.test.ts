@@ -40,7 +40,6 @@ function mockStatusData() {
     last7CompletedPlans: [],
     activeWork: [],
     agentCount: 0,
-    subAgentTypesDefined: 16,
     subAgentRuns: 0,
     totalAgentHours: 0,
   };

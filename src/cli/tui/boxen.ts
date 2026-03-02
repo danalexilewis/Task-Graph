@@ -4,8 +4,6 @@ import boxen from "boxen";
 const BOX_HORIZONTAL_DEDUCTION = 4;
 /** Extra buffer so table does not touch box inner edge (2 per side). */
 const BOX_INNER_BUFFER = 4;
-/** When padding is 0: border only, 1 char per side. */
-const BOX_BORDER_ONLY_DEDUCTION = 2;
 
 /**
  * Effective inner width for content inside a boxedSection.
@@ -17,46 +15,22 @@ export function getBoxInnerWidth(outerWidth: number): number {
 }
 
 /**
- * Inner width when box uses padding 0 (tight). Use for compact boxes (e.g. dashboard footer).
- * Deduction = border only (2) + optional buffer (2) = 4.
- */
-export function getBoxInnerWidthTight(outerWidth: number): number {
-  return Math.max(20, outerWidth - BOX_BORDER_ONLY_DEDUCTION - 2);
-}
-
-/** Padding shape: number (uniform) or per-side. */
-export type BoxPadding =
-  | number
-  | { top: number; right: number; bottom: number; left: number };
-
-/**
  * Wrap a section title and content in a boxen box for terminal output.
  * Uses getTerminalWidth() when width is not provided so box width respects terminal.
  * When fullWidth is true, the box uses the full width (no 200-char cap); use for dashboard --projects.
- * When padding is 0, the box has no inner padding (similar to table content spacing).
- * When padding is an object, use per-side padding (e.g. { top: 1, bottom: 1, left: 2, right: 2 }).
  */
 export function boxedSection(
   title: string,
   content: string,
   width: number,
-  options?: { borderColor?: string; fullWidth?: boolean; padding?: BoxPadding },
+  options?: { borderColor?: string; fullWidth?: boolean },
 ): string {
   const inner = title.trim() ? `${title}\n${content}` : content;
   const boxWidth = options?.fullWidth ? width : Math.min(width, 200);
-  const padding = options?.padding ?? 1;
   return boxen(inner, {
-    padding,
+    padding: 1,
     width: boxWidth,
-    borderStyle: "double",
+    borderStyle: "round",
     borderColor: options?.borderColor ?? "blue",
   });
-}
-
-/**
- * Inner content width when using dashboard box padding (top/bottom 1, left/right 2).
- * Vertical padding combines with neighbours; horizontal is double so L/R match that total.
- */
-export function getBoxInnerWidthDashboard(outerWidth: number): number {
-  return Math.max(20, outerWidth - 2 - 2 - 2);
 }

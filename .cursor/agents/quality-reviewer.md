@@ -1,7 +1,5 @@
 # Quality-reviewer sub-agent
 
-**Shared learnings:** See [.cursor/agent-utility-belt.md](../agent-utility-belt.md).
-
 ## Purpose
 
 Check **only** code quality — error handling, unused imports, test coverage, style consistency, and patterns. You do **not** rewrite code and you do **not** re-check spec compliance (the spec-reviewer does that). Input: diff and file context. Output: PASS or FAIL with specific quality issues. Run after spec-review passes; on FAIL, the orchestrator may re-dispatch the implementer with quality feedback.
@@ -83,8 +81,6 @@ If FAIL, list each issue on a separate line, then include the structured block a
 
 ## Learnings
 
-- **[2026-03-01]** `Promise.resolve({ isOk: () => true, value: X }) as unknown as ResultAsync<T, E>` used as a fake early-return inside a `.andThen()` chain — flag as unsafe type escape. The fake object lacks the full `ResultAsync` interface and will not chain. Correct form: `okAsync(X)`.
-- **[2026-03-01]** `result.map((val) => { sideEffect(); })` with a void callback — flag as `Result.map()` misuse; biome catches this as `lint/suspicious/useIterableCallbackReturn`. At a Result-pipeline boundary, use `if (result.isOk()) { sideEffect(result.value); }` instead.
 - **[2026-03-01]** start.ts wrote raw SQL template literals for plan_worktree INSERT (VALUES ('${sqlEscape(planId)}'...)) instead of using the query builder. Always flag raw template-literal SQL in CLI files for single-table INSERT/UPDATE and direct to query(repoPath).insert(). Exception: migrate.ts migrations and status.ts complex multi-join queries are acceptable raw SQL.
 - **[2026-03-01]** `(e) => e as AppError` in `ResultAsync.fromPromise` error mapper — always flag; runtime exceptions (TypeError, etc.) are silently miscast. Correct form: `(e) => buildError(ErrorCode.UNKNOWN_ERROR, e instanceof Error ? e.message : String(e), e)`. Appears across 9+ CLI files (cancel.ts, block.ts, import.ts, show.ts, etc.) — live tech debt.
 - **[2026-03-01]** `console.error()` called inside `src/plan-import/` or `src/domain/` before a `throw` — flag as non-boundary logging. Errors must propagate via Result chain and be logged only inside `result.match()` at the CLI boundary.
@@ -96,6 +92,4 @@ If FAIL, list each issue on a separate line, then include the structured block a
 - **[2026-03-01]** Any `beforeAll`/`beforeEach` that starts an external process then calls async setup steps (migrations, env writes) without a try/finally — flag. If the post-spawn step throws, the server is orphaned permanently because `afterAll` only runs on a healthy `beforeAll` completion. Require a try/finally or equivalent cleanup guard around all post-spawn async work.
 - **[2026-03-01]** Dolt migration adds a FOREIGN KEY column with no companion `CREATE INDEX` — always flag. Dolt does not auto-create secondary indexes for FK declarations. Each column appearing in `FOREIGN KEY (col) REFERENCES ...` or in any known high-frequency WHERE/JOIN must have an explicit `CREATE INDEX`. If not, flag as a schema performance defect.
 - **[2026-03-01]** Test file spawns external processes (`spawn`, `execFile`, `startDoltServer`) with no pre/post OS-level resource count assertion around the suite. Flag when: the file is in `__tests__/integration/` or `__tests__/db/` and uses `spawn`/`startDoltServer` without a `pgrep`-style process count check in `beforeAll`/`afterAll`. Minimum bar: post-teardown count asserts no net increase.
-- **[2026-03-01]** `execa dolt` env object missing `DOLT_DISABLE_UPDATE_CHECK: "1"` — every `execa` call to the dolt binary must set this alongside `DOLT_READ_ONLY: "false"`. Omitting it causes a ~16s blocking network timeout per invocation (dolt update-check HTTP call). Flag any `execa(doltPath(), [...], { env: { ...process.env, DOLT_READ_ONLY: "false" } })` that does not also include `DOLT_DISABLE_UPDATE_CHECK: "1"`. Applies to: connection.ts `doltSql`, branch.ts `doltEnv`, commit.ts `doltEnv`, sync.ts `runDolt`, and any future dolt subprocess sites.
 - **[2026-03-01]** `process.env.VAR = value` set in `beforeAll`/`beforeEach` with no matching `delete process.env.VAR` in `afterAll`/`afterEach`. Flag: env var mutations are process-global and leak into subsequent test files when Bun runs them in the same process (e.g. stale server port causing `ECONNREFUSED` in E2E tests). Every `process.env.X = ...` in test setup must have a symmetric `delete process.env.X` in teardown.
-- **[2026-03-01]** Integration test using raw `doltSql()` with string-interpolated values (e.g. `task_id = '${taskId}'`) and no `sqlEscape()`. Flag: use `query(repoPath).insert()` / `.select()` for single-table setup and reads, or wrap every interpolated value in `sqlEscape()` when using `doltSql()`.

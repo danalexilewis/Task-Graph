@@ -2,7 +2,6 @@ import { Command } from "commander";
 import { closeAllServerPools } from "../db/connection";
 import { ensureMigrations } from "../db/migrate";
 import { ErrorCode } from "../domain/errors";
-import { agentContextCommand } from "./agent-context";
 import { agentsCommand } from "./agents";
 import { blockCommand } from "./block";
 import { cancelCommand } from "./cancel";
@@ -21,7 +20,6 @@ import { nextCommand } from "./next";
 import { noteCommand } from "./note";
 import { planCommand } from "./plan";
 import { portfolioCommand } from "./portfolio";
-import { recoverCommand } from "./recover";
 import { detectAndApplyServerPort, serverCommand } from "./server";
 import { setupCommand } from "./setup";
 import { showCommand } from "./show";
@@ -31,19 +29,12 @@ import { statsCommand } from "./stats";
 import { statusCommand } from "./status";
 import { syncCommand } from "./sync";
 import { taskCommand } from "./task";
-import { task01CliCommand } from "./task-01-cli-command";
 import { templateCommand } from "./template";
 import { readConfig, rootOpts } from "./utils";
 import { worktreeCommand } from "./worktree";
 
 /** Commands that create or scaffold; skip auto-migrate (no config or own migration path). */
-const SKIP_MIGRATE_COMMANDS = new Set([
-  "init",
-  "setup",
-  "server",
-  "stats",
-  "context",
-]);
+const SKIP_MIGRATE_COMMANDS = new Set(["init", "setup", "server"]);
 
 function topLevelCommand(cmd: Command): Command {
   let c: Command = cmd;
@@ -113,19 +104,16 @@ export function createProgram(): Command {
   exportCommand(program);
   gateCommand(program);
   portfolioCommand(program);
-  recoverCommand(program);
   importCommand(program);
   statusCommand(program);
   dashboardCommand(program);
   noteCommand(program);
-  agentContextCommand(program);
   agentsCommand(program);
   contextCommand(program);
   crossplanCommand(program);
   cycleCommand(program);
   initiativeCommand(program);
   templateCommand(program);
-  task01CliCommand(program);
   worktreeCommand(program);
   syncCommand(program);
   serverCommand(program);

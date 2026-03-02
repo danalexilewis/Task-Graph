@@ -11,7 +11,6 @@ A hard-won utility belt of patterns, conventions, and gotchas for this codebase.
 5. [Testing Patterns](#testing-patterns)
 6. [Output Conventions](#output-conventions)
 7. [Worktree Workflow](#worktree-workflow)
-8. [Shell / Long-Running Commands](#shell--long-running-commands)
 
 ---
 
@@ -292,16 +291,13 @@ Runtime exceptions (TypeError, RangeError, null dereferences) are **not** `AppEr
 
 ```typescript
 // Wrong — silent miscast
-ResultAsync.fromPromise(asyncOp(), (e) => e as AppError);
+ResultAsync.fromPromise(asyncOp(), (e) => e as AppError)
 
 // Correct — always use buildError in the mapper
-ResultAsync.fromPromise(asyncOp(), (e) =>
-  buildError(
-    ErrorCode.UNKNOWN_ERROR,
-    e instanceof Error ? e.message : String(e),
-    e,
-  ),
-);
+ResultAsync.fromPromise(
+  asyncOp(),
+  (e) => buildError(ErrorCode.UNKNOWN_ERROR, e instanceof Error ? e.message : String(e), e)
+)
 ```
 
 Prefer `.andThen()` chains over async IIFEs wrapped in `ResultAsync.fromPromise` — chains keep all error paths in the Result type system and the error mapper is rarely needed.
@@ -492,22 +488,23 @@ Migrations in `src/db/migrate.ts` are idempotent. Each uses a `tableExists()` or
 
 ### The complete implementer lifecycle
 
-**Normal case (orchestrator pre-starts):** The orchestrator runs `tg start --worktree` and injects **`{{WORKTREE_PATH}}`**. The implementer skips claiming and path lookup.
-
 ```bash
-# Step 1: Switch to worktree (path was injected)
-cd {{WORKTREE_PATH}}   # e.g. /path/to/Task-Graph.tg-<hash>
+# Step 1: Start (orchestrator passes WORKTREE_PATH)
+pnpm tg start <taskId> --agent implementer-N --worktree
+# Get the path
+pnpm tg worktree list --json  # find path for this task's branch
+
+# Step 2: Switch to worktree
+cd /path/to/Task-Graph.tg-<hash>
 # All subsequent commands run from here
 
-# Step 2: Implement, then commit
+# Step 3: Implement, then commit
 git add -A && git commit -m "task(tg-<hash>): <description>"
 
-# Step 3: Done (run from the worktree directory)
+# Step 4: Done
 pnpm tg done <taskId> --evidence "implemented; no test run"
 # Orchestrator then runs: pnpm tg done <taskId> --merge  (or wt merge)
 ```
-
-**Fallback (self-start):** When `{{WORKTREE_PATH}}` was not passed, the implementer runs `pnpm tg start <taskId> --agent implementer-N --worktree`, then `pnpm tg worktree list --json` to find the path, then `cd` to that path.
 
 ### Recovering lost worktree commits
 
@@ -532,66 +529,7 @@ ls /path/to/parent/ | grep "Task-Graph\."
 
 ---
 
-## Shell / Long-Running Commands
-
-### Terminal-file polling pattern
-
-**Problem:** Long-running shell commands (gate:full, pnpm build, server startup) exceed `block_until_ms` and get backgrounded. The agent needs to know when they finish and what they returned — but the Shell tool and Read/tail tool are separate tool calls with no direct link.
-
-**Mechanism:** When Cursor backgrounds a shell command, it streams all stdout/stderr to a terminal file at:
-
-```
-/Users/dan/.cursor/projects/<workspace-slug>/terminals/<pid>.txt
-```
-
-The file has a metadata header and a closing footer when the command finishes:
-
-```
----
-exit_code: 0
-elapsed_ms: 11946
-ended_at: 2026-03-01T17:50:10.535Z
----
-```
-
-The terminal file is the **shared medium** between the Shell tool (producer) and the Read/tail tool (consumer). Poll it incrementally until the footer appears.
-
-**Correct pattern — incremental polls:**
-
-```
-1. Shell tool: pnpm gate:full   (block_until_ms: 360000)
-   → If it exceeds the limit, Cursor writes output to a terminal file and returns immediately.
-   → The terminal file path appears in the shell tool response.
-
-2. Sleep 20s  (separate Shell call)
-3. tail -50 <terminal-file>   → check for `exit_code:` line in the footer
-4. If footer not present → sleep again (use exponential backoff: 20s → 40s → 60s)
-5. If footer present → read exit_code and act
-```
-
-**Anti-patterns:**
-
-| Wrong                                        | Why it fails                                                                                                                                         |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sleep 60 && tail -80 <file>`                | Single chained shell call: if command finishes at 30s you wait the full 60s; if it takes 90s you miss the footer entirely and `tail` runs mid-stream |
-| Single long `block_until_ms` with no polling | The shell tool has a max timeout; commands exceeding it are always backgrounded regardless                                                           |
-| Reading the terminal file once with no retry | Footer may not be written yet; you get partial output with no `exit_code`                                                                            |
-
-**When to use:**
-
-- `pnpm gate:full` or `pnpm gate` (30s+ on large suites)
-- `pnpm build` when the TypeScript compile is slow
-- Any external server startup where you need to wait for a "ready" signal
-- `dolt sql-server` background launch + readiness probe
-
-**When NOT to use (do not sleep or poll):**
-
-- **Short CLI commands** — `tg import`, `tg plan create`, `tg start`, `tg done`, `tg status`, `tg next`, `tg context`, and any other `tg` or quick CLI call. These complete in seconds. Run them with normal `block_until_ms` or no special timeout; they return when done. Do not run a 20s/25s sleep or terminal-file polling for these. **The task graph (hive) is the source of truth:** once `tg start` returns, the DB already has the task as doing and the started event has `worktree_path`; there is no need to "poll for completion" — completion is the shell return (or, if you had backgrounded starts, query the hive e.g. `tg status --tasks --json` and `tg worktree list --json`, not the terminal file).
-- **Single quick DB operations** — Creating a plan, inserting a row, or running a fast query. The command finishes; wait for the shell tool result. No polling.
-
-If you find yourself adding a long sleep (e.g. 15–60s) before or after a `tg import` or "create plan" / DB write, you are misapplying this pattern. Short ops are synchronous from the agent's perspective — no sleep needed.
-
-**Summary:** Terminal file = async message queue between shell execution and read tool calls. The `exit_code` footer is the completion signal. Always poll; never chain sleep+tail in one command.
+## Reference: File Locations
 
 | What                                    | Where                                 |
 | --------------------------------------- | ------------------------------------- |

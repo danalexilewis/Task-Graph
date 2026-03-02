@@ -34,9 +34,7 @@ export function crossplanCommand(program: Command) {
 
   crossplan
     .command("domains")
-    .description(
-      "Show domains shared across multiple projects with task counts",
-    )
+    .description("Show domains shared across multiple projects with task counts")
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
       const result = readConfig().asyncAndThen((config: Config) =>
@@ -94,9 +92,7 @@ export function crossplanCommand(program: Command) {
 
   crossplan
     .command("files")
-    .description(
-      "Find files touched by multiple projects (from project file_tree)",
-    )
+    .description("Find files touched by multiple projects (from project file_tree)")
     .option("--json", "Output as JSON")
     .action(async (options, cmd) => {
       const result = readConfig().asyncAndThen((config: Config) =>

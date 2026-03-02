@@ -9,7 +9,7 @@ import {
   formatDashboardProjectsView,
   formatDashboardTasksView,
   formatStatusAsString,
-  getDashboardFooterBox,
+  getDashboardFooterLine,
   type StatusOptions,
   type StatusViewMode,
 } from "./status";
@@ -40,182 +40,109 @@ function createDiffWriter(): (content: string) => void {
   };
 }
 
-function runLiveFallbackDashboard(
+async function runLiveFallbackDashboard(
   config: Config,
   statusOptions: StatusOptions,
 ): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const stdin = process.stdin;
-    let timer: ReturnType<typeof setInterval>;
-    const cleanup = () => {
-      if (timer) clearInterval(timer);
-      if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
-      resolve();
-    };
-    process.on("SIGINT", cleanup);
-    process.on("SIGTERM", cleanup);
-    if (stdin.isTTY && stdin.setRawMode) {
-      stdin.setRawMode(true);
-      stdin.resume();
-      stdin.on("data", (ch) => {
-        const s = ch.toString();
-        if (s.toLowerCase() === "q" || s === "\x03") cleanup();
-      });
-    }
-    const write = createDiffWriter();
-    write("Loading...");
-    timer = setInterval(async () => {
-      const r = await readConfig().asyncAndThen((c: Config) =>
-        fetchStatusData(c, statusOptions),
-      );
-      r.match(
-        (data) => {
-          write(
-            formatStatusAsString(data, getTerminalWidth(), {
-              dashboard: true,
-            }),
-          );
-        },
-        () => {},
-      );
-    }, REFRESH_MS);
-    fetchStatusData(config, statusOptions).then((result) => {
-      result.match(
-        (d) => {
-          write(
-            formatStatusAsString(d, getTerminalWidth(), { dashboard: true }),
-          );
-        },
-        (e: AppError) => {
-          if (timer) clearInterval(timer);
-          console.error(e.message);
-          resolve();
-        },
-      );
+  const stdin = process.stdin;
+  let timer: ReturnType<typeof setInterval>;
+  const cleanup = () => {
+    if (timer) clearInterval(timer);
+    if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
+    process.exit(0);
+  };
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+  if (stdin.isTTY && stdin.setRawMode) {
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", (ch) => {
+      const s = ch.toString();
+      if (s.toLowerCase() === "q" || s === "\x03") cleanup();
     });
+  }
+  const write = createDiffWriter();
+  write("Loading...");
+  timer = setInterval(async () => {
+    const r = await readConfig().asyncAndThen((c: Config) =>
+      fetchStatusData(c, statusOptions),
+    );
+    r.match(
+      (data) => {
+        write(
+          formatStatusAsString(data, getTerminalWidth(), {
+            dashboard: true,
+          }),
+        );
+      },
+      () => {},
+    );
+  }, REFRESH_MS);
+  fetchStatusData(config, statusOptions).then((result) => {
+    result.match(
+      (d) => {
+        write(formatStatusAsString(d, getTerminalWidth(), { dashboard: true }));
+      },
+      (e: AppError) => {
+        if (timer) clearInterval(timer);
+        console.error(e.message);
+        process.exit(1);
+      },
+    );
   });
 }
 
 /** Live fallback for tg dashboard --tasks: Active + Next 7 + Last 7 sections, 2s refresh. */
-function runLiveFallbackDashboardTasks(
+async function runLiveFallbackDashboardTasks(
   config: Config,
   statusOptions: StatusOptions,
 ): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const stdin = process.stdin;
-    let timer: ReturnType<typeof setInterval>;
-    const cleanup = () => {
-      if (timer) clearInterval(timer);
-      if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
-      resolve();
-    };
-    process.on("SIGINT", cleanup);
-    process.on("SIGTERM", cleanup);
-    if (stdin.isTTY && stdin.setRawMode) {
-      stdin.setRawMode(true);
-      stdin.resume();
-      stdin.on("data", (ch) => {
-        const s = ch.toString();
-        if (s.toLowerCase() === "q" || s === "\x03") cleanup();
-      });
-    }
-    const activeOptions = { ...statusOptions, filter: "active" as const };
-    const write = createDiffWriter();
-    write("Loading...");
-    Promise.all([
-      fetchStatusData(config, statusOptions),
-      fetchTasksTableData(config, activeOptions),
-    ]).then(([statusResult, activeResult]) => {
-      statusResult.match(
-        (d) => {
-          activeResult.match(
-            (activeRows) => {
-              const w = getTerminalWidth();
-              write(
-                formatDashboardTasksView(d, activeRows, w) +
-                  "\n\n" +
-                  getDashboardFooterBox(d, w),
-              );
-              timer = setInterval(async () => {
-                const r = await readConfig().asyncAndThen((c: Config) =>
-                  ResultAsync.combine([
-                    fetchStatusData(c, statusOptions),
-                    fetchTasksTableData(c, activeOptions),
-                  ]),
-                );
-                r.match(
-                  ([data, active]) => {
-                    write(
-                      formatDashboardTasksView(
-                        data,
-                        active,
-                        getTerminalWidth(),
-                      ) +
-                        "\n\n" +
-                        getDashboardFooterBox(data, getTerminalWidth()),
-                    );
-                  },
-                  () => {},
-                );
-              }, REFRESH_MS);
-            },
-            (e: AppError) => {
-              console.error(e.message);
-              resolve();
-            },
-          );
-        },
-        (e: AppError) => {
-          console.error(e.message);
-          resolve();
-        },
-      );
+  const stdin = process.stdin;
+  let timer: ReturnType<typeof setInterval>;
+  const cleanup = () => {
+    if (timer) clearInterval(timer);
+    if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
+    process.exit(0);
+  };
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+  if (stdin.isTTY && stdin.setRawMode) {
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", (ch) => {
+      const s = ch.toString();
+      if (s.toLowerCase() === "q" || s === "\x03") cleanup();
     });
-  });
-}
-
-/** Live fallback for tg dashboard --projects: Active plans + Next 7 + Last 7 sections, 2s refresh. */
-function runLiveFallbackDashboardProjects(
-  config: Config,
-  statusOptions: StatusOptions,
-): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const stdin = process.stdin;
-    let timer: ReturnType<typeof setInterval>;
-    const cleanup = () => {
-      if (timer) clearInterval(timer);
-      if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
-      resolve();
-    };
-    process.on("SIGINT", cleanup);
-    process.on("SIGTERM", cleanup);
-    if (stdin.isTTY && stdin.setRawMode) {
-      stdin.setRawMode(true);
-      stdin.resume();
-      stdin.on("data", (ch) => {
-        const s = ch.toString();
-        if (s.toLowerCase() === "q" || s === "\x03") cleanup();
-      });
-    }
-    const write = createDiffWriter();
-    write("Loading...");
-    fetchStatusData(config, statusOptions).then((result) => {
-      result.match(
-        (d) => {
+  }
+  const activeOptions = { ...statusOptions, filter: "active" as const };
+  const [statusResult, activeResult] = await Promise.all([
+    fetchStatusData(config, statusOptions),
+    fetchTasksTableData(config, activeOptions),
+  ]);
+  const write = createDiffWriter();
+  statusResult.match(
+    (d) => {
+      activeResult.match(
+        (activeRows) => {
           const w = getTerminalWidth();
           write(
-            `${formatDashboardProjectsView(d, w)}\n\n${getDashboardFooterBox(d, w)}`,
+            formatDashboardTasksView(d, activeRows, w) +
+              "\n\n" +
+              getDashboardFooterLine(d),
           );
           timer = setInterval(async () => {
             const r = await readConfig().asyncAndThen((c: Config) =>
-              fetchStatusData(c, statusOptions),
+              ResultAsync.combine([
+                fetchStatusData(c, statusOptions),
+                fetchTasksTableData(c, activeOptions),
+              ]),
             );
             r.match(
-              (data) => {
+              ([data, active]) => {
                 write(
-                  formatDashboardProjectsView(data, getTerminalWidth()) +
+                  formatDashboardTasksView(data, active, getTerminalWidth()) +
                     "\n\n" +
-                    getDashboardFooterBox(data, getTerminalWidth()),
+                    getDashboardFooterLine(data),
                 );
               },
               () => {},
@@ -224,11 +151,68 @@ function runLiveFallbackDashboardProjects(
         },
         (e: AppError) => {
           console.error(e.message);
-          resolve();
+          process.exit(1);
         },
       );
+    },
+    (e: AppError) => {
+      console.error(e.message);
+      process.exit(1);
+    },
+  );
+}
+
+/** Live fallback for tg dashboard --projects: Active plans + Next 7 + Last 7 sections, 2s refresh. */
+async function runLiveFallbackDashboardProjects(
+  config: Config,
+  statusOptions: StatusOptions,
+): Promise<void> {
+  const stdin = process.stdin;
+  let timer: ReturnType<typeof setInterval>;
+  const cleanup = () => {
+    if (timer) clearInterval(timer);
+    if (stdin.isTTY && stdin.setRawMode) stdin.setRawMode(false);
+    process.exit(0);
+  };
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+  if (stdin.isTTY && stdin.setRawMode) {
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", (ch) => {
+      const s = ch.toString();
+      if (s.toLowerCase() === "q" || s === "\x03") cleanup();
     });
-  });
+  }
+  const write = createDiffWriter();
+  const result = await fetchStatusData(config, statusOptions);
+  result.match(
+    (d) => {
+      const w = getTerminalWidth();
+      write(
+        `${formatDashboardProjectsView(d, w)}\n\n${getDashboardFooterLine(d)}`,
+      );
+      timer = setInterval(async () => {
+        const r = await readConfig().asyncAndThen((c: Config) =>
+          fetchStatusData(c, statusOptions),
+        );
+        r.match(
+          (data) => {
+            write(
+              formatDashboardProjectsView(data, getTerminalWidth()) +
+                "\n\n" +
+                getDashboardFooterLine(data),
+            );
+          },
+          () => {},
+        );
+      }, REFRESH_MS);
+    },
+    (e: AppError) => {
+      console.error(e.message);
+      process.exit(1);
+    },
+  );
 }
 
 export function dashboardCommand(program: Command) {
