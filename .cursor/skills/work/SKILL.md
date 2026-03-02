@@ -35,18 +35,22 @@ When this skill is invoked, enter an autonomous execution loop. Do not stop to a
 
 ## Decision tree
 
+Breadcrumb check is the **first** step when no plan is specified. The diagram starts with plan vs no-plan; when no plan, the next step is always "Check sitrep breadcrumb".
+
 ```mermaid
 flowchart TD
     W["/work invoked"] --> X{Plan specified?}
     X -->|Yes| A[Skip Phase 0]
-    X -->|No| Y{Read sitrep breadcrumb}
-    Y -->|making_sitrep < 10m| YY[Skip generation; task pull or read sitrep]
-    YY --> AD
-    Y -->|no / stale| Z{Recent sitrep exists?}
+    X -->|No| Y[Check sitrep breadcrumb]
+    Y --> Y1{state making_sitrep and at within 10m?}
+    Y1 -->|Yes| Y2{Recent sitrep file?}
+    Y2 -->|Yes| AA[Read existing sitrep]
+    Y2 -->|No| A[Task pull + Loop as execution-lead]
+    Y1 -->|No| Z{Recent sitrep exists?}
     Z -->|Yes, < 30m| AA[Read existing sitrep]
     Z -->|No or stale| AB[Write breadcrumb: making_sitrep]
     AB --> AC[Dispatch sitrep-analyst; write sitrep]
-    AC --> AC2[Clear breadcrumb]
+    AC --> AC2[Clear breadcrumb: idle]
     AC2 --> AA
     AA --> AD[Self-select role from formation]
     AD --> AE{Selected role}
@@ -130,40 +134,39 @@ If there are no plans with `actionable > 0`, do not set a focus; use `tg next --
 
 Run this phase **only** when `/work` is invoked without a specific plan or directive. When the user says "/work on Plan X" or the conversation implies a plan to execute, skip Phase 0 and go to **Before the loop** (and then the Loop).
 
-**Breadcrumb-first coordination:** The **first thing** any agent does in Phase 0 is check the **sitrep breadcrumb** (`.taskgraph/sitrep-breadcrumb.json` if present). It tells you whether another agent is already generating a sitrep so you can skip duplication and go straight to work. Canonical format and rules: [docs/leads/sitrep-breadcrumb.md](docs/leads/sitrep-breadcrumb.md).
+**Breadcrumb-first flow:** The **first step** in Phase 0 is always **Check sitrep breadcrumb**. Read `.taskgraph/sitrep-breadcrumb.json` (see [docs/leads/sitrep-breadcrumb.md](docs/leads/sitrep-breadcrumb.md) for format and staleness rules). All branching below starts from that read.
 
-1. **Check sitrep breadcrumb (first)**
+1. **Check sitrep breadcrumb (always first)**
    - Read `.taskgraph/sitrep-breadcrumb.json` if it exists.
-   - If `state === "making_sitrep"` and `at` is within the last **10 minutes** (ISO8601): another agent is generating the sitrep. **Skip sitrep generation.** If a recent sitrep file exists (see step 2), read it and go to step 3; otherwise go straight to **task pull** (`tg next --json`), act as execution-lead, and enter the **Loop** (skip full formation; you are a collaborator pulling the next task).
-   - If no breadcrumb, or state is not recent `making_sitrep`, continue to step 2.
+   - **If `state === "making_sitrep"` and `at` is within the last 10 minutes (ISO8601):** Another agent is generating the sitrep. **Skip sitrep generation.** Then:
+     - If a **recent sitrep file** exists (glob `reports/sitrep-*.md`, most recent; `generated_at` in frontmatter &lt; 30 min), **read that sitrep** and go to step 3 (self-select role).
+     - Otherwise, to **avoid copying other agents** that also skipped: get runnable tasks with `tg next --json --limit 20`, **pick one task at random** from the list (e.g. random index), and work on that single task this iteration as execution-lead; then loop. Random pick spreads agents across the task list instead of all taking the first task.
+   - **If no breadcrumb, or state is not recent `making_sitrep`:** Continue to step 2.
 
 2. **Check for recent sitrep**
-   - Glob `reports/sitrep-*.md` and find the most recent.
-   - Parse `generated_at` from its frontmatter (ISO8601).
-   - **Staleness:** Consider sitrep **stale** if older than **30 minutes**. If `generated_at` is under 30 minutes ago, use that file and go to step 3.
-   - If no sitrep or sitrep is stale, continue to step 2b.
+   - Glob `reports/sitrep-*.md` and find the most recent. Parse `generated_at` from its frontmatter (ISO8601).
+   - **Staleness:** Sitrep is **stale** if older than **30 minutes**. If a sitrep exists and is not stale, use it and go to step 3.
+   - If no sitrep or sitrep is stale, go to step 2b.
 
 2b. **Claim and generate sitrep**
-   - **Write breadcrumb:** Write `.taskgraph/sitrep-breadcrumb.json` with `{ "state": "making_sitrep", "at": "<ISO8601 now>", "by": "work" }` so other agents skip generation.
-   - Dispatch the **sitrep-analyst** sub-agent (read-only, session model). Use `.cursor/agents/sitrep-analyst.md`; the analyst runs CLI commands and returns the sitrep markdown.
-   - Write the output to `reports/sitrep-YYYY-MM-DD-HHmm.md` (current date and time to the minute).
-   - **Clear breadcrumb:** Write breadcrumb `state: "idle"` and same `at`, or remove the file.
-   - Log: `[work] Generated fresh sitrep: reports/sitrep-...`
+   - Write breadcrumb: `.taskgraph/sitrep-breadcrumb.json` with `{ "state": "making_sitrep", "at": "<ISO8601 now>", "by": "work" }`.
+   - Dispatch the **sitrep-analyst** sub-agent (read-only, session model; `.cursor/agents/sitrep-analyst.md`). Write the analyst's output to `reports/sitrep-YYYY-MM-DD-HHmm.md`.
+   - **Immediately clear breadcrumb:** As soon as the sitrep file is written, set breadcrumb to `state: "idle"` (and `at: now`) or remove the file, so other agents see the update and can read the sitrep or pull tasks.
+   - Log: `[work] Generated fresh sitrep: reports/sitrep-...` Then go to step 3.
 
 3. **Read sitrep and self-select role**
-   - Parse the **Formation** section (and Suggested Work Order).
-   - Run the self-selection algorithm from `.cursor/rules/available-agents.mdc` (Lead Roles and Formation): read `tg status --tasks` to see which roles are filled, then pick the highest-priority unfilled role.
+   - Parse the **Formation** section (and Suggested Work Order). Run the self-selection algorithm from `.cursor/rules/available-agents.mdc` (Lead Roles and Formation): read `tg status --tasks`, then pick the highest-priority unfilled role.
    - Log: `[work] Self-selected role: <role> for <plan/scope>`
 
 4. **Enter role-specific workflow**
-   - **execution-lead** → Use the sitrep’s suggested plan/stream if present; then proceed to **Before the loop**, **Start-of-run sync** (breadcrumb + context), **Focus project selection** (when no plan specified), and the **Loop** (existing machinery).
-   - **overseer** → Run watchdog/monitor mode (existing Sub-Agent Watchdog Protocol; optionally refresh sitrep periodically).
-   - **investigator-lead** → Run hunter-killer dispatch for active gate:full failures (see When gate:full fails).
-   - **planner-lead** → Run the /plan skill for the suggested initiative/request; after planning, re-read sitrep and re-select role.
+   - **execution-lead** → Proceed to **Before the loop**, **Start-of-run sync**, **Focus project selection**, and the **Loop** (existing machinery).
+   - **overseer** → Watchdog/monitor mode (Sub-Agent Watchdog Protocol; optionally refresh sitrep periodically).
+   - **investigator-lead** → Hunter-killer dispatch for gate:full failures (see When gate:full fails).
+   - **planner-lead** → /plan skill for suggested initiative/request; then re-read sitrep and re-select role.
 
-**When returning from work (cycle in/out):** After completing a batch or when re-entering the loop, you may re-check the sitrep. If there is **no sitrep or it is stale** (older than 30 min), you may take over: write breadcrumb `making_sitrep`, generate a new sitrep, clear breadcrumb, then continue. This lets multiple leads coordinate in a meta way — one works on tasks while another refreshes the sitrep when needed.
+**When returning from work (cycle in/out):** After completing tasks or at the **next loop top** (re-entry), the agent may **re-check the sitrep**. If there is **no sitrep or it is stale** (older than 30 min), write breadcrumb `making_sitrep`, generate a new sitrep, clear breadcrumb, then continue. This cycles coordination in/out so one lead can refresh the sitrep while others work.
 
-Keep the existing loop and all other sections unchanged. Phase 0 only decides what to do; it then delegates to the existing flow.
+Keep the existing formation and role-selection logic and the rest of the skill unchanged. Phase 0 only decides what to do; it then delegates to the existing flow.
 
 ## Loop
 
