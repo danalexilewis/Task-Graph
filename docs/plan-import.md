@@ -159,6 +159,25 @@ tg import plans/onboarding-flow.md --plan "User Onboarding Flow"
 - **Task title**: Stored in `task.title` as `VARCHAR(255)`. Keep plan todo titles (YAML `content`) under 255 characters or import will fail.
 - **Task external_key**: Plan-scoped. Import appends a 6-char hex hash of `plan_id` to the todo `id` (e.g. `wt-integration-tests-a1b2c3`) so the same todo id in different plans does not violate the unique constraint. Re-import of the same plan upserts by this stable key; export strips the suffix so round-trip YAML uses stable ids.
 - **INSERT/UPDATE plan data**: After the plan→project rename migration, `plan` is a view. Dolt does not allow INSERT into a view. Use table **`project`** (not `plan`) for writes in import and template apply. See `src/cli/import.ts` and `src/cli/template.ts`.
+- **Initiative**: When the `project` table exists, initiative is resolved by ID or title (single row match). Frontmatter `initiative` and CLI `--initiative` both accept either; use a unique initiative title when referring by title.
+
+## Export and multi-project / initiative
+
+Export produces Cursor-format markdown (YAML frontmatter + todos) suitable for re-import. How it behaves for single vs multiple projects and initiatives:
+
+### Current behavior (single-project export)
+
+- **`tg export markdown --plan <planId>`** exports exactly one project: its title, overview (from `project.intent`), and all tasks for that project. Output is one file (default `exports/<planId>.md`). Task `external_key` values have the plan-scoped 6-char suffix stripped so round-trip YAML uses stable todo `id`s.
+- **Mermaid and DOT** (`tg export mermaid`, `tg export dot`) support optional `--plan <planId>` or `--feature <featureKey>` to filter the graph; markdown export requires `--plan` and does not support feature-based export.
+
+### Multi-project and strategic plans
+
+- There is **no single-command export of multiple projects** into one file. Strategic or multi-project plans (e.g. several projects under one initiative) are exported **one project at a time**: run `tg export markdown --plan <planId>` for each project ID. Each output file is a single Cursor-format plan; re-import is also per-file with `tg import ... --plan "<name>"`.
+- **Cross-project dependencies**: Task `blockedBy` and `edge` rows are plan-scoped in the sense that export only includes edges between tasks of the exported project. Dependencies that cross projects are not represented in the exported YAML (they live in the DB only). For round-trip of a multi-project setup, export each project to its own file and re-import each; cross-project blocks are not round-tripped.
+
+### Initiative
+
+- There is **no export-by-initiative** today. To get markdown for all projects under an initiative, list projects (e.g. via `tg status --projects --json` or DB) and run `tg export markdown --plan <planId>` for each. A future extension could add `--initiative <initiativeId>` to export all projects in that initiative (e.g. one file per project, or a single multi-section file, depending on design).
 
 ## Related
 
