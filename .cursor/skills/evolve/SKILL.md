@@ -91,7 +91,7 @@ Pass to a reviewer sub-agent (omit `model` — inherit session model):
 - List of follow-up fix task notes
 - Tactical directive:
 
-> "Analyse these diffs from plan '\<name\>'. For each implementation that was later fixed, flagged by a reviewer, or noted as an anti-pattern: identify the pattern, classify it as one of [SQL pattern | Type pattern | Error handling | Scope drift | Other], note the file and first-pass code snippet, note the corrected code snippet, and suggest a one-line agent-file directive (imperative sentence, e.g. 'Use query(repoPath).insert() for single-table INSERTs'). Return a structured findings list. If no anti-patterns are found, say so explicitly."
+> "Analyse these diffs from plan '\<name\>'. For each implementation that was later fixed, flagged by a reviewer, or noted as an anti-pattern: identify the pattern, classify it as one of [SQL pattern | Type pattern | Error handling | Scope drift | Other], note the file and first-pass code snippet, note the corrected code snippet, suggest a one-line agent-file directive (imperative sentence, e.g. 'Use query(repoPath).insert() for single-table INSERTs'), and give recurrence (number of times this pattern appeared in the analysed set). Return a structured findings list. If no anti-patterns are found, say so explicitly."
 
 ### Step 4 — Route learnings (orchestrator, not sub-agent)
 
@@ -115,18 +115,30 @@ For each finding from the reviewer:
 
 ### Step 5 — Report to user
 
-Output the findings table and a summary of what was written. Do not import or create plan tasks unless the user explicitly asks for follow-up work.
+Output the findings table, the **Metrics** section (so metrics can be captured for instrumentation), and a summary of what was written. Do not import or create plan tasks unless the user explicitly asks for follow-up work.
 
 ## Output format
+
+Use the following structure so that metrics (e.g. for scorecards or analytics) can be captured consistently. Every evolve report must include the **Metrics** subsection with the listed fields.
 
 ```markdown
 ## Evolve: Plan "<name>" — <YYYY-MM-DD>
 
+### Metrics
+
+| Field          | Value | Description |
+| -------------- | ----- | ----------- |
+| sample_size   | N     | Number of commits/diffs or tasks analysed for this run. |
+| confidence    | low / medium / high | How reliable the findings are (e.g. single squash = low; full plan diff + task notes = high). |
+| recurrence    | N     | Count of distinct patterns that appeared 2+ times, or total recurrence count across findings. |
+
 ### Findings
 
-| Category    | Pattern                     | File             | Routed to                            |
-| ----------- | --------------------------- | ---------------- | ------------------------------------ |
-| SQL pattern | raw INSERT template literal | src/cli/start.ts | implementer.md + quality-reviewer.md |
+| Category    | Pattern                     | File             | Routed to                            | Recurrence |
+| ----------- | --------------------------- | ---------------- | ------------------------------------ | ---------- |
+| SQL pattern | raw INSERT template literal | src/cli/start.ts | implementer.md + quality-reviewer.md | 2          |
+
+(Recurrence column: number of times this pattern appeared in the analysed diff set.)
 
 ### Learnings written
 
@@ -138,6 +150,14 @@ Output the findings table and a summary of what was written. Do not import or cr
 - (none)
 - OR: docs/skills/cli-command-implementation.md — add SQL builder rule
 ```
+
+### Structured report sections for metrics capture
+
+The **Metrics** table and the **Recurrence** column in the Findings table are the canonical slots for instrumentation. When writing the report, populate:
+
+- **sample_size** — e.g. `git log plan-<hash> --not main --oneline | wc -l`, or number of done tasks in the plan.
+- **confidence** — from context: full plan branch diff + task notes = high; single squash commit = medium; partial or inferred = low.
+- **recurrence** — per row in Findings: how many times that pattern appeared; in the Metrics table you may also set recurrence to the number of findings with recurrence ≥ 2, or the sum of recurrence counts.
 
 ## Fallback: no plan branch
 
