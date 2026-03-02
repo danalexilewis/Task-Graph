@@ -1,4 +1,4 @@
-import { errAsync, ResultAsync } from "neverthrow";
+import { errAsync, ok, ResultAsync } from "neverthrow";
 import { readConfig } from "../config";
 import type { Config } from "../config";
 import { sqlEscape } from "../db/escape";
@@ -147,22 +147,44 @@ export interface NextOptions {
   all?: boolean;
 }
 
+export interface TgClientOptions {
+  /** Working directory for resolving .taskgraph/config.json. Defaults to process.cwd(). */
+  cwd?: string;
+  /** When set (e.g. from MCP), config is not read; cwd is ignored. */
+  doltRepoPath?: string;
+}
+
 /**
  * Programmatic client for task graph operations. Use this instead of spawning
  * the CLI when you need next, context, or status from scripts or agents.
  * Optional cwd: repository root for config and Dolt (defaults to process.cwd()).
+ * Optional doltRepoPath: use when you already have a repo path (e.g. MCP server).
  */
 export class TgClient {
   private readonly cwd: string;
+  private readonly doltRepoPath: string | undefined;
 
-  constructor(cwd?: string) {
-    this.cwd = cwd ?? process.cwd();
+  constructor(options?: TgClientOptions | string) {
+    if (typeof options === "string") {
+      this.cwd = options;
+      this.doltRepoPath = undefined;
+    } else if (options?.doltRepoPath != null) {
+      this.cwd = options.cwd ?? process.cwd();
+      this.doltRepoPath = options.doltRepoPath;
+    } else {
+      this.cwd = options?.cwd ?? process.cwd();
+      this.doltRepoPath = undefined;
+    }
   }
 
   /**
    * Read config from repo (same as CLI). Uses this client's cwd when set.
+   * When doltRepoPath was passed to the constructor, returns a minimal config with that path.
    */
   readConfig(): ReturnType<typeof readConfig> {
+    if (this.doltRepoPath != null) {
+      return ok({ doltRepoPath: this.doltRepoPath } as Config);
+    }
     return readConfig(this.cwd);
   }
 

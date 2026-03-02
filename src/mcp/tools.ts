@@ -1,6 +1,7 @@
 import { err, ok, ResultAsync } from "neverthrow";
 import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
+import { TgClient } from "../api/index.js";
 import { startOne } from "../cli/start.js";
 import { fetchStatusData } from "../cli/status.js";
 import type { Config } from "../cli/utils.js";
@@ -16,10 +17,6 @@ import {
   checkValidTransition,
 } from "../domain/invariants.js";
 import { autoCompletePlanIfDone } from "../domain/plan-completion.js";
-import {
-  type ContextOutput,
-  estimateJsonTokens,
-} from "../domain/token-estimate.js";
 import type { Edge, Event, Task } from "../domain/types.js";
 import type { McpServer } from "./sdk-loader.js";
 
@@ -90,134 +87,10 @@ async function runContext(
   doltRepoPath: string,
   taskId: string,
 ): Promise<ReturnType<typeof toToolResult> | ReturnType<typeof toToolError>> {
-  const resolved = await resolveTaskId(taskId, doltRepoPath);
-  if (resolved.isErr()) return toToolError(resolved.error);
-  const taskIdResolved = resolved.value;
-  const q = query(doltRepoPath);
-
-  type TaskRow = {
-    task_id: string;
-    title: string;
-    change_type: string | null;
-    plan_id: string;
-    suggested_changes: string | null;
-    agent: string | null;
-  };
-  const taskRows = await q.select<TaskRow>("task", {
-    columns: [
-      "task_id",
-      "title",
-      "change_type",
-      "plan_id",
-      "suggested_changes",
-      "agent",
-    ],
-    where: { task_id: taskIdResolved },
-  });
-  if (taskRows.isErr()) return toToolError(taskRows.error);
-  if (taskRows.value.length === 0)
-    return toToolError(
-      buildError(ErrorCode.TASK_NOT_FOUND, `Task ${taskId} not found`),
-    );
-  const task = taskRows.value[0];
-
-  const planRows = await q.select<{
-    title: string | null;
-    overview: string | null;
-    file_tree: string | null;
-    risks: string | null;
-  }>("project", {
-    columns: ["title", "overview", "file_tree", "risks"],
-    where: { plan_id: task.plan_id },
-  });
-  if (planRows.isErr()) return toToolError(planRows.error);
-  const plan = planRows.value[0];
-  const plan_name = plan?.title ?? null;
-  const plan_overview = plan?.overview ?? null;
-  const file_tree = plan?.file_tree ?? null;
-  let risks: unknown = null;
-  if (plan?.risks != null && typeof plan.risks === "string") {
-    try {
-      risks = JSON.parse(plan.risks);
-    } catch {
-      risks = null;
-    }
-  }
-
-  const docRows = await q.select<{ doc: string }>("task_doc", {
-    columns: ["doc"],
-    where: { task_id: taskIdResolved },
-  });
-  if (docRows.isErr()) return toToolError(docRows.error);
-  const docs = docRows.value.map((r: { doc: string }) => r.doc);
-
-  const skillRows = await q.select<{ skill: string }>("task_skill", {
-    columns: ["skill"],
-    where: { task_id: taskIdResolved },
-  });
-  if (skillRows.isErr()) return toToolError(skillRows.error);
-  const skills = skillRows.value.map((r: { skill: string }) => r.skill);
-
-  const doc_paths = docs.map((d: string) => `docs/${d}.md`);
-  const skill_docs = skills.map((s: string) => `docs/skills/${s}.md`);
-
-  const blockerRowsResult = await q.raw<{
-    task_id: string;
-    title: string;
-    status: string;
-  }>(
-    `SELECT e.from_task_id AS task_id, t.title, t.status FROM \`edge\` e JOIN \`task\` t ON e.from_task_id = t.task_id WHERE e.to_task_id = '${sqlEscape(taskIdResolved)}' AND e.type = 'blocks'`,
-  );
-  if (blockerRowsResult.isErr()) return toToolError(blockerRowsResult.error);
-  const blockerRows = blockerRowsResult.value;
-
-  const doneBlockerIds = blockerRows
-    .filter((b) => b.status === "done")
-    .map((b) => b.task_id);
-  const evidenceByTaskId = new Map<string, string>();
-  if (doneBlockerIds.length > 0) {
-    const evidenceResult = await q.raw<{ task_id: string; body: string }>(
-      `SELECT task_id, body FROM \`event\` WHERE kind = 'done' AND task_id IN (${doneBlockerIds.map((id) => `'${sqlEscape(id)}'`).join(",")}) ORDER BY created_at DESC`,
-    );
-    if (evidenceResult.isOk()) {
-      for (const ev of evidenceResult.value) {
-        if (!evidenceByTaskId.has(ev.task_id)) {
-          try {
-            const parsed = JSON.parse(ev.body) as { evidence?: string };
-            evidenceByTaskId.set(ev.task_id, parsed.evidence ?? "");
-          } catch {
-            evidenceByTaskId.set(ev.task_id, "");
-          }
-        }
-      }
-    }
-  }
-
-  const immediate_blockers = blockerRows.map((b) => ({
-    task_id: b.task_id,
-    title: b.title,
-    status: b.status,
-    evidence: evidenceByTaskId.get(b.task_id) ?? null,
-  }));
-
-  const data: ContextOutput = {
-    task_id: task.task_id,
-    title: task.title,
-    agent: task.agent ?? null,
-    plan_name,
-    plan_overview,
-    docs,
-    skills,
-    change_type: task.change_type ?? null,
-    suggested_changes: task.suggested_changes ?? null,
-    file_tree,
-    risks,
-    doc_paths,
-    skill_docs,
-    immediate_blockers,
-  };
-  const token_estimate = estimateJsonTokens(data);
-  return toToolResult({ ...data, token_estimate });
+  const client = new TgClient({ doltRepoPath });
+  const result = await client.context(taskId);
+  if (result.isErr()) return toToolError(result.error);
+  return toToolResult(result.value);
 }
 
 async function runNext(
@@ -225,37 +98,8 @@ async function runNext(
   planId?: string,
   limit = 10,
 ): Promise<ReturnType<typeof toToolResult> | ReturnType<typeof toToolError>> {
-  const q = query(doltRepoPath);
-  let planFilter = "";
-  if (planId) {
-    const isUUID =
-      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-        planId,
-      );
-    planFilter = isUUID
-      ? `AND p.plan_id = '${sqlEscape(planId)}'`
-      : `AND p.title = '${sqlEscape(planId)}'`;
-  }
-  const excludeCanceledAbandoned =
-    " AND t.status != 'canceled' AND p.status != 'abandoned' ";
-  const nextTasksQuery = `
-    SELECT t.task_id, t.hash_id, t.title, p.title as plan_title, t.risk, t.estimate_mins,
-      (SELECT COUNT(*) FROM \`edge\` e 
-       JOIN \`task\` bt ON e.from_task_id = bt.task_id 
-       WHERE e.to_task_id = t.task_id AND e.type = 'blocks' 
-       AND bt.status NOT IN ('done','canceled')) as unmet_blockers
-    FROM \`task\` t
-    JOIN \`project\` p ON t.plan_id = p.plan_id
-    WHERE t.status = 'todo'
-    ${planFilter}
-    ${excludeCanceledAbandoned}
-    HAVING unmet_blockers = 0
-    ORDER BY p.priority ASC, t.risk ASC, 
-      CASE WHEN t.estimate_mins IS NULL THEN 1 ELSE 0 END,
-      t.estimate_mins ASC, t.created_at ASC
-    LIMIT ${limit}
-  `;
-  const result = await q.raw(nextTasksQuery);
+  const client = new TgClient({ doltRepoPath });
+  const result = await client.next({ plan: planId, limit });
   if (result.isErr()) return toToolError(result.error);
   return toToolResult(result.value);
 }

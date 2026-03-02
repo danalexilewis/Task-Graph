@@ -4,7 +4,7 @@
  * without spawning the CLI.
  */
 
-export { TgClient, type NextOptions } from "./client.js";
+export { type NextOptions, TgClient, type TgClientOptions } from "./client.js";
 export type {
   ContextBlocker,
   ContextResult,
