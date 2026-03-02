@@ -133,16 +133,17 @@ while true:
   1. tasks = tg next [--plan <planId|planName>] --json --limit 20
   2. if tasks is empty → for each plan that completed this session, run **Plan-merge step** (below); then report summary, then run **Final action — commit .taskgraph/dolt**; stop
   3. batch = all non-conflicting tasks from tasks (no file overlap); do not cap size — Cursor decides concurrency
+  3b. **(Optional) Task batching:** Optionally group batch into **dispatch units** of 1–3 tasks using the policy in docs/leads/execution.md § Task batching (optional): same agent type, risk=low, estimate_mins ≤ 15 or null, change_type in [modify, fix, test, document], no file overlap within the unit. For each unit of 2–3 tasks, fetch tg context for each task and build one multi-task prompt ({{TASK_IDS}}, {{CONTEXT_BLOCKS}}); for units of 1 task, keep 1:1. TodoWrite stays one todo per task; when a batch unit returns, mark all tasks in that unit completed. Review remains per-task.
   4. TodoWrite with the task list (from step 1) before dispatching — this is the orchestration panel progress report.
-  5. Emit all Task/mcp_task calls for this batch in the same turn (batch-in-one-turn).
-  6. for each task in batch:
-       a. context = tg context <taskId> --json
-       b. (Worktrunk) Run tg start <taskId> --agent <name> --worktree from repo root. Get worktree path from tg worktree list --json (or started event). On the first tg start --worktree for a plan, capture the plan branch from the started event or from tg worktree list --json and store it in the plan_id map. Inject {{WORKTREE_PATH}} and {{PLAN_BRANCH}} in the implementer prompt (so the implementer has plan branch context even though each task has its own worktree). After obtaining the worktree path: `touch <worktree_path>/.tg-dispatch-marker` to set a baseline timestamp for the overseer's staleness detection.
-       c. build implementer prompt from .cursor/agents/implementer.md + context + {{WORKTREE_PATH}} + {{PLAN_BRANCH}}
-       d. dispatch sub-agent (Task tool or mcp_task, model=fast)
-  7. wait for all sub-agents to complete
-  8. for each completed sub-agent:
-       a. TodoWrite merge=true to update progress (e.g. mark that task complete in the todo list).
+  5. Emit all Task/mcp_task calls for this batch in the same turn — **one call per dispatch unit** (single task or batch of 2–3). Each call gets one prompt (single-task or multi-task with N context blocks). Cursor decides concurrency.
+  6. for each dispatch unit (single task or batch of 2–3):
+       a. For each task in the unit: context = tg context <taskId> --json. For a batch unit, build one prompt with {{TASK_IDS}} and {{CONTEXT_BLOCKS}}; for single task, build one prompt with {{TASK_ID}} and single context.
+       b. (Worktrunk) For single-task unit: run tg start <taskId> --agent <name> --worktree from repo root (or omit and let implementer self-start). For batch unit: omit pre-start; implementer template batch mode runs start→work→done per task in order. Get worktree path from tg worktree list --json when pre-starting. On the first tg start --worktree for a plan, capture the plan branch and store it in the plan_id map. Inject {{WORKTREE_PATH}} and {{PLAN_BRANCH}} when pre-starting. After obtaining a worktree path: `touch <worktree_path>/.tg-dispatch-marker` for overseer staleness.
+       c. Build prompt from .cursor/agents/implementer.md (or documenter.md for documenter tasks) + context(s) + {{WORKTREE_PATH}} + {{PLAN_BRANCH}} as applicable.
+       d. Dispatch one sub-agent (Task tool or mcp_task, model=fast) per unit.
+  7. Wait for all sub-agents to complete.
+  8. For each completed sub-agent (each dispatch unit):
+       a. TodoWrite merge=true to update progress — mark that task complete, or all tasks in that batch unit complete, in the todo list.
        b. if SUCCESS → check return message and task notes (including after the final task in a plan, e.g. full-suite run); if implementer reported environment/gate issues or follow-up, run **Follow-up from notes/evidence** (subagent-dispatch.mdc): orchestrator decides whether to create task(s) with `tg task new ... --plan <planId>` and delegate.
        c. if FAIL → re-dispatch once with feedback
        d. if FAIL again → apply **escalation ladder** (see subagent-dispatch.mdc “Escalation decision tree”): consider **fixer agent** (stronger model), **direct execution** (orchestrator does the task), or **escalate to human**; see Escalation below.
@@ -205,6 +206,10 @@ Implementers run with a soft 10-minute budget (set `block_until_ms: 600000` when
    - Uncommitted file changes exist → dispatch **fixer** with partial work context and the stall note
    - No file changes at all, first kill → **re-dispatch implementer** once with note "prior attempt stalled on <pattern>, avoid this approach"
    - No file changes, already re-dispatched → dispatch **investigator** to determine if the task itself is problematic
+
+## Task batching (optional)
+
+After the file-conflict check, you may group runnable tasks into **dispatch units** of 2–3 tasks when the policy in docs/leads/execution.md § Task batching (optional) applies: same agent type, risk=low, estimate_mins ≤ 15 or null, change_type in [modify, fix, test, document], no file overlap within the unit. Build one multi-task prompt per unit ({{TASK_IDS}}, {{CONTEXT_BLOCKS}}); the sub-agent runs start → work → done per task in order. TodoWrite and review stay per-task; when a batch unit returns, mark all tasks in that unit completed.
 
 ## File Conflict Check
 
