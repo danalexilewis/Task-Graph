@@ -86,6 +86,15 @@ Also collect task notes that signal follow-up work:
 pnpm tg status --tasks --json  # filter by planId, check event bodies
 ```
 
+### Step 2c — Evidence gate (minimum diff coverage)
+
+Before dispatching the reviewer or routing any learnings, require **minimum diff coverage** so evolve does not route on trivial or empty diffs.
+
+- **Threshold:** At least **20 lines changed** (insertions + deletions). Measure using:
+  - **Plan branch exists:** `git diff main...plan-<hash_id> --shortstat` — parse the summary line (e.g. "3 files changed, 45 insertions(+), 12 deletions(-)") and require insertions + deletions ≥ 20.
+  - **Fallback (already merged):** From the squash commit patch, require at least 20 lines of diff output (e.g. count lines from `git log main --grep="plan: <plan-name>" --patch -1` that start with `+` or `-` and are not only whitespace/context).
+- **If the gate fails:** Do **not** run Step 3 (do not dispatch the reviewer) or Step 4. Report to the user: **"Evolve skipped: insufficient diff coverage (X lines changed, minimum 20). No learnings routed."** Include the State Documentation block with Metrics (`sample_size`, `diff_lines`, `confidence: low`) so instrumentation is consistent.
+
 ### Step 2b — Check agent transcripts (optional, high-value)
 
 Agent transcripts (`agent-transcripts/<uuid>/subagents/*.jsonl`) capture the full tool-call sequence of each sub-agent — what it read, searched, edited, and in what order. For evolve, this reveals **process anti-patterns** that diffs alone cannot show:
@@ -163,11 +172,11 @@ Emit both **Pattern Learnings** and **State Documentation** in the report so the
 
 ## Output categories
 
-Split the evolve report into two categories:
+Split evolve outputs into two categories:
 
-1. **Pattern Learnings** — Actionable patterns, anti-patterns, and learnings to route to memory, docs, or agent templates: the findings table (category, pattern, file, confidence, routed-to, recurrence), learnings written (which agent files received entries), and durable-pattern suggestions (docs/skills updates). Downstream steps use this section to perform routing; do not use it for run context.
+1. **Pattern Learnings** — Reusable patterns, anti-patterns, and directives for agents: the findings table (category, pattern, file, confidence, routed-to, recurrence), learnings written (which agent files received entries), and durable-pattern suggestions for docs/skills. Downstream steps use this to perform routing; do not use for run context.
 
-2. **State Documentation** — Descriptive state that does not need routing: what was done (plan name, branch, scope), metrics (sample_size, confidence, recurrence for instrumentation), task list or commit count, file counts. Used for reporting, scorecards, and context only.
+2. **State Documentation** — Point-in-time state and snapshot of what was found: what was done (plan name, branch, scope), metrics (sample_size, confidence, recurrence for instrumentation), task/commit counts. Used for reporting, scorecards, and context only.
 
 ## Output format
 
@@ -176,9 +185,9 @@ Use the following structure. Every evolve report must include both **Pattern Lea
 ```markdown
 ## Evolve: Plan "<name>" — <YYYY-MM-DD>
 
-## State Documentation (point-in-time snapshot)
+## State Documentation
 
-Snapshot of what was analysed and run-quality metrics. Not reusable across runs.
+(Descriptive only; no routing. Use for instrumentation and context.)
 
 ### Metrics
 
@@ -190,13 +199,14 @@ Snapshot of what was analysed and run-quality metrics. Not reusable across runs.
 | confidence    | low / medium / high | How reliable the findings are (e.g. single squash = low; full plan diff + task notes = high). |
 | recurrence    | N     | Count of distinct patterns that appeared 2+ times, or total recurrence count across findings. |
 
-### Run context (optional)
+### What was done
 
-Plan: "<name>", branch: plan-<hash>, tasks: N, commits: N. Omit if redundant with Metrics.
+- Plan: "<name>", branch: plan-<hash> (or fallback: squash on main).
+- Tasks analysed: N. Commits in diff: N. (Optional: short list of task IDs or file count.)
 
-## Pattern Learnings (reusable patterns and directives)
+## Pattern Learnings
 
-Findings, routed learnings, and durable pattern suggestions. Reusable by agents and docs.
+(Actionable: route these to memory/docs/templates as in Step 4.)
 
 ### Findings
 
@@ -219,7 +229,9 @@ Findings, routed learnings, and durable pattern suggestions. Reusable by agents 
 - `implementer.md ## Learnings`: N entries added
 - `quality-reviewer.md ## Learnings`: N entries added
 
-When the evidence gate (Step 3b) fails, output instead of the above:
+When the evidence gate (Step 2c) failed (before reviewer), output: **Skipped (insufficient diff coverage: X lines changed, minimum 20). No learnings routed.**
+
+When the evidence gate (Step 3b) fails (after reviewer), output instead of the learnings list:
 
 - Skipped (insufficient diff coverage: sample_size=N, threshold=3; diff_lines=L, files_changed=F; minimum required: 2 files or 50 lines).
 
@@ -241,7 +253,7 @@ Assign one label per finding so consumers can prioritize. Emit the label with ea
 
 ### Structured report sections for metrics capture
 
-**State Documentation:** The **Metrics** table (and optional **Run context**) is the canonical slot for run-quality instrumentation. Populate:
+**State Documentation:** The **Metrics** table and **What was done** narrative are the canonical slots for run-quality instrumentation and context. Populate:
 
 - **sample_size** — e.g. `git log plan-<hash> --not main --oneline | wc -l`, or number of done tasks in the plan.
 - **diff_lines** — from `git diff main...plan-<hash> --shortstat` (insertions + deletions), or from `git show <commit> --shortstat` in fallback; use "—" when diff is unavailable.
