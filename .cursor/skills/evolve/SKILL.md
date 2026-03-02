@@ -105,7 +105,7 @@ Pass to a reviewer sub-agent (omit `model` — inherit session model):
 - List of follow-up fix task notes
 - Tactical directive:
 
-> "Analyse these diffs from plan '\<name\>'. For each implementation that was later fixed, flagged by a reviewer, or noted as an anti-pattern: identify the pattern, classify it as one of [SQL pattern | Type pattern | Error handling | Scope drift | Process/tooling | Other], note the file and first-pass code snippet, note the corrected code snippet, suggest a one-line agent-file directive (imperative sentence, e.g. 'Use query(repoPath).insert() for single-table INSERTs'), give recurrence (number of times this pattern appeared in the analysed set), and assign a **confidence** label: **high** (clear diff evidence and fix; no ambiguity), **medium** (reasonable inference from context), **low** (inferred or single data point). If agent transcript excerpts are provided, also look for **process anti-patterns**: redundant tool calls, missed context (key files never read), wrong-file edits that were reverted, or tool-call storms (30+ calls where fewer would suffice). Classify these as 'Process/tooling'. Return a structured findings list with confidence per finding. If no anti-patterns are found, say so explicitly."
+> "Analyse these diffs from plan '\<name\>'. For each implementation that was later fixed, flagged by a reviewer, or noted as an anti-pattern: identify the pattern, classify it as one of [SQL pattern | Type pattern | Error handling | Scope drift | Process/tooling | Other], note the file and first-pass code snippet, note the corrected code snippet, suggest a one-line agent-file directive (imperative sentence, e.g. 'Use query(repoPath).insert() for single-table INSERTs'), give recurrence (number of times this pattern appeared in the analysed set), and assign a **confidence** (high | medium | low) using the confidence criteria below so consumers can prioritize. If agent transcript excerpts are provided, also look for **process anti-patterns**: redundant tool calls, missed context (key files never read), wrong-file edits that were reverted, or tool-call storms (30+ calls where fewer would suffice). Classify these as 'Process/tooling'. Return a structured findings list with confidence per finding. If no anti-patterns are found, say so explicitly."
 
 ### Step 3b — Evidence gate (minimum diff coverage)
 
@@ -181,6 +181,8 @@ Snapshot of what was analysed and run-quality metrics. Not reusable across runs.
 | Field          | Value | Description |
 | -------------- | ----- | ----------- |
 | sample_size   | N     | Number of commits/diffs or tasks analysed for this run. |
+| diff_lines    | N or — | Sum of insertions + deletions from plan diff (or — if unavailable). Used by evidence gate. |
+| files_changed | N or — | Number of files changed in plan diff (or — if unavailable). Used by evidence gate. |
 | confidence    | low / medium / high | How reliable the findings are (e.g. single squash = low; full plan diff + task notes = high). |
 | recurrence    | N     | Count of distinct patterns that appeared 2+ times, or total recurrence count across findings. |
 
@@ -212,6 +214,10 @@ Findings, routed learnings, and durable pattern suggestions. Reusable by agents 
 
 - `implementer.md ## Learnings`: N entries added
 - `quality-reviewer.md ## Learnings`: N entries added
+
+When the evidence gate (Step 3b) fails, output instead of the above:
+
+- Skipped (insufficient diff coverage: sample_size=N, threshold=3; diff_lines=L, files_changed=F; minimum required: 2 files or 50 lines).
 
 ### Durable patterns (suggest doc update)
 
