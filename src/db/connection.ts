@@ -79,6 +79,7 @@ export function getServerPool(): Pool | null {
       database,
       waitForConnections: true,
       connectionLimit: 10,
+      connectTimeout: 5000,
     });
     poolCache.set(key, pool);
   }
