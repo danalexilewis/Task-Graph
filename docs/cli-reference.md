@@ -766,7 +766,7 @@ Use `tg done <taskId> --evidence "completed previously" --force` to clear stale 
 - Task counts by status: todo, doing, blocked, done, canceled (each only if &gt; 0). The **blocked** count shows tasks with `task.status = 'blocked'`, which is materialized from the dependency graph (see [schema](schema.md)).
 - **Active & next:** Single section: doing tasks first (Id, Task, Plan, Status, Agent), then up to 3 runnable todo tasks (Agent "—"). Id column shows short id (hash_id or truncated), not full UUID.
 
-With `--json` (one-shot only; not with `--dashboard`): default view outputs an object with `summary` (`not_done`, `in_progress`, `blocked`, `actionable`), `activePlans`, `nextTasks`, `activeWork`, etc. With `--tasks --json`, output is a JSON array of task rows: `task_id`, `hash_id`, `title`, `plan_title`, `status`, `owner`. With `--projects --json`, output is a JSON array of project rows: `plan_id`, `title`, `status`, `todo`, `doing`, `blocked`, `done`. With `--initiatives --json` and no initiative table, output is `{ "stub": true, "message": "..." }`.
+With `--json` (one-shot only; not with `--dashboard`): default view outputs an object with `summary` (`not_done`, `in_progress`, `blocked`, `actionable`), `activePlans`, `nextTasks`, `activeWork`, and when any task has been in doing longer than the stale threshold, `stale_tasks`. With `--tasks --json`, output is a JSON array of task rows: `task_id`, `hash_id`, `title`, `plan_title`, `status`, `owner`. With `--projects --json`, output is a JSON array of project rows: `plan_id`, `title`, `status`, `todo`, `doing`, `blocked`, `done`. With `--initiatives --json` and no initiative table, output is `{ "stub": true, "message": "..." }`.
 
 **Live mode behavior** (`--dashboard`):
 
