@@ -27,6 +27,11 @@ Review completed plan execution history (task diffs on the plan branch) to ident
 - **Lead:** read-write (appends to agent Learnings sections, optionally updates docs/skills)
 - **Sub-agent (reviewer):** read-only
 
+## Inputs
+
+- **Primary (required):** Plan diff (from plan branch or fallback) and follow-up fix task notes.
+- **Optional:** Findings from the **/review** skill — code-health and/or system-health sections. When the user has run /review and provides that report (paste, path to `reports/review-*.md`, or inline code-health/system-health sections), use them as additional inputs so the reviewer can consider both plan diffs and review findings for pattern mining and routing.
+
 ## When to use
 
 - User says `/evolve`, "evolve the last plan", or "find patterns from this plan"
@@ -60,11 +65,12 @@ flowchart TD
 
 ## Step-by-step workflow
 
-### Step 1 — Resolve the plan
+### Step 1 — Resolve the plan and optional review inputs
 
 - If user gave a plan name or ID: `pnpm tg status --tasks --json` to locate it. If they said "last plan" or "the plan we just finished", use the most recently completed plan from the same session context.
 - Get the plan's `hash_id` from the plan row (needed for branch name `plan-<hash_id>`).
 - Get the list of all done task IDs and titles in the plan.
+- **If the user provides /review findings:** Accept code-health and/or system-health content (e.g. pasted report, path to `reports/review-YYYY-MM-DD.md`, or explicit "use the last review"). Load or retain those sections for Step 3 so the reviewer can use them alongside the plan diff.
 
 ### Step 2 — Get the plan diff
 
@@ -112,9 +118,10 @@ Pass to a reviewer sub-agent (omit `model` — inherit session model):
 
 - The full diff (or per-task diffs from `git log --patch`)
 - List of follow-up fix task notes
+- **When available:** Code-health and/or system-health findings from /review (paste the relevant sections or path to the report). The reviewer uses these alongside the diff to cross-reference (e.g. tech debt or risks called out in review with anti-patterns in the plan diff) and to route learnings.
 - Tactical directive:
 
-> "Analyse these diffs from plan '\<name\>'. For each implementation that was later fixed, flagged by a reviewer, or noted as an anti-pattern: identify the pattern, classify it as one of [SQL pattern | Type pattern | Error handling | Scope drift | Process/tooling | Other], note the file and first-pass code snippet, note the corrected code snippet, suggest a one-line agent-file directive (imperative sentence, e.g. 'Use query(repoPath).insert() for single-table INSERTs'), give recurrence (number of times this pattern appeared in the analysed set), and assign a **confidence** (high | medium | low) using the confidence criteria below so consumers can prioritize. If agent transcript excerpts are provided, also look for **process anti-patterns**: redundant tool calls, missed context (key files never read), wrong-file edits that were reverted, or tool-call storms (30+ calls where fewer would suffice). Classify these as 'Process/tooling'. Return a structured findings list with confidence per finding. If no anti-patterns are found, say so explicitly."
+> "Analyse these diffs from plan '\<name\>'. For each implementation that was later fixed, flagged by a reviewer, or noted as an anti-pattern: identify the pattern, classify it as one of [SQL pattern | Type pattern | Error handling | Scope drift | Process/tooling | Other], note the file and first-pass code snippet, note the corrected code snippet, suggest a one-line agent-file directive (imperative sentence, e.g. 'Use query(repoPath).insert() for single-table INSERTs'), give recurrence (number of times this pattern appeared in the analysed set), and assign a **confidence** (high | medium | low) using the confidence criteria below so consumers can prioritize. If agent transcript excerpts are provided, also look for **process anti-patterns**: redundant tool calls, missed context (key files never read), wrong-file edits that were reverted, or tool-call storms (30+ calls where fewer would suffice). Classify these as 'Process/tooling'. Return a structured findings list with confidence per finding. If no anti-patterns are found, say so explicitly. If **review findings** (code-health and/or system-health) were provided, use them as additional input: cross-reference review-flagged areas (e.g. tech debt, risks, hotspots) with the plan diff and include any overlapping or reinforcing patterns in your findings."
 
 ### Step 3b — Evidence gate (minimum diff coverage)
 
@@ -258,7 +265,7 @@ Assign one label per finding so consumers can prioritize. Emit the label with ea
 - **sample_size** — e.g. `git log plan-<hash> --not main --oneline | wc -l`, or number of done tasks in the plan.
 - **diff_lines** — from `git diff main...plan-<hash> --shortstat` (insertions + deletions), or from `git show <commit> --shortstat` in fallback; use "—" when diff is unavailable.
 - **files_changed** — from the same `--shortstat` output; use "—" when diff is unavailable. These two fields are used by the evidence gate and must be present when the diff was used.
-- **confidence** — from context: full plan branch diff + task notes = high; single squash commit = medium; partial or inferred = low.
+- **confidence** — from context: full plan branch diff + task notes = high; single squash commit = medium; partial or inferred = low. If review findings (code-health/system-health) were included as input, treat confidence as high when combined with plan diff.
 - **recurrence** — per row in Findings: how many times that pattern appeared; in the Metrics table you may also set recurrence to the number of findings with recurrence ≥ 2, or the sum of recurrence counts.
 
 **Pattern Learnings:** The **Findings** table (including **Confidence** and **Recurrence** per row), **Learnings written**, and **Durable patterns** are the canonical slots for pattern and directive capture and for routing and filtering by confidence.

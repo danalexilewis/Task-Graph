@@ -163,6 +163,7 @@ Resolve conflicts (e.g. one agent says "tests adequate", another "gaps in X") by
 
 - Post the report in chat.
 - Optionally write to `reports/review-YYYY-MM-DD.md` (create `reports/` if needed). If risk was in scope, you can write the full risk section to `reports/risk-assessment-YYYY-MM-DD.md` or keep it inside the main review file.
+- **Evolve integration:** The **Code health** and **System health** sections of this report can be passed to the **/evolve** skill as additional inputs when evolving a plan — evolve will use them alongside plan diffs for pattern mining and routing learnings to agent templates and docs.
 
 ## Sub-agent constraints (remind in prompts)
 
