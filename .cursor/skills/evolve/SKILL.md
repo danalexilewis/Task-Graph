@@ -38,6 +38,20 @@ Review completed plan execution history (task diffs on the plan branch) to ident
 - Work skill orchestrator: optionally before the plan-merge step, after all tasks complete
 - **Timing constraint:** Must run BEFORE the plan-merge step — the plan branch (`plan-<hash>`) is deleted after `wt merge main` runs. If already merged, use the fallback (git log on main for the squash commit).
 
+## Conflict resolution: evolve vs review
+
+When the **evolve** skill and the **/review** skill (or a reviewer sub-agent) disagree — e.g. on whether a learning should be applied, how to route it, or whether a finding is an anti-pattern — use the following rule so orchestrators and evolve flows resolve consistently.
+
+| Situation | Resolution |
+| --------- | ---------- |
+| **Review says "do not apply" / "not a valid learning"** | Defer to review. Do not append the learning to agent files. Optionally note the finding in the evolve report as "review-disagreed" and skip routing. |
+| **Review says "route differently"** (e.g. different agent or doc) | Use review's routing. Evolve's default routing (implementer/quality-reviewer/docs) is a default; review's domain-specific suggestion wins when it contradicts. |
+| **Review says "risk/safety concern"** and evolve did not request risk | Halt applying that learning until risk assessment (or risk-preparedness-reviewer / adversarial-security-reviewer) has been run. Review wins on safety. |
+| **Both have evidence; neither is safety** | Orchestrator decides: either apply evolve's learning with a short note that review disagreed, or merge both views (e.g. apply learning but add the reviewer's caveat as a one-line qualifier in the Learnings entry). Prefer merging when the disagreement is nuance, not correctness. |
+| **Irreconcilable or high-stakes** | Escalate to the user: report both positions and do not apply the disputed learning until the user confirms. |
+
+**Who wins:** For safety, security, and high-impact domains, **review (and risk) wins**. For routine implementation learnings where review only suggests different wording or routing, **orchestrator** may merge both views or choose one and note the other in the report. When in doubt, **escalate to the user**.
+
 ## Decision tree
 
 ```mermaid
