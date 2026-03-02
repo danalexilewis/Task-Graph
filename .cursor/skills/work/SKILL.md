@@ -1,6 +1,6 @@
 ---
 name: work
-description: Autonomous task execution loop. Grinds through plan tasks using sub-agent dispatch without stopping for human confirmation. Use when the user says "work", "go", "execute", "grind", or wants tasks completed autonomously.
+description: Autonomous task execution loop. Grinds through plan tasks using sub-agent dispatch without stopping for human confirmation. Use when the user says "work", "go", "execute", "grind", "/work from highest priority project", or wants tasks completed autonomously. When multiple instances run (e.g. "/work from highest priority project" run 3 times), each instance picks a different focus project so they spread across plans.
 ---
 
 # Work — Autonomous Task Execution
@@ -39,11 +39,15 @@ When this skill is invoked, enter an autonomous execution loop. Do not stop to a
 flowchart TD
     W["/work invoked"] --> X{Plan specified?}
     X -->|Yes| A[Skip Phase 0]
-    X -->|No| Z{Recent sitrep exists?}
-    Z -->|Yes, under 1h| AA[Read existing sitrep]
-    Z -->|No| AB[Dispatch sitrep-analyst]
-    AB --> AC[Write sitrep to reports/]
-    AC --> AA
+    X -->|No| Y{Read sitrep breadcrumb}
+    Y -->|making_sitrep < 10m| YY[Skip generation; task pull or read sitrep]
+    YY --> AD
+    Y -->|no / stale| Z{Recent sitrep exists?}
+    Z -->|Yes, < 30m| AA[Read existing sitrep]
+    Z -->|No or stale| AB[Write breadcrumb: making_sitrep]
+    AB --> AC[Dispatch sitrep-analyst; write sitrep]
+    AC --> AC2[Clear breadcrumb]
+    AC2 --> AA
     AA --> AD[Self-select role from formation]
     AD --> AE{Selected role}
     AE -->|execution-lead| A
@@ -95,20 +99,55 @@ When executing tasks from tg, **always structure work so Cursor surfaces the "Ta
    Use the plan’s filename and the exact `name` from its frontmatter. If the plan is already imported, the command will still succeed (upsert behavior).
 3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 20` so work focuses on that plan’s tasks first. Otherwise proceed in multi-plan mode (see below).
 
-If no plan is indicated by context or the user, skip import and use multi-plan mode.
+If no plan is indicated by context or the user, skip import and use **Focus project selection** then multi-plan mode (see below).
+
+## Start-of-run sync (breadcrumb and context)
+
+When you enter the loop as **execution-lead**, run a one-time sync so this instance is aligned with other agents' plans and path-scoped clues. Do this **before** the first loop iteration (and before or as part of focus selection, which uses status).
+
+1. **Status** — Run `pnpm tg status --json`. Use it for focus selection (if applicable) and for current doing/runnable state.
+2. **Breadcrumbs** — Read `.breadcrumbs.json` if present. Use path-scoped entries when doing the file-conflict check and when batching (paths with breadcrumbs may need sequential treatment or extra care). See `.cursor/agent-utility-belt.md` § Breadcrumbs and `docs/breadcrumbs.md`.
+3. **Hive context (when available)** — If the CLI supports it, run `pnpm tg context --hive --json` to load a snapshot of all doing tasks (agents, phases, files in progress, recent notes). Use it to avoid conflicting with other agents' work and to coordinate. When `--hive` is not yet implemented, skip this step; status and breadcrumbs are still sufficient for basic coordination.
+
+No sync data is persisted by this step; it is ephemeral coordination only.
+
+## Focus project selection (multi-instance diversification)
+
+When `/work` is invoked **without a specific plan** (e.g. "/work", "/work from highest priority project") and you are acting as **execution-lead**, choose a **focus project** so that multiple `/work` instances each focus on a different project. Focus is **ephemeral**: nothing is persisted. Coordination is via the live task graph state (doing counts) that each instance observes when it runs `tg status --json`; no focus assignment is written to the DB or to any file. The project is not assigned to this agent — it only determines which plan's tasks this instance will pull.
+
+**Before the first loop iteration** (after Start-of-run sync):
+
+1. Using the `activePlans` from the status JSON already fetched in Start-of-run sync (or run `pnpm tg status --json` if not yet available).
+2. Filter to plans that have runnable tasks: `actionable > 0`.
+3. Sort by **doing count ascending**, then **priority ascending** (1 = highest). So plans with no one working on them (doing = 0) come first, then by priority; if several have the same doing count, higher priority wins.
+4. Pick the **first** plan in that sorted list. Set `focus_plan` to its `plan_id` or `title` (use the same form `tg next --plan` accepts).
+5. For the rest of the loop, use `tg next --plan <focus_plan> --json --limit 20` instead of unfiltered `tg next --json`.
+6. Log: `[work] Focus project: <plan title> (ephemeral focus; not persisted).`
+
+If there are no plans with `actionable > 0`, do not set a focus; use `tg next --json --limit 20` and exit when tasks are empty. When a plan was explicitly specified in context (Before the loop), skip focus selection and use that plan for the loop.
 
 ## Phase 0: Self-Orientation (when no plan specified)
 
 Run this phase **only** when `/work` is invoked without a specific plan or directive. When the user says "/work on Plan X" or the conversation implies a plan to execute, skip Phase 0 and go to **Before the loop** (and then the Loop).
 
-1. **Check for recent sitrep**
+**Breadcrumb-first coordination:** The **first thing** any agent does in Phase 0 is check the **sitrep breadcrumb** (`.taskgraph/sitrep-breadcrumb.json` if present). It tells you whether another agent is already generating a sitrep so you can skip duplication and go straight to work. Canonical format and rules: [docs/leads/sitrep-breadcrumb.md](docs/leads/sitrep-breadcrumb.md).
+
+1. **Check sitrep breadcrumb (first)**
+   - Read `.taskgraph/sitrep-breadcrumb.json` if it exists.
+   - If `state === "making_sitrep"` and `at` is within the last **10 minutes** (ISO8601): another agent is generating the sitrep. **Skip sitrep generation.** If a recent sitrep file exists (see step 2), read it and go to step 3; otherwise go straight to **task pull** (`tg next --json`), act as execution-lead, and enter the **Loop** (skip full formation; you are a collaborator pulling the next task).
+   - If no breadcrumb, or state is not recent `making_sitrep`, continue to step 2.
+
+2. **Check for recent sitrep**
    - Glob `reports/sitrep-*.md` and find the most recent.
    - Parse `generated_at` from its frontmatter (ISO8601).
-   - If `generated_at` is under 1 hour ago, use that file and go to step 3.
+   - **Staleness:** Consider sitrep **stale** if older than **30 minutes**. If `generated_at` is under 30 minutes ago, use that file and go to step 3.
+   - If no sitrep or sitrep is stale, continue to step 2b.
 
-2. **Generate fresh sitrep**
+2b. **Claim and generate sitrep**
+   - **Write breadcrumb:** Write `.taskgraph/sitrep-breadcrumb.json` with `{ "state": "making_sitrep", "at": "<ISO8601 now>", "by": "work" }` so other agents skip generation.
    - Dispatch the **sitrep-analyst** sub-agent (read-only, session model). Use `.cursor/agents/sitrep-analyst.md`; the analyst runs CLI commands and returns the sitrep markdown.
    - Write the output to `reports/sitrep-YYYY-MM-DD-HHmm.md` (current date and time to the minute).
+   - **Clear breadcrumb:** Write breadcrumb `state: "idle"` and same `at`, or remove the file.
    - Log: `[work] Generated fresh sitrep: reports/sitrep-...`
 
 3. **Read sitrep and self-select role**
@@ -117,10 +156,12 @@ Run this phase **only** when `/work` is invoked without a specific plan or direc
    - Log: `[work] Self-selected role: <role> for <plan/scope>`
 
 4. **Enter role-specific workflow**
-   - **execution-lead** → Use the sitrep’s suggested plan/stream if present; then proceed to **Before the loop** and the **Loop** (existing machinery).
+   - **execution-lead** → Use the sitrep’s suggested plan/stream if present; then proceed to **Before the loop**, **Start-of-run sync** (breadcrumb + context), **Focus project selection** (when no plan specified), and the **Loop** (existing machinery).
    - **overseer** → Run watchdog/monitor mode (existing Sub-Agent Watchdog Protocol; optionally refresh sitrep periodically).
    - **investigator-lead** → Run hunter-killer dispatch for active gate:full failures (see When gate:full fails).
    - **planner-lead** → Run the /plan skill for the suggested initiative/request; after planning, re-read sitrep and re-select role.
+
+**When returning from work (cycle in/out):** After completing a batch or when re-entering the loop, you may re-check the sitrep. If there is **no sitrep or it is stale** (older than 30 min), you may take over: write breadcrumb `making_sitrep`, generate a new sitrep, clear breadcrumb, then continue. This lets multiple leads coordinate in a meta way — one works on tasks while another refreshes the sitrep when needed.
 
 Keep the existing loop and all other sections unchanged. Phase 0 only decides what to do; it then delegates to the existing flow.
 
@@ -128,9 +169,11 @@ Keep the existing loop and all other sections unchanged. Phase 0 only decides wh
 
 **Orchestrator state:** Maintain a map `plan_id -> { worktree_path, plan_branch }` for every plan that uses worktrees. Populate it on the first `tg start --worktree` per plan; use it for `{{PLAN_BRANCH}}` and for the plan-merge step when the plan completes.
 
+When a **focus project** was chosen (Focus project selection), use `tg next --plan <focus_plan> --json --limit 20` in step 1; otherwise use the plan from context or unfiltered `tg next --json --limit 20`.
+
 ```
 while true:
-  1. tasks = tg next [--plan <planId|planName>] --json --limit 20
+  1. tasks = tg next [--plan <planId|planName|focus_plan>] --json --limit 20
   2. if tasks is empty → for each plan that completed this session, run **Plan-merge step** (below); then report summary, then run **Final action — commit .taskgraph/dolt**; stop
   3. batch = all non-conflicting tasks from tasks (no file overlap); do not cap size — Cursor decides concurrency
   3b. **(Optional) Task batching:** Optionally group batch into **dispatch units** of 1–3 tasks using the policy in docs/leads/execution.md § Task batching (optional): same agent type, risk=low, estimate_mins ≤ 15 or null, change_type in [modify, fix, test, document], no file overlap within the unit. For each unit of 2–3 tasks, fetch tg context for each task and build one multi-task prompt ({{TASK_IDS}}, {{CONTEXT_BLOCKS}}); for units of 1 task, keep 1:1. TodoWrite stays one todo per task; when a batch unit returns, mark all tasks in that unit completed. Review remains per-task.
@@ -213,7 +256,7 @@ After the file-conflict check, you may group runnable tasks into **dispatch unit
 
 ## File Conflict Check
 
-Before dispatching tasks in parallel, check if any tasks in the batch touch the same files (compare `file_tree`, `suggested_changes`, or intent references). If overlap exists, run those tasks sequentially, not in parallel.
+Before dispatching tasks in parallel, check if any tasks in the batch touch the same files (compare `file_tree`, `suggested_changes`, or intent references). If overlap exists, run those tasks sequentially, not in parallel. Use the breadcrumbs read in Start-of-run sync: paths with entries in `.breadcrumbs.json` may warrant sequential treatment or passing the relevant clues into implementer context.
 
 ## Escalation — Escalation ladder and when to stop for the human
 

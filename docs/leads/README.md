@@ -48,7 +48,9 @@ No code changes are required to "register" a lead beyond documenting it here and
 
 ## Sitrep and Formation
 
-When `/work` is invoked without a specific plan, the execution lead **self-orients** using a **Situation Report (sitrep)**. The sitrep is shared state that all `/work` instances can read.
+When `/work` is invoked without a specific plan, the execution lead **self-orients** using a **Situation Report (sitrep)**. The sitrep is shared state that all `/work` instances can read. To avoid multiple instances all generating a sitrep at once, coordination uses a **sitrep breadcrumb** — see [sitrep-breadcrumb.md](sitrep-breadcrumb.md).
+
+**Breadcrumb:** `.taskgraph/sitrep-breadcrumb.json` (repo root; git-ignored). Format: `{ "state": "making_sitrep" | "idle", "at": "ISO8601", "by": "work" }`. First thing every `/work` agent does (no plan specified) is read this file. If `state` is `making_sitrep` and `at` is within the last 10 minutes, skip sitrep generation and go straight to task pull or read existing sitrep. If no sitrep or sitrep older than 30 min and no recent breadcrumb, write breadcrumb, generate sitrep, then set breadcrumb to `idle` or remove file. On re-entry after doing tasks, agents may refresh sitrep when stale (>30 min). Full rules: [sitrep-breadcrumb.md](sitrep-breadcrumb.md).
 
 **File convention:** `reports/sitrep-YYYY-MM-DD-HHmm.md` (timestamped to the minute).
 
@@ -90,7 +92,7 @@ formation:
     suggested: 0
 ```
 
-If a sitrep was written less than 1 hour ago, `/work` reuses it instead of regenerating. The human decides how many `/work` instances to spawn; each reads the sitrep and **self-selects** an available role from the formation.
+A sitrep is **stale** if older than 30 minutes (see [sitrep-breadcrumb.md](sitrep-breadcrumb.md)). If a recent sitrep exists, `/work` reuses it instead of regenerating. The human decides how many `/work` instances to spawn; each reads the breadcrumb first, then the sitrep (or skips generation when another agent is making one), and **self-selects** an available role from the formation.
 
 **Lead roles (cardinality):** execution-lead (1–N), overseer (0–1), investigator-lead (0–1), planner-lead (0–1). Self-selection rules and the full table are in [.cursor/rules/available-agents.mdc](../.cursor/rules/available-agents.mdc) (Lead Roles and Formation).
 

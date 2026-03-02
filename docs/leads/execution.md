@@ -11,12 +11,16 @@ Created by the **/work** skill. Autonomous task execution loop: grind through pl
 
 When `/work` is invoked **without** a specific plan or directive:
 
-1. Check for a recent sitrep (< 1h in `reports/sitrep-*.md`).
-2. If none, generate one (dispatch sitrep-analyst, write to `reports/sitrep-YYYY-MM-DD-HHmm.md`); otherwise reuse the existing file.
+1. **Read the sitrep breadcrumb first** (`.taskgraph/sitrep-breadcrumb.json`). If `state === "making_sitrep"` and `at` is within 10 minutes, skip sitrep generation and go to task pull or read existing sitrep. Otherwise, check for a recent sitrep (see [sitrep-breadcrumb.md](sitrep-breadcrumb.md): staleness = 30 min).
+2. If no recent sitrep and no recent breadcrumb claim, write breadcrumb `making_sitrep`, generate sitrep (dispatch sitrep-analyst, write to `reports/sitrep-YYYY-MM-DD-HHmm.md`), then clear breadcrumb (`idle` or remove file). Otherwise reuse the existing sitrep file.
 3. Self-select lead role from the sitrep formation (see .cursor/rules/available-agents.mdc § Lead Roles and Formation).
-4. Enter the role-specific workflow: execution-lead → existing loop; overseer → watchdog/monitor; investigator-lead → hunter-killer; planner-lead → /plan.
+4. Enter the role-specific workflow: execution-lead → **Start-of-run sync** (breadcrumb + context; see work skill) then **focus project selection** (see work skill § Focus project selection) then existing loop; overseer → watchdog/monitor; investigator-lead → hunter-killer; planner-lead → /plan.
 
 When a plan is specified (by context or user), skip Phase 0 and go straight to the loop.
+
+**Start-of-run sync:** Before the first loop iteration, the execution-lead runs status, reads `.breadcrumbs.json` for path-scoped clues, and when available `tg context --hive --json` to sync with other agents' plans/tasks. All of this is ephemeral — nothing is persisted; it is for coordination only. (Sitrep breadcrumb is separate: see [sitrep-breadcrumb.md](sitrep-breadcrumb.md).)
+
+**Multi-instance diversification:** When the user runs `/work` (or e.g. "/work from highest priority project") multiple times, each execution-lead instance chooses a **focus project** (highest-priority plan with runnable tasks and fewest “doing” tasks). That way instance 1 focuses on project A, instance 2 on project B, instance 3 on project C. Focus is **ephemeral**: no focus assignment is persisted; coordination is via the live task graph state (doing counts) that each instance observes at start. The project is not assigned to the agent.
 
 ## Agent files (workers)
 
@@ -71,5 +75,6 @@ Build the **multi-task prompt** with N task IDs and N context blocks (one `tg co
 ## See also
 
 - `.cursor/skills/work/SKILL.md` — work skill definition.
+- `docs/leads/sitrep-breadcrumb.md` — sitrep breadcrumb format and staleness rules.
 - `.cursor/rules/subagent-dispatch.mdc` — dispatch patterns and task orchestration UI.
 - `docs/leads/README.md` — lead registry.
