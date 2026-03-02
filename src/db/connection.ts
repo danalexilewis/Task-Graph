@@ -149,6 +149,54 @@ export function doltSqlServer(
   });
 }
 
+/**
+ * Run a SQL query against the Dolt SQL server with a pinned connection,
+ * issuing DOLT_CHECKOUT and the query on the same connection so branch state
+ * is guaranteed to be consistent. Using pool.getConnection() + release()
+ * rather than two independent pool.query() calls prevents the checkout from
+ * landing on connection A while the query runs on connection B.
+ */
+function doltSqlServerBranch(
+  query: string,
+  pool: Pool,
+  branch: string,
+  // biome-ignore lint/suspicious/noExplicitAny: dolt rows same as doltSqlServer
+): ResultAsync<any[], AppError> {
+  const match = query.match(destructivePattern);
+  if (match && PROTECTED_TABLES.includes(match[2].toLowerCase())) {
+    return errAsync(
+      buildError(
+        ErrorCode.VALIDATION_FAILED,
+        `Hard deletes are forbidden on table '${match[2]}'. Use tg cancel for soft-delete.`,
+      ),
+    );
+  }
+  return ResultAsync.fromPromise(
+    (async () => {
+      const conn = await pool.getConnection();
+      try {
+        await conn.query("CALL DOLT_CHECKOUT(?)", [branch]);
+        const [rawRows] = await conn.query(query);
+        return rawRows;
+      } finally {
+        conn.release();
+      }
+    })(),
+    (e) =>
+      buildError(
+        ErrorCode.DB_QUERY_FAILED,
+        `Dolt SQL server query failed (branch ${branch}): ${query}`,
+        e,
+      ),
+  ).andThen((rawRows) => {
+    const rows = Array.isArray(rawRows) ? rawRows : [];
+    const normalized = rows.map((r) =>
+      r && typeof r === "object" && !Array.isArray(r) ? { ...r } : r,
+    );
+    return ok(normalized);
+  });
+}
+
 export interface DoltSqlOptions {
   /** When set, checkout this branch before running the query (connection context). */
   branch?: string;
@@ -172,9 +220,7 @@ export function doltSql(
     if (pool) {
       const runServer = (): ResultAsync<unknown[], AppError> => {
         if (options?.branch) {
-          return doltSqlServer("CALL DOLT_CHECKOUT(?)", pool, [
-            options.branch,
-          ]).andThen(() => doltSqlServer(query, pool));
+          return doltSqlServerBranch(query, pool, options.branch);
         }
         return doltSqlServer(query, pool);
       };
