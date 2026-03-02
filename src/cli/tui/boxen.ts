@@ -49,11 +49,10 @@ export function boxedSection(
   options?: { borderColor?: string; fullWidth?: boolean; padding?: BoxPadding },
 ): string {
   const inner = title.trim() ? `${title}\n${content}` : content;
-  const boxWidth = options?.fullWidth ? width : Math.min(width, 200);
   const padding = options?.padding ?? 1;
+  // boxen 5.x has no width option; box sizes to content
   return boxen(inner, {
     padding,
-    width: boxWidth,
     borderStyle: "double",
     borderColor: options?.borderColor ?? "blue",
   });

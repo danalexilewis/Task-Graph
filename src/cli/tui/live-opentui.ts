@@ -31,6 +31,7 @@ import type { Config } from "../utils.js";
 
 const STATUS_ROOT_ID = "tg-status-root";
 const REFRESH_MS = 2000;
+const SETUP_TIMEOUT_MS = 5000;
 
 export type FetchStatusFn = (
   config: Config,
@@ -120,7 +121,7 @@ export async function runOpenTUILive(
   statusOptions: StatusOptions,
   fetchStatus: FetchStatusFn = fetchStatusData,
 ): Promise<void> {
-  const importTimeoutMs = 300;
+  const importTimeoutMs = 3000;
   const mod = (await Promise.race([
     import("@opentui/core"),
     new Promise<never>((_, reject) =>
@@ -134,7 +135,7 @@ export async function runOpenTUILive(
     throw new Error("OpenTUI not available");
   }
 
-  const initTimeoutMs = 350;
+  const initTimeoutMs = 2000;
   const rendererPromise = mod.createCliRenderer({
     exitOnCtrlC: true,
     targetFps: 10,
@@ -191,20 +192,50 @@ export async function runOpenTUILive(
     }
   };
 
+  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
       return;
     }
     const result = await fetchStatus(config, statusOptions);
-    result.match(refreshContent, () => {});
+    result.match(
+      (data) => {
+        consecutiveErrors = 0;
+        refreshContent(data);
+      },
+      (e) => {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) {
+          const msg = `[tg] DB refresh error: ${e.message}`;
+          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+            replaceRootWithNewBox(
+              renderer,
+              Box,
+              Text,
+              STATUS_ROOT_ID,
+              msg,
+              getTerminalWidth(),
+            );
+          }
+        }
+      },
+    );
   }, REFRESH_MS);
 
   renderer.on("destroy", () => {
     clearInterval(timer);
   });
 
-  await renderer.setupTerminal();
+  await Promise.race([
+    renderer.setupTerminal(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("setupTerminal timeout")),
+        SETUP_TIMEOUT_MS,
+      ),
+    ),
+  ]);
 
   fetchStatus(config, statusOptions).then((result) => {
     result.match(refreshContent, () => {});
@@ -223,7 +254,7 @@ export async function runOpenTUILiveDashboardTasks(
   config: Config,
   statusOptions: StatusOptions,
 ): Promise<void> {
-  const importTimeoutMs = 300;
+  const importTimeoutMs = 3000;
   const mod = (await Promise.race([
     import("@opentui/core"),
     new Promise<never>((_, reject) =>
@@ -237,7 +268,7 @@ export async function runOpenTUILiveDashboardTasks(
     throw new Error("OpenTUI not available");
   }
 
-  const initTimeoutMs = 350;
+  const initTimeoutMs = 2000;
   const rendererPromise = mod.createCliRenderer({
     exitOnCtrlC: true,
     targetFps: 10,
@@ -297,6 +328,7 @@ export async function runOpenTUILiveDashboardTasks(
     }
   };
 
+  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -320,14 +352,40 @@ export async function runOpenTUILiveDashboardTasks(
       },
       () => {},
     );
-    if (data != null) refreshContent(data, activeRows);
+    if (data != null) {
+      consecutiveErrors = 0;
+      refreshContent(data, activeRows);
+    } else {
+      consecutiveErrors++;
+      if (consecutiveErrors >= 3) {
+        const msg = "[tg] DB refresh error";
+        if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+          replaceRootWithNewBox(
+            renderer,
+            Box,
+            Text,
+            STATUS_ROOT_ID,
+            msg,
+            getTerminalWidth(),
+          );
+        }
+      }
+    }
   }, REFRESH_MS);
 
   renderer.on("destroy", () => {
     clearInterval(timer);
   });
 
-  await renderer.setupTerminal();
+  await Promise.race([
+    renderer.setupTerminal(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("setupTerminal timeout")),
+        SETUP_TIMEOUT_MS,
+      ),
+    ),
+  ]);
 
   Promise.all([
     fetchStatusData(config, statusOptions),
@@ -363,7 +421,7 @@ export async function runOpenTUILiveDashboardProjects(
   config: Config,
   statusOptions: StatusOptions,
 ): Promise<void> {
-  const importTimeoutMs = 300;
+  const importTimeoutMs = 3000;
   const mod = (await Promise.race([
     import("@opentui/core"),
     new Promise<never>((_, reject) =>
@@ -377,7 +435,7 @@ export async function runOpenTUILiveDashboardProjects(
     throw new Error("OpenTUI not available");
   }
 
-  const initTimeoutMs = 350;
+  const initTimeoutMs = 2000;
   const rendererPromise = mod.createCliRenderer({
     exitOnCtrlC: true,
     targetFps: 10,
@@ -436,20 +494,50 @@ export async function runOpenTUILiveDashboardProjects(
     }
   };
 
+  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
       return;
     }
     const result = await fetchStatusData(config, statusOptions);
-    result.match(refreshContent, () => {});
+    result.match(
+      (data) => {
+        consecutiveErrors = 0;
+        refreshContent(data);
+      },
+      (e) => {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) {
+          const msg = `[tg] DB refresh error: ${e.message}`;
+          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+            replaceRootWithNewBox(
+              renderer,
+              Box,
+              Text,
+              STATUS_ROOT_ID,
+              msg,
+              getTerminalWidth(),
+            );
+          }
+        }
+      },
+    );
   }, REFRESH_MS);
 
   renderer.on("destroy", () => {
     clearInterval(timer);
   });
 
-  await renderer.setupTerminal();
+  await Promise.race([
+    renderer.setupTerminal(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("setupTerminal timeout")),
+        SETUP_TIMEOUT_MS,
+      ),
+    ),
+  ]);
 
   fetchStatusData(config, statusOptions).then((result) => {
     result.match(refreshContent, () => {});
@@ -474,7 +562,7 @@ export async function runOpenTUILiveProjects(
   statusOptions: StatusOptions,
   fetchProjects: FetchProjectsFn = fetchProjectsTableData,
 ): Promise<void> {
-  const importTimeoutMs = 300;
+  const importTimeoutMs = 3000;
   const mod = (await Promise.race([
     import("@opentui/core"),
     new Promise<never>((_, reject) =>
@@ -488,7 +576,7 @@ export async function runOpenTUILiveProjects(
     throw new Error("OpenTUI not available");
   }
 
-  const initTimeoutMs = 350;
+  const initTimeoutMs = 2000;
   const rendererPromise = mod.createCliRenderer({
     exitOnCtrlC: true,
     targetFps: 10,
@@ -539,6 +627,7 @@ export async function runOpenTUILiveProjects(
     return false;
   });
 
+  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -547,6 +636,7 @@ export async function runOpenTUILiveProjects(
     const result = await fetchProjects(config, statusOptions);
     result.match(
       (data) => {
+        consecutiveErrors = 0;
         try {
           const w = getTerminalWidth();
           const newContent = formatProjectsAsString(data, w);
@@ -564,7 +654,22 @@ export async function runOpenTUILiveProjects(
           // ignore update errors
         }
       },
-      () => {},
+      (e) => {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) {
+          const msg = `[tg] DB refresh error: ${e.message}`;
+          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+            replaceRootWithNewBox(
+              renderer,
+              Box,
+              Text,
+              STATUS_ROOT_ID,
+              msg,
+              getTerminalWidth(),
+            );
+          }
+        }
+      },
     );
   }, REFRESH_MS);
 
@@ -572,7 +677,15 @@ export async function runOpenTUILiveProjects(
     clearInterval(timer);
   });
 
-  await renderer.setupTerminal();
+  await Promise.race([
+    renderer.setupTerminal(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("setupTerminal timeout")),
+        SETUP_TIMEOUT_MS,
+      ),
+    ),
+  ]);
   return new Promise<void>((resolve) => {
     renderer.on("destroy", () => resolve());
   });
@@ -592,7 +705,7 @@ export async function runOpenTUILiveTasks(
   statusOptions: StatusOptions,
   fetchTasks: FetchTasksFn = fetchTasksTableData,
 ): Promise<void> {
-  const importTimeoutMs = 300;
+  const importTimeoutMs = 3000;
   const mod = (await Promise.race([
     import("@opentui/core"),
     new Promise<never>((_, reject) =>
@@ -606,7 +719,7 @@ export async function runOpenTUILiveTasks(
     throw new Error("OpenTUI not available");
   }
 
-  const initTimeoutMs = 350;
+  const initTimeoutMs = 2000;
   const rendererPromise = mod.createCliRenderer({
     exitOnCtrlC: true,
     targetFps: 10,
@@ -667,6 +780,7 @@ export async function runOpenTUILiveTasks(
     return false;
   });
 
+  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -681,6 +795,7 @@ export async function runOpenTUILiveTasks(
     ]);
     result.match(
       ([data, staleDoingTasks]) => {
+        consecutiveErrors = 0;
         try {
           const w = getTerminalWidth();
           const staleIds = new Set(staleDoingTasks.map((t) => t.task_id));
@@ -701,7 +816,22 @@ export async function runOpenTUILiveTasks(
           // ignore update errors
         }
       },
-      () => {},
+      (e) => {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) {
+          const msg = `[tg] DB refresh error: ${e.message}`;
+          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+            replaceRootWithNewBox(
+              renderer,
+              Box,
+              Text,
+              STATUS_ROOT_ID,
+              msg,
+              getTerminalWidth(),
+            );
+          }
+        }
+      },
     );
   }, REFRESH_MS);
 
@@ -709,7 +839,15 @@ export async function runOpenTUILiveTasks(
     clearInterval(timer);
   });
 
-  await renderer.setupTerminal();
+  await Promise.race([
+    renderer.setupTerminal(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("setupTerminal timeout")),
+        SETUP_TIMEOUT_MS,
+      ),
+    ),
+  ]);
   return new Promise<void>((resolve) => {
     renderer.on("destroy", () => resolve());
   });
@@ -729,7 +867,7 @@ export async function runOpenTUILiveInitiatives(
   statusOptions: StatusOptions,
   fetchInitiatives: FetchInitiativesFn = fetchInitiativesTableData,
 ): Promise<void> {
-  const importTimeoutMs = 300;
+  const importTimeoutMs = 3000;
   const mod = (await Promise.race([
     import("@opentui/core"),
     new Promise<never>((_, reject) =>
@@ -743,7 +881,7 @@ export async function runOpenTUILiveInitiatives(
     throw new Error("OpenTUI not available");
   }
 
-  const initTimeoutMs = 350;
+  const initTimeoutMs = 2000;
   const rendererPromise = mod.createCliRenderer({
     exitOnCtrlC: true,
     targetFps: 10,
@@ -794,6 +932,7 @@ export async function runOpenTUILiveInitiatives(
     return false;
   });
 
+  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -802,6 +941,7 @@ export async function runOpenTUILiveInitiatives(
     const result = await fetchInitiatives(config, statusOptions);
     result.match(
       (data) => {
+        consecutiveErrors = 0;
         try {
           const w = getTerminalWidth();
           const newContent = formatInitiativesAsString(data, w);
@@ -819,7 +959,22 @@ export async function runOpenTUILiveInitiatives(
           // ignore update errors
         }
       },
-      () => {},
+      (e) => {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) {
+          const msg = `[tg] DB refresh error: ${e.message}`;
+          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+            replaceRootWithNewBox(
+              renderer,
+              Box,
+              Text,
+              STATUS_ROOT_ID,
+              msg,
+              getTerminalWidth(),
+            );
+          }
+        }
+      },
     );
   }, REFRESH_MS);
 
@@ -827,7 +982,15 @@ export async function runOpenTUILiveInitiatives(
     clearInterval(timer);
   });
 
-  await renderer.setupTerminal();
+  await Promise.race([
+    renderer.setupTerminal(),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("setupTerminal timeout")),
+        SETUP_TIMEOUT_MS,
+      ),
+    ),
+  ]);
   return new Promise<void>((resolve) => {
     renderer.on("destroy", () => resolve());
   });

@@ -9,7 +9,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Command } from "commander";
-import { execa, execaSync } from "execa";
+import execa from "execa";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import type { Config } from "./utils";
@@ -31,7 +31,7 @@ export function isWorktrunkAvailable(): boolean {
     return _wtAvailable;
   }
   try {
-    execaSync("wt", ["--version"]);
+    execa.sync("wt", ["--version"]);
     _wtAvailable = true;
   } catch {
     _wtAvailable = false;

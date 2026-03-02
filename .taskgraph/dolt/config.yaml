@@ -36,7 +36,7 @@ listener:
   # allow_cleartext_passwords: false
   # socket: /tmp/mysql.sock
 
-data_dir: /Users/dan/repos/Task-Graph/.taskgraph/dolt
+data_dir: /Users/dan/repos/taskgraph/.taskgraph/dolt
 
 # cfg_dir: .doltcfg
 

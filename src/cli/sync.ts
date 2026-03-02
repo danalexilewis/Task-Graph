@@ -4,7 +4,7 @@
  */
 
 import type { Command } from "commander";
-import { execa } from "execa";
+import execa from "execa";
 import { ResultAsync } from "neverthrow";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { readConfig, rootOpts } from "./utils";

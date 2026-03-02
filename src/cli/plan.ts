@@ -3,7 +3,7 @@ import { errAsync } from "neverthrow";
 import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
 import { now, query } from "../db/query";
-import { buildError, ErrorCode, type AppError } from "../domain/errors";
+import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { type Config, readConfig, rootOpts } from "./utils";
 
 const UUID_REGEX =

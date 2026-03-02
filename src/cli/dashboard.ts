@@ -63,19 +63,26 @@ async function runLiveFallbackDashboard(
   }
   const write = createDiffWriter();
   write("Loading...");
+  let consecutiveErrors = 0;
   timer = setInterval(async () => {
     const r = await readConfig().asyncAndThen((c: Config) =>
       fetchStatusData(c, statusOptions),
     );
     r.match(
       (data) => {
+        consecutiveErrors = 0;
         write(
           formatStatusAsString(data, getTerminalWidth(), {
             dashboard: true,
           }),
         );
       },
-      () => {},
+      (e: AppError) => {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) {
+          write(`[tg] DB refresh error: ${e.message}`);
+        }
+      },
     );
   }, REFRESH_MS);
   fetchStatusData(config, statusOptions).then((result) => {
@@ -130,6 +137,7 @@ async function runLiveFallbackDashboardTasks(
               "\n\n" +
               getDashboardFooterLine(d),
           );
+          let consecutiveErrors = 0;
           timer = setInterval(async () => {
             const r = await readConfig().asyncAndThen((c: Config) =>
               ResultAsync.combine([
@@ -139,13 +147,19 @@ async function runLiveFallbackDashboardTasks(
             );
             r.match(
               ([data, active]) => {
+                consecutiveErrors = 0;
                 write(
                   formatDashboardTasksView(data, active, getTerminalWidth()) +
                     "\n\n" +
                     getDashboardFooterLine(data),
                 );
               },
-              () => {},
+              (e: AppError) => {
+                consecutiveErrors++;
+                if (consecutiveErrors >= 3) {
+                  write(`[tg] DB refresh error: ${e.message}`);
+                }
+              },
             );
           }, REFRESH_MS);
         },
@@ -192,19 +206,26 @@ async function runLiveFallbackDashboardProjects(
       write(
         `${formatDashboardProjectsView(d, w)}\n\n${getDashboardFooterLine(d)}`,
       );
+      let consecutiveErrors = 0;
       timer = setInterval(async () => {
         const r = await readConfig().asyncAndThen((c: Config) =>
           fetchStatusData(c, statusOptions),
         );
         r.match(
           (data) => {
+            consecutiveErrors = 0;
             write(
               formatDashboardProjectsView(data, getTerminalWidth()) +
                 "\n\n" +
                 getDashboardFooterLine(data),
             );
           },
-          () => {},
+          (e: AppError) => {
+            consecutiveErrors++;
+            if (consecutiveErrors >= 3) {
+              write(`[tg] DB refresh error: ${e.message}`);
+            }
+          },
         );
       }, REFRESH_MS);
     },

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import * as path from "node:path";
 import type { Command } from "commander";
-import { execa } from "execa";
+import execa from "execa";
 import { ResultAsync } from "neverthrow";
 import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
