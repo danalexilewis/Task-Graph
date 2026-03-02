@@ -15,6 +15,7 @@ description: Create a rich project plan with codebase analysis, file trees, risk
   | Agent           | Purpose                                           | Permission | Model            |
   | --------------- | ------------------------------------------------- | ---------- | ---------------- |
   | planner-analyst | Gathers codebase context and rough task breakdown | read-only  | default (Sonnet) |
+  | product-analyst | Goals, scope, initiative alignment (opt-in; Strategic mode) | read-only  | default (Sonnet) |
   | spec-reviewer   | Assesses current impl vs intent (Pivot mode only) | read-only  | default (Sonnet) |
   | explore         | Maps current behavior (Pivot/Refactor modes)      | read-only  | fast             |
 
@@ -38,6 +39,10 @@ Before dispatching the analyst, classify the request into one of these modes. Th
 | **Pivot/Rescope** | Feature exists but direction has changed; tasks already done but result isn't right | "rescope", "this isn't right", "instead of", "change X to Y", tasks already done but UX/behavior is wrong                              |
 | **Bug fix**       | Something is broken                                                                 | "fix", "broken", "not working", "bug", "error" → **redirect to `/investigate` or `/debug`** unless the fix is small and clearly scoped |
 | **Unclear**       | Request is ambiguous                                                                | Ask one clarifying question before dispatching analyst                                                                                 |
+
+### Strategic mode and product-analyst (opt-in)
+
+When the request is **initiative-level**, **roadmap-oriented**, or would benefit from explicit **product framing** (goals, success outcomes, scope-in/scope-out, initiative alignment), you may **optionally** dispatch the **product-analyst** sub-agent before Phase 1. Product-analyst is read-only and returns structured product/strategic analysis; use it to frame the request and optionally inject focus into the planner-analyst prompt. See [docs/leads/product-analyst.md](docs/leads/product-analyst.md) and `.cursor/agents/product-analyst.md`. Default: do not dispatch for routine single-feature plans; planner-analyst remains mandatory.
 
 ```mermaid
 flowchart TD
