@@ -168,7 +168,16 @@ export async function detectAndApplyServerPort(config: Config): Promise<void> {
   const configDir = path.dirname(config.doltRepoPath);
   const meta = readServerMeta(configDir);
   if (!meta) return;
-  if (!(await isServerAlive(meta.pid, meta.port))) return;
+  if (!(await isServerAlive(meta.pid, meta.port))) {
+    // Clean up stale meta — server is dead, don't leave orphaned state
+    try {
+      rmSync(serverMetaPath(configDir), { force: true });
+      console.error("[tg] Removed stale server state (server not running)");
+    } catch {
+      // ignore cleanup errors
+    }
+    return;
+  }
   if (path.resolve(meta.dataDir) !== path.resolve(config.doltRepoPath)) return;
   process.env.TG_DOLT_SERVER_PORT = String(meta.port);
   // The database name in dolt sql-server matches the directory name of the repo
