@@ -43,6 +43,16 @@ Run `pnpm doctor` (or `bash scripts/doctor.sh`) to check that required and optio
 
 Without `wt`, `tg` uses raw git worktrees; with `wt`, it uses Worktrunk for worktree management.
 
+## Environment requirements
+
+`tg` requires:
+
+1. **Read access to `.taskgraph/`** — config, server meta, and migration sentinel.
+2. **Ability to spawn the `dolt` binary** — see [Dolt Binary Setup](#dolt-binary-setup).
+3. **Dolt access to the repo directory** — the Dolt data directory (default `.taskgraph/dolt/`) must be readable and writable by the process running `tg`.
+
+Sandboxed or restricted environments (e.g. some CI or agent sandboxes) may produce "operation not permitted" or hangs. Run `tg` where Dolt can access the repo.
+
 ## Dolt Binary Setup
 
 The `tg` CLI requires `dolt` to be installed and available on PATH.
