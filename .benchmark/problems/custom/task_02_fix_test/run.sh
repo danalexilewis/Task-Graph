@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# Run the test suite for task_02_fix_test stub
-cd ./stub
+# Run task_02_fix_test: run stub tests (stub has wrong assertion; agent fixes it, then this passes)
+set -e
+cd "$(dirname "$0")/stub"
 bun test
-exit_code=$?
-if [ $exit_code -ne 0 ]; then
-  exit $exit_code
-fi
