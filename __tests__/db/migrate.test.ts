@@ -7,4 +7,11 @@ describe("Migration chain", () => {
     expect(MIGRATION_CHAIN).toContain("applyPlanToProjectRenameMigration");
     expect(MIGRATION_CHAIN).toContain("applyDefaultInitiativeMigration");
   });
+
+  it("includes applyEventKindIndex as the final migration", () => {
+    expect(MIGRATION_CHAIN).toContain("applyEventKindIndex");
+    expect(MIGRATION_CHAIN[MIGRATION_CHAIN.length - 1]).toBe(
+      "applyEventKindIndex",
+    );
+  });
 });
