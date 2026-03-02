@@ -1,0 +1,74 @@
+---
+description: Agent transcripts provide a complete record of past chat sessions including sub-agent dispatches, tool calls, and reasoning. Consult them when debugging sub-agent failures, investigating inefficiency, or analysing patterns across sessions.
+globs:
+alwaysApply: true
+---
+
+# Agent Transcripts
+
+## Location and structure
+
+Agent transcripts live at:
+
+```
+~/.cursor/projects/<project-slug>/agent-transcripts/
+```
+
+For this workspace: `/Users/dan/.cursor/projects/Users-dan-repos-taskgraph/agent-transcripts/`
+
+**Collected copies** (optional): The sessionEnd hook may copy the latest session into `.taskgraph/transcripts/<register_id>/` (same layout: parent `.jsonl` + `subagents/`). See `docs/transcript-collection.md`. Use the copy when analysing transcripts alongside the task graph (e.g. same repo, no Cursor project path).
+
+Each session is a **folder** named by UUID:
+
+```
+agent-transcripts/
+  <uuid>/
+    <uuid>.jsonl          ← parent (orchestrator) transcript
+    subagents/
+      <sub-uuid>.jsonl    ← one file per dispatched sub-agent
+```
+
+Each `.jsonl` file contains one JSON object per line with `role` (user/assistant) and `message.content` (text, tool calls, tool results). Sub-agent transcripts capture the full tool-call sequence: what was read, what was searched, what was edited, and in what order.
+
+**Citing transcripts to the user:** Use `[<short title>](<parent-uuid>)` — never cite sub-agent UUIDs directly; the user navigates from the parent.
+
+## When to consult transcripts
+
+| Situation | What to look for | How |
+| --------- | ---------------- | --- |
+| **Sub-agent failed or produced poor results** | The exact tool calls made, redundant reads, wrong files targeted, missed context | Read the sub-agent's `.jsonl` in `subagents/` |
+| **Debugging a regression or unexpected state** | Which session introduced the change; what the agent's reasoning was | Grep transcripts for the file or function name |
+| **Investigating stale/stuck tasks** | Whether an agent was dispatched, what it did, where it got stuck | Find the session that started the task; read its sub-agents |
+| **Evolve / post-plan analysis** | Patterns of wasted work: repeated searches, unnecessary rebuilds, tool-call storms | Read sub-agent transcripts for the plan's task sessions |
+| **Performance audit** | Agents making N+1 tool calls, reading the same file repeatedly, not batching | Scan recent sub-agent transcripts for call patterns |
+| **Review / health check** | Sub-agent dispatch efficiency, model selection, prompt quality | Sample recent transcripts and check dispatch patterns |
+| **Watchdog / stall detection** | Whether the agent is looping, re-reading, or stuck on an error | Read the terminal file AND the transcript for the stalled agent |
+| **Analysing alongside the task graph** | Session copy in repo (same layout + meta.json) | Use `.taskgraph/transcripts/<register_id>/` when working in the same repo; see `docs/transcript-collection.md` |
+
+## How to use them
+
+1. **List recent sessions:** `ls -lt agent-transcripts/ | head -10` (sorted by modification time).
+2. **Find a specific session:** If you know the task or topic, grep across transcripts:
+   ```bash
+   rg "search term" agent-transcripts/ --glob "*.jsonl" -l
+   ```
+3. **Read a parent transcript:** Read the `<uuid>.jsonl` file — it shows the orchestrator's decisions, which sub-agents were dispatched, and what they returned.
+4. **Read a sub-agent transcript:** Read `<uuid>/subagents/<sub-uuid>.jsonl` — it shows the full tool-call sequence of that sub-agent. This is where you see redundant calls, wrong approaches, and wasted work.
+5. **Count tool calls:** For efficiency analysis, count lines or grep for tool-call patterns:
+   ```bash
+   rg '"type":"tool_call"' agent-transcripts/<uuid>/subagents/<sub-uuid>.jsonl | wc -l
+   ```
+
+## Key insight: transcripts vs terminals
+
+- **Terminals** (`~/.cursor/projects/.../terminals/*.txt`) show command output — what happened in the shell.
+- **Transcripts** show the agent's full reasoning and tool-call sequence — why it did what it did, what it read, what it searched for, and in what order.
+
+For debugging agent behavior, **transcripts are the primary evidence source**. Terminals are supplementary (they show command results but not the decision chain).
+
+## Rules
+
+- **Do not read transcripts routinely** — they are large. Only consult them when investigating a specific failure, pattern, or inefficiency.
+- **Sub-agent transcripts are the high-value target** — the parent transcript mostly shows dispatch decisions; the sub-agent transcript shows the actual work and where things went wrong.
+- **Grep before reading** — use `rg` to find relevant transcripts by file name, function name, error message, or task ID before reading full files.
+- **Never cite sub-agent UUIDs to the user** — always cite the parent session UUID.

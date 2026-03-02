@@ -103,6 +103,34 @@ See `docs/breadcrumbs.md` for full format and guidance.
 
 - **[2026-03-01]** Script/output interfaces that represent a fixed JSON contract (e.g. query script stdout) should list only the known optional fields; avoid `[key: string]: unknown` if the shape is fixed so the type documents the contract.
 
+## Agent transcripts — debugging agent behavior
+
+Agent transcripts live at `~/.cursor/projects/<project-slug>/agent-transcripts/`. Each session is a folder (`<uuid>/`) containing the parent transcript (`<uuid>.jsonl`) and a `subagents/` folder with one `.jsonl` per dispatched sub-agent. A **copy** may exist at `.taskgraph/transcripts/<register_id>/` for collected sessions (same layout + `meta.json`); use it when analysing transcripts alongside the task graph (see `docs/transcript-collection.md`).
+
+**When to check transcripts (not routine — only on investigation):**
+
+- **Sub-agent failure or poor output:** Read the sub-agent's `.jsonl` to see its full tool-call sequence — what it read, what it searched, what it missed, and where it went wrong.
+- **Stall or stuck agent:** The transcript shows whether the agent is looping (re-reading the same file), stuck on an error, or making redundant calls — more diagnostic than the terminal file alone.
+- **Evolve / pattern mining:** Sub-agent transcripts reveal wasted work patterns: N+1 reads, unnecessary rebuilds, searching for things already in context.
+- **Efficiency audit:** Count tool calls, look for repeated file reads with no intervening edits, or multiple searches where one would suffice.
+
+**How to find relevant transcripts:**
+
+```bash
+# Recent sessions (most recent first)
+ls -lt agent-transcripts/ | head -10
+
+# Find sessions that touched a specific file or topic
+rg "filename-or-keyword" agent-transcripts/ --glob "*.jsonl" -l
+
+# List sub-agents for a session
+ls agent-transcripts/<uuid>/subagents/
+```
+
+**Key principle:** Terminals show what happened in the shell; transcripts show the agent's full reasoning and tool-call chain. For debugging agent behavior, transcripts are the primary evidence source.
+
+---
+
 ## Merge conflict resolution
 
 - **[2026-03-02]** **Docs (e.g. infra.md):** When both branches added distinct sections to the same doc, resolve by **combining both** in a coherent order. Do not drop additive content from either side. Typical order: shared intro → local-only sections → remote-only sections → shared body → tables/Decisions. Example: local added "Dolt Binary Setup" / "tg server commands"; remote added "Optimising gate:full" and env table — merged result kept all and ordered them logically.
