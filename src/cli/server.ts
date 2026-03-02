@@ -33,14 +33,54 @@ export function writeServerMeta(configDir: string, meta: ServerMeta): void {
   );
 }
 
-/** Returns true if the process with the given PID is alive. */
-export function isServerAlive(pid: number): boolean {
+/**
+ * Attempt a TCP connection to the given port on localhost.
+ * Resolves if the connection succeeds within `timeoutMs`; rejects otherwise.
+ */
+function probePort(port: number, timeoutMs: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const socket = new net.Socket();
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error("timeout"));
+    }, timeoutMs);
+    socket.connect(port, "127.0.0.1", () => {
+      clearTimeout(timer);
+      socket.destroy();
+      resolve();
+    });
+    socket.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+  });
+}
+
+/**
+ * Returns true if the process with the given PID is alive and (when port is
+ * provided) is accepting TCP connections on that port.
+ *
+ * Distinguishes EPERM (process alive but owned by a different UID — common in
+ * Docker / multi-user Linux) from ESRCH (process does not exist). On EPERM we
+ * fall through to the TCP probe; on ESRCH we return false immediately.
+ */
+export async function isServerAlive(
+  pid: number,
+  port?: number,
+): Promise<boolean> {
   try {
     process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "ESRCH") return false;
+    if (code !== "EPERM") return false;
+    // EPERM: process is alive but owned by a different UID — fall through to TCP probe
   }
+  // PID is alive; verify it is Dolt by probing the port when one is known
+  if (port == null) return true;
+  return probePort(port, 500)
+    .then(() => true)
+    .catch(() => false);
 }
 
 /** Binds temporarily to port 0 to let the OS allocate a free port, then releases it. */
@@ -123,12 +163,12 @@ export async function startDoltServerProcess(
  * TG_DOLT_SERVER_DATABASE so all subsequent doltSql calls use the fast pool path.
  * No-op when TG_DOLT_SERVER_PORT is already set (explicit override wins).
  */
-export function detectAndApplyServerPort(config: Config): void {
+export async function detectAndApplyServerPort(config: Config): Promise<void> {
   if (process.env.TG_DOLT_SERVER_PORT) return;
   const configDir = path.dirname(config.doltRepoPath);
   const meta = readServerMeta(configDir);
   if (!meta) return;
-  if (!isServerAlive(meta.pid)) return;
+  if (!(await isServerAlive(meta.pid, meta.port))) return;
   if (path.resolve(meta.dataDir) !== path.resolve(config.doltRepoPath)) return;
   process.env.TG_DOLT_SERVER_PORT = String(meta.port);
   // The database name in dolt sql-server matches the directory name of the repo
@@ -162,7 +202,7 @@ export function serverCommand(program: Command): void {
 
       // Idempotent: if already running for this repo, report and exit
       const existing = readServerMeta(configDir);
-      if (existing && isServerAlive(existing.pid)) {
+      if (existing && (await isServerAlive(existing.pid, existing.port))) {
         if (path.resolve(existing.dataDir) === path.resolve(doltRepoPath)) {
           console.log(
             `tg server already running (pid ${existing.pid}, port ${existing.port})`,
@@ -207,7 +247,7 @@ export function serverCommand(program: Command): void {
         console.log("tg server is not running (no meta file found)");
         return;
       }
-      if (!isServerAlive(meta.pid)) {
+      if (!(await isServerAlive(meta.pid, meta.port))) {
         rmSync(serverMetaPath(configDir), { force: true });
         console.log("tg server was not running (stale meta removed)");
         return;
@@ -223,10 +263,10 @@ export function serverCommand(program: Command): void {
       }
       // Wait up to 3 s for graceful exit, then escalate to SIGKILL
       const killDeadline = Date.now() + 3_000;
-      while (isServerAlive(meta.pid) && Date.now() < killDeadline) {
+      while ((await isServerAlive(meta.pid)) && Date.now() < killDeadline) {
         await new Promise((r) => setTimeout(r, 100));
       }
-      if (isServerAlive(meta.pid)) {
+      if (await isServerAlive(meta.pid)) {
         try {
           process.kill(-meta.pid, "SIGKILL");
         } catch {
@@ -257,7 +297,7 @@ export function serverCommand(program: Command): void {
         console.log("stopped");
         return;
       }
-      if (isServerAlive(meta.pid)) {
+      if (await isServerAlive(meta.pid, meta.port)) {
         console.log(`running (pid ${meta.pid}, port ${meta.port})`);
       } else {
         rmSync(serverMetaPath(configDir), { force: true });

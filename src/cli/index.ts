@@ -64,7 +64,7 @@ export function createProgram(): Command {
       }
       return;
     }
-    detectAndApplyServerPort(configResult.value);
+    await detectAndApplyServerPort(configResult.value);
     const opts = rootOpts(actionCommand);
     const noCommit = opts.noCommit ?? false;
     const runResult = await ensureMigrations(
