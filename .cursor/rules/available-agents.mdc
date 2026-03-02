@@ -11,18 +11,18 @@ Lead types and their docs are listed in **docs/leads/**.
 
 Quick-pick table — use this before deciding which agent to dispatch:
 
-| Agent                            | Read/Write | Dispatched when                                   | Output                                    |
-| -------------------------------- | ---------- | ------------------------------------------------- | ----------------------------------------- |
-| **implementer**                  | read-write | Normal task execution from `tg next`              | Code changes + `tg done` evidence         |
-| **reviewer** (PASS/FAIL mode)    | read-only  | After implementer completes a task                | `VERDICT: PASS` or `FAIL` with issues     |
-| **reviewer** (research mode)     | read-only  | `/investigate` skill needs architectural research | Structured findings + suggested tasks     |
-| **investigator** (hunter-killer) | read-write | `gate:full` fails at plan end                     | `STATUS` report: root cause + fix applied |
-| **debugger**                     | read-write | Single debugging task in the task graph           | `tg done` with root-cause evidence        |
-| **fixer**                        | read-write | Implementer has failed twice on same task         | `tg done` with fix evidence               |
-| **planner-analyst**              | read-only  | Before writing any plan                           | Structured analysis for orchestrator      |
-| **documenter**                   | read-write | Doc-only tasks (`agent: documenter` in plan)      | Updated docs + `tg done`                  |
-| **spec-reviewer**                | read-only  | Two-stage review: spec compliance check           | `VERDICT: PASS` or `FAIL`                 |
-| **quality-reviewer**             | read-only  | Two-stage review: code quality check              | `VERDICT: PASS` or `FAIL`                 |
+| Agent                            | Read/Write | Dispatched when                                                     | Output                                    |
+| -------------------------------- | ---------- | ------------------------------------------------------------------- | ----------------------------------------- |
+| **implementer**                  | read-write | Normal task execution from `tg next`                                | Code changes + `tg done` evidence         |
+| **reviewer** (PASS/FAIL mode)    | read-only  | After implementer completes a task                                  | `VERDICT: PASS` or `FAIL` with issues     |
+| **reviewer** (research mode)     | read-only  | `/investigate` skill needs architectural research                   | Structured findings + suggested tasks     |
+| **investigator** (hunter-killer) | read-write | `gate:full` fails at plan end                                       | `STATUS` report: root cause + fix applied |
+| **debugger**                     | read-write | Fix build/compilation errors; unclear root cause; single debug task | `tg done` with root-cause evidence        |
+| **fixer**                        | read-write | Implementer has failed twice on same task                           | `tg done` with fix evidence               |
+| **planner-analyst**              | read-only  | Before writing any plan                                             | Structured analysis for orchestrator      |
+| **documenter**                   | read-write | Doc-only tasks (`agent: documenter` in plan)                        | Updated docs + `tg done`                  |
+| **spec-reviewer**                | read-only  | Two-stage review: spec compliance check                             | `VERDICT: PASS` or `FAIL`                 |
+| **quality-reviewer**             | read-only  | Two-stage review: code quality check                                | `VERDICT: PASS` or `FAIL`                 |
 
 ### Key boundaries to avoid confusion
 

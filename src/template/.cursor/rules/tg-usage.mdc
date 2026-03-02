@@ -24,7 +24,7 @@ Use the `tg` CLI (e.g. `pnpm tg` or `npx tg`) to manage plans and tasks.
 
 ## Getting work and context
 
-- **Runnable tasks:** `tg next --plan "<Plan>" --json --limit 20`
+- **Runnable tasks:** `tg next --plan "<Plan>" --json --limit 8`
 - **Context for a task:** `tg context <taskId>` — load docs and spec before implementing.
 
 ## Execution

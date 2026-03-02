@@ -15,7 +15,7 @@ When the orchestrator dispatches sub-agents for tg tasks, call TodoWrite with th
 ## Steps
 
 1. Run `pnpm tg status` to orient — note stale `doing` tasks and cleanup if needed (see Recovery in taskgraph-workflow.mdc).
-2. Run `pnpm tg next --plan "<Plan>" --limit 20` and pick the top runnable task.
+2. Run `pnpm tg next --plan "<Plan>" --limit 8` and pick the top runnable task.
 3. Run `pnpm tg show <taskId>` and restate: intent, scope in/out, acceptance checks.
 4. Run `pnpm tg start <taskId>` — **must** run before any work.
 5. Run `pnpm tg context <taskId>` — load domain doc and skill guide if output; read related done tasks.

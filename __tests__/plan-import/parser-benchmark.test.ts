@@ -1,14 +1,15 @@
-import { writeFileSync, unlinkSync } from "node:fs";
+import { afterAll, describe, expect, it } from "bun:test";
+import { unlinkSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
-import { expect, it, describe, beforeAll, afterAll } from "bun:test";
 import { parseCursorPlan } from "../../src/plan-import/parser";
-import { ErrorCode } from "../../src/domain/errors";
 
 describe("parseCursorPlan benchmark flag", () => {
   const testFilePath = path.join(__dirname, "test-cursor-benchmark.md");
 
   afterAll(() => {
-    try { unlinkSync(testFilePath); } catch {}
+    try {
+      unlinkSync(testFilePath);
+    } catch {}
   });
 
   it("should parse benchmark: true from frontmatter", () => {

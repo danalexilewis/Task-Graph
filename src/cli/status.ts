@@ -3,13 +3,25 @@ import { resolve } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { okAsync, ResultAsync } from "neverthrow";
+import type { QueryCache } from "../db/cache";
+import { cachedQuery } from "../db/cached-query";
 import { sqlEscape } from "../db/escape";
 import { tableExists } from "../db/migrate";
 import { query } from "../db/query";
 import type { AppError } from "../domain/errors";
+import {
+  getSchemaFlags,
+  getStatusCache,
+  statusCacheTtlMs,
+} from "./status-cache";
 import { renderTable } from "./table";
 import { getTerminalHeight, getTerminalWidth } from "./terminal";
-import { boxedSection, getBoxInnerWidth } from "./tui/boxen";
+import {
+  boxedSection,
+  getBoxInnerWidth,
+  getBoxInnerWidthDashboard,
+  getBoxInnerWidthTight,
+} from "./tui/boxen";
 import { type Config, readConfig, rootOpts } from "./utils";
 
 const INITIATIVES_STUB_MESSAGE =
@@ -213,8 +225,10 @@ export interface StatusData {
 export function fetchStatusData(
   config: Config,
   options: StatusOptions,
+  cache?: QueryCache,
 ): ResultAsync<StatusData, AppError> {
-  const q = query(config.doltRepoPath);
+  const resolvedCache = cache ?? getStatusCache();
+  const q = cachedQuery(config.doltRepoPath, resolvedCache, statusCacheTtlMs);
 
   const isUUID =
     options.plan &&
@@ -422,12 +436,12 @@ export function fetchStatusData(
     agent_count: number;
     sub_agent_runs: number;
     total_agent_minutes: number;
-  investigator_runs: number;
     investigator_runs: number;
   }
-  // Check initiative table so we can optionally join for initiative title in projects/plans.
-  return tableExists(config.doltRepoPath, "initiative").andThen(
-    (initiativeExists) => {
+
+  // Fetch both optional-table flags in one memoized call (5-min TTL).
+  return getSchemaFlags(config.doltRepoPath).andThen(
+    ({ initiativeExists, cycleExists }) => {
       const activePlansSql = buildPlansSql(initiativeExists);
       const next7UpcomingPlansSql =
         buildNext7UpcomingPlansSql(initiativeExists);
@@ -486,7 +500,10 @@ export function fetchStatusData(
               Number(amRes[0]?.total_agent_minutes ?? 0),
             );
             const investigatorRuns = Number(amRes[0]?.investigator_runs ?? 0);
-            const investigatorFixRate = subAgentRuns > 0 ? Math.round((investigatorRuns / subAgentRuns) * 100) : 0;
+            const investigatorFixRate =
+              subAgentRuns > 0
+                ? Math.round((investigatorRuns / subAgentRuns) * 100)
+                : 0;
 
             const actionableMap = new Map(
               actionableRows.map((r) => [r.plan_id, r.count]),
@@ -554,12 +571,13 @@ export function fetchStatusData(
               subAgentTypesDefined,
               subAgentRuns,
               totalAgentHours,
+              investigatorRuns,
+              investigatorFixRate,
             };
 
-            return tableExists(config.doltRepoPath, "cycle").andThen(
-              (cycleExists) => {
-                if (!cycleExists) return okAsync(base);
-                const currentCycleSql = `
+            return ((): ResultAsync<StatusData, AppError> => {
+              if (!cycleExists) return okAsync(base);
+              const currentCycleSql = `
           SELECT c.name, c.start_date, c.end_date,
                  COUNT(DISTINCT i.initiative_id) AS initiative_count
           FROM ${bt("cycle")} c
@@ -567,16 +585,15 @@ export function fetchStatusData(
           WHERE CURDATE() BETWEEN c.start_date AND c.end_date
           GROUP BY c.cycle_id, c.name, c.start_date, c.end_date
           LIMIT 1`;
-                return q
-                  .raw<{
-                    name: string;
-                    start_date: string;
-                    end_date: string;
-                    initiative_count: number;
-                  }>(currentCycleSql)
-                  .map((rows) => ({ ...base, currentCycle: rows[0] ?? null }));
-              },
-            );
+              return q
+                .raw<{
+                  name: string;
+                  start_date: string;
+                  end_date: string;
+                  initiative_count: number;
+                }>(currentCycleSql)
+                .map((rows) => ({ ...base, currentCycle: rows[0] ?? null }));
+            })();
           }
         },
       );
@@ -622,8 +639,10 @@ export function fetchStaleDoingTasks(
 export function fetchProjectsTableData(
   config: Config,
   options: StatusOptions,
+  cache?: QueryCache,
 ): ResultAsync<ProjectRow[], AppError> {
-  const q = query(config.doltRepoPath);
+  const resolvedCache = cache ?? getStatusCache();
+  const q = cachedQuery(config.doltRepoPath, resolvedCache, statusCacheTtlMs);
   const isUUID =
     options.plan &&
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
@@ -700,8 +719,10 @@ export function fetchProjectsTableData(
 export function fetchTasksTableData(
   config: Config,
   options: StatusOptions,
+  cache?: QueryCache,
 ): ResultAsync<TaskRow[], AppError> {
-  const q = query(config.doltRepoPath);
+  const resolvedCache = cache ?? getStatusCache();
+  const q = cachedQuery(config.doltRepoPath, resolvedCache, statusCacheTtlMs);
   const isUUID =
     options.plan &&
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
@@ -752,8 +773,10 @@ export function fetchTasksTableData(
 export function fetchInitiativesTableData(
   config: Config,
   options: StatusOptions,
+  cache?: QueryCache,
 ): ResultAsync<InitiativeRow[], AppError> {
-  const q = query(config.doltRepoPath);
+  const resolvedCache = cache ?? getStatusCache();
+  const q = cachedQuery(config.doltRepoPath, resolvedCache, statusCacheTtlMs);
   const filterUpcoming =
     options.filter === "upcoming"
       ? ` AND (i.${bt("status")} = 'draft' OR i.${bt("cycle_start")} > CURDATE()) `
@@ -789,7 +812,7 @@ export function statusCommand(program: Command) {
     .option("--all", "Include canceled tasks and abandoned plans")
     .option(
       "--projects",
-      "Show projects (plans) table: Plan, Initiative, Status, Todo, Doing, Blocked, Done",
+      "Show projects (plans) table: Plan, Initiative, Status, Todo, Blocked (not done), Doing, Done",
     )
     .option(
       "--tasks",
@@ -1264,13 +1287,100 @@ function getCompletedSectionContent(d: StatusData): string {
   );
 }
 
-/** One-line footer for dashboard: active agents (doing), defined agent/sub-agent counts, invocations, total agent hours. */
+/** One-line footer for dashboard (legacy); prefer getDashboardFooterBox for dashboard UI. */
 export function getDashboardFooterLine(d: StatusData): string {
   const activeAgents = d.statusCounts.doing ?? 0;
   return `Active agents: ${activeAgents}  Agents (defined): ${d.agentCount}  Sub-agents (defined): ${d.subAgentTypesDefined}  Total Agent Invocations: ${d.subAgentRuns}  Total Agent hours: ${d.totalAgentHours}  Investigator runs: ${d.investigatorRuns}  Investigator fix rate: ${d.investigatorFixRate}%`;
 }
 
+/** Min width per column in the footer grid so columns stay readable; allows up to 5 columns on wide screens. */
+const FOOTER_COL_MIN = 20;
+/** Number of columns for the footer grid (1–5 depending on width). */
+function getFooterGridColumns(innerWidth: number): number {
+  if (innerWidth >= FOOTER_COL_MIN * 5) return 5;
+  if (innerWidth >= FOOTER_COL_MIN * 4) return 4;
+  if (innerWidth >= FOOTER_COL_MIN * 3) return 3;
+  if (innerWidth >= FOOTER_COL_MIN * 2) return 2;
+  return 1;
+}
+
+/** Label style for Stats: bright, high contrast. */
+const STATS_LABEL = chalk.yellow;
+
+/**
+ * Dashboard footer content as a borderless table so stats line up and use full width.
+ * Includes Plans done, Tasks done, and Stale doing when > 0. Uses 1–5 columns.
+ */
+function getDashboardFooterContent(d: StatusData, innerWidth: number): string {
+  const activeAgents = d.statusCounts.doing ?? 0;
+  const bright = (s: string) => chalk.white(s);
+  const pairs: [string, string][] = [
+    ["Plans done", chalk.green(String(d.completedPlans))],
+    ["Tasks done", chalk.green(String(d.completedTasks))],
+    ["Active agents", bright(String(activeAgents))],
+    ["Agents (defined)", bright(String(d.agentCount))],
+    ["Sub-agents (defined)", bright(String(d.subAgentTypesDefined))],
+    ["Total invocations", bright(String(d.subAgentRuns))],
+    ["Agent hours", bright(String(d.totalAgentHours))],
+    ["Investigator runs", bright(String(d.investigatorRuns))],
+    ["Investigator fix rate", bright(`${d.investigatorFixRate}%`)],
+  ];
+  if (d.staleDoingTasks.length > 0) {
+    pairs.push([
+      "Stale doing (>2h)",
+      chalk.yellow(String(d.staleDoingTasks.length)),
+    ]);
+  }
+  const cols = getFooterGridColumns(innerWidth);
+  const rows: string[][] = [];
+  const emptyRow = (): string[] => Array.from({ length: cols }, () => "");
+  for (let i = 0; i < pairs.length; i += cols) {
+    if (rows.length > 0) rows.push(emptyRow());
+    const rowPairs = pairs.slice(i, i + cols);
+    const cells = rowPairs.map(
+      ([label, value]) => STATS_LABEL(`${label}: `) + value,
+    );
+    while (cells.length < cols) cells.push("");
+    rows.push(cells);
+  }
+  const headers = emptyRow();
+  return renderTable({
+    headers,
+    rows,
+    maxWidth: innerWidth,
+    minWidths: Array(cols).fill(FOOTER_COL_MIN),
+    flexColumnIndex: 0,
+    borderVisible: false,
+  });
+}
+
+/** Dashboard box padding: top/bottom 1 (combine with neighbours); left/right 2 (double, matches vertical total). */
+const DASHBOARD_BOX_PADDING = { top: 1, bottom: 1, left: 2, right: 2 };
+
+/**
+ * Boxed dashboard footer with stats in a grid. Use this for tg dashboard and live views.
+ * Uses DASHBOARD_BOX_PADDING so L/R match vertical gap; rows fill full width; tiny gap between KPI rows.
+ */
+export function getDashboardFooterBox(d: StatusData, width: number): string {
+  const innerW = getBoxInnerWidthDashboard(width);
+  const gridContent = getDashboardFooterContent(d, innerW);
+  const content = chalk.yellow.bold("Stats") + "\n" + gridContent;
+  return boxedSection("", content, width, {
+    borderColor: "yellow",
+    padding: DASHBOARD_BOX_PADDING,
+    fullWidth: true,
+  });
+}
+
 const NARROW_PLAN_WIDTH = 50;
+
+/**
+ * First line of a boxed section: the table/section name as a clear header row.
+ * Use with boxedSection("", this + "\n" + tableContent, w) so the name is inside the box.
+ */
+function formatSectionTitleRow(sectionName: string): string {
+  return chalk.cyan.bold("  " + sectionName);
+}
 
 /** Reserve lines for box borders, section titles, completed summary. */
 const DASHBOARD_RESERVED_LINES = 12;
@@ -1294,9 +1404,10 @@ function getActivePlansSectionContent(
   d: StatusData,
   w: number,
   maxRows?: number,
+  innerWidthOverride?: number,
 ): string {
   if (d.activePlans.length === 0) return "";
-  const innerW = getBoxInnerWidth(w);
+  const innerW = innerWidthOverride ?? getBoxInnerWidth(w);
   const narrow = innerW < NARROW_PLAN_WIDTH;
   let plans = d.activePlans;
   if (maxRows != null && maxRows > 0) {
@@ -1306,9 +1417,9 @@ function getActivePlansSectionContent(
     p.title,
     p.initiative_title ?? "—",
     String(p.todo),
+    p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
     p.actionable > 0 ? chalk.greenBright(String(p.actionable)) : "0",
     p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
-    p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
     p.done > 0 ? chalk.green(String(p.done)) : "0",
   ]);
   const sumTodo = d.activePlans.reduce((s, p) => s + Number(p.todo), 0);
@@ -1316,24 +1427,25 @@ function getActivePlansSectionContent(
   const sumBlocked = d.activePlans.reduce((s, p) => s + Number(p.blocked), 0);
   const sumDone = d.activePlans.reduce((s, p) => s + Number(p.done), 0);
   const sumReady = d.activePlans.reduce((s, p) => s + Number(p.actionable), 0);
+  const totalTasks = sumTodo + sumBlocked + sumReady;
   const aggRow = [
     chalk.dim("Total"),
-    "",
+    chalk.dim(`Total Outstanding Tasks: ${totalTasks}`),
     String(sumTodo),
+    sumBlocked > 0 ? chalk.red(String(sumBlocked)) : "0",
     sumReady > 0 ? chalk.greenBright(String(sumReady)) : "0",
     sumDoing > 0 ? chalk.cyan(String(sumDoing)) : "0",
-    sumBlocked > 0 ? chalk.red(String(sumBlocked)) : "0",
     sumDone > 0 ? chalk.green(String(sumDone)) : "0",
   ];
   const headers = narrow
-    ? ["Project name", "Init", "To", "Rdy", "Do", "Blk", "Done"]
+    ? ["Project name", "Init", "To", "Blk", "Rdy", "Do", "Done"]
     : [
         "Project name",
         "Initiative",
         "Todo",
+        "Blocked",
         "Ready",
         "Doing",
-        "Blocked",
         "Done",
       ];
   const numericHeaders = headers.slice(2);
@@ -1405,8 +1517,9 @@ function getMergedActiveNextContent(
   d: StatusData,
   w: number,
   maxRows?: number,
+  innerWidthOverride?: number,
 ): string {
-  const innerW = getBoxInnerWidth(w);
+  const innerW = innerWidthOverride ?? getBoxInnerWidth(w);
   const staleDoingSet = new Set(d.staleDoingTasks.map((t) => t.task_id));
   const now = Date.now();
   const doingRows = d.activeWork.map((work) => {
@@ -1471,8 +1584,8 @@ export function formatProjectsAsString(
     p.initiative_title ?? "—",
     p.status,
     String(p.todo),
-    p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
     p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
+    p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
     p.done > 0 ? chalk.green(String(p.done)) : "0",
   ]);
   const table = renderTable({
@@ -1481,8 +1594,8 @@ export function formatProjectsAsString(
       "Initiative",
       "Status",
       "Todo",
-      "Doing",
       "Blocked",
+      "Doing",
       "Done",
     ],
     rows:
@@ -1490,8 +1603,8 @@ export function formatProjectsAsString(
         ? projectRows
         : [["No projects", "—", "—", "0", "0", "0", "0"]],
     maxWidth: innerW,
-    minWidths: [12, 10, 8, 4, 3, 5, 3],
-    maxWidths: [undefined, 10, undefined, undefined, 5, 7, 4],
+    minWidths: [12, 10, 8, 4, 5, 3, 3],
+    maxWidths: [undefined, 10, undefined, undefined, 7, 5, 4],
   });
   return boxedSection("Projects", table, w);
 }
@@ -1669,9 +1782,9 @@ export function formatDashboardProjectsView(
           p.title,
           p.initiative_title ?? "—",
           String(p.todo),
+          p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
           p.actionable > 0 ? chalk.greenBright(String(p.actionable)) : "0",
           p.doing > 0 ? chalk.cyan(String(p.doing)) : "0",
-          p.blocked > 0 ? chalk.red(String(p.blocked)) : "0",
           p.done > 0 ? chalk.green(String(p.done)) : "0",
         ])
       : [["No active plans", "—", "0", "0", "0", "0", "0"]];
@@ -1680,13 +1793,14 @@ export function formatDashboardProjectsView(
   const sumBlocked = d.activePlans.reduce((s, p) => s + Number(p.blocked), 0);
   const sumDone = d.activePlans.reduce((s, p) => s + Number(p.done), 0);
   const sumReady = d.activePlans.reduce((s, p) => s + Number(p.actionable), 0);
+  const totalTasks = sumTodo + sumBlocked + sumReady;
   const totalRow = [
     chalk.dim("Total"),
-    "",
+    chalk.dim(`Total Outstanding Tasks: ${totalTasks}`),
     String(sumTodo),
+    sumBlocked > 0 ? chalk.red(String(sumBlocked)) : "0",
     sumReady > 0 ? chalk.greenBright(String(sumReady)) : "0",
     sumDoing > 0 ? chalk.cyan(String(sumDoing)) : "0",
-    sumBlocked > 0 ? chalk.red(String(sumBlocked)) : "0",
     sumDone > 0 ? chalk.green(String(sumDone)) : "0",
   ];
   const activeRows =
@@ -1695,9 +1809,9 @@ export function formatDashboardProjectsView(
     "Project name",
     "Initiative",
     "Todo",
+    "Blocked",
     "Ready",
     "Doing",
-    "Blocked",
     "Done",
   ];
   const numericColW = Math.max(...planHeaders.slice(2).map((h) => h.length));
@@ -1841,21 +1955,62 @@ export function formatStatusAsString(
   }
 
   if (dashboard) {
+    const totalTasks =
+      (d.statusCounts.todo ?? 0) +
+      (d.statusCounts.blocked ?? 0) +
+      (d.actionableCount ?? 0);
+    if (d.currentCycle) {
+      const c = d.currentCycle;
+      const startShort = c.start_date.slice(0, 10);
+      const endShort = c.end_date.slice(0, 10);
+      parts.push(
+        chalk.cyan(
+          `◆ Cycle: ${c.name}  (${startShort} – ${endShort})  │  ${c.initiative_count} initiatives  │  Total Outstanding Tasks: ${totalTasks}`,
+        ),
+      );
+    } else {
+      parts.push(chalk.dim(`Total Outstanding Tasks: ${totalTasks}`));
+    }
     const height = getTerminalHeight();
     const { maxPlanRows, maxTaskRows } = getDashboardRowLimits(height);
-    const activePlansContent = getActivePlansSectionContent(d, w, maxPlanRows);
+    const innerW = getBoxInnerWidthDashboard(w);
+    const activePlansContent = getActivePlansSectionContent(
+      d,
+      w,
+      maxPlanRows,
+      innerW,
+    );
+    const tasksContent = getMergedActiveNextContent(d, w, maxTaskRows, innerW);
     if (activePlansContent) {
-      parts.push("Active Projects");
-      parts.push(activePlansContent);
+      parts.push(
+        boxedSection(
+          "",
+          formatSectionTitleRow("Active Projects") + "\n" + activePlansContent,
+          w,
+          {
+            borderColor: "cyan",
+            fullWidth: true,
+            padding: DASHBOARD_BOX_PADDING,
+          },
+        ),
+      );
     }
-    parts.push("Active tasks and upcoming");
-    parts.push(getMergedActiveNextContent(d, w, maxTaskRows));
-    const summary =
-      d.staleDoingTasks.length > 0
-        ? `Completed: Plans: ${d.completedPlans} done, Tasks: ${d.completedTasks} done  │  ${chalk.yellow(`⚠ ${d.staleDoingTasks.length} stale doing (>2h)`)}`
-        : `Completed: Plans: ${d.completedPlans} done, Tasks: ${d.completedTasks} done`;
-    parts.push(`${summary}  │  ${getDashboardFooterLine(d)}`);
-    return parts.join("\n\n");
+    parts.push(
+      boxedSection(
+        "",
+        formatSectionTitleRow("Active tasks and upcoming") +
+          "\n" +
+          tasksContent,
+        w,
+        {
+          borderColor: "cyan",
+          fullWidth: true,
+          padding: DASHBOARD_BOX_PADDING,
+        },
+      ),
+    );
+    parts.push(getDashboardFooterBox(d, w));
+    return parts.join("\n");
   }
 
   const activePlans = getActivePlansSectionContent(d, w);
@@ -1936,38 +2091,58 @@ function printHumanStatus(
   const w = getTerminalWidth();
   const dashboard = options?.dashboard === true;
 
+  const totalTasks =
+    (d.statusCounts.todo ?? 0) +
+    (d.statusCounts.blocked ?? 0) +
+    (d.actionableCount ?? 0);
   if (dashboard && d.currentCycle) {
     const c = d.currentCycle;
     const startShort = c.start_date.slice(0, 10);
     const endShort = c.end_date.slice(0, 10);
     const line = chalk.cyan(
-      `◆ Cycle: ${c.name}  (${startShort} – ${endShort})  │  ${c.initiative_count} initiatives`,
+      `◆ Cycle: ${c.name}  (${startShort} – ${endShort})  │  ${c.initiative_count} initiatives  │  Total Outstanding Tasks: ${totalTasks}`,
     );
     console.log(`\n  ${line}\n`);
+  } else if (dashboard) {
+    console.log(`\n  ${chalk.dim(`Total Outstanding Tasks: ${totalTasks}`)}\n`);
   }
 
   if (dashboard) {
     const height = getTerminalHeight();
     const { maxPlanRows, maxTaskRows } = getDashboardRowLimits(height);
-    const activePlansContent = getActivePlansSectionContent(d, w, maxPlanRows);
-    if (activePlansContent) {
-      console.log(
-        `\n${boxedSection("Active Projects", activePlansContent, w)}`,
-      );
-    }
-    console.log(
-      `\n${boxedSection("Active tasks and upcoming", getMergedActiveNextContent(d, w, maxTaskRows), w)}`,
+    const innerW = getBoxInnerWidthDashboard(w);
+    const activePlansContent = getActivePlansSectionContent(
+      d,
+      w,
+      maxPlanRows,
+      innerW,
     );
-    const summary =
-      d.staleDoingTasks.length > 0
-        ? chalk.dim(
-            `Plans: ${chalk.green(d.completedPlans)} done, Tasks: ${chalk.green(d.completedTasks)} done  │  ${chalk.yellow(`⚠ ${d.staleDoingTasks.length} stale doing (>2h)`)}`,
-          )
-        : chalk.dim(
-            `Plans: ${chalk.green(d.completedPlans)} done, Tasks: ${chalk.green(d.completedTasks)} done`,
-          );
-    const footer = chalk.dim(getDashboardFooterLine(d));
-    console.log(`\n  ${summary}  │  ${footer}\n`);
+    const tasksContent = getMergedActiveNextContent(d, w, maxTaskRows, innerW);
+    if (activePlansContent) {
+      const plansBox = boxedSection(
+        "",
+        formatSectionTitleRow("Active Projects") + "\n" + activePlansContent,
+        w,
+        {
+          borderColor: "cyan",
+          fullWidth: true,
+          padding: DASHBOARD_BOX_PADDING,
+        },
+      );
+      console.log(`\n${plansBox}`);
+    }
+    const tasksBox = boxedSection(
+      "",
+      formatSectionTitleRow("Active tasks and upcoming") + "\n" + tasksContent,
+      w,
+      {
+        borderColor: "cyan",
+        fullWidth: true,
+        padding: DASHBOARD_BOX_PADDING,
+      },
+    );
+    console.log(`${tasksBox}`);
+    console.log(`${getDashboardFooterBox(d, w)}\n`);
     return;
   }
 
@@ -2018,10 +2193,6 @@ function printJsonStatus(d: StatusData): void {
         subAgentTypesDefined: d.subAgentTypesDefined,
         subAgentRuns: d.subAgentRuns,
         totalAgentHours: d.totalAgentHours,
-        investigatorRuns: d.investigatorRuns,
-        investigatorFixRate: d.investigatorFixRate,
-        investigatorRuns: d.investigatorRuns,
-        investigatorFixRate: d.investigatorFixRate,
         investigatorRuns: d.investigatorRuns,
         investigatorFixRate: d.investigatorFixRate,
         summary: {

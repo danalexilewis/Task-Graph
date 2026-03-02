@@ -11,15 +11,15 @@ description: Performance audit skill that dispatches a Performance Architect lea
 
 ## Architecture
 
-| Role       | Agent                 | Mode      | Purpose                                                          |
-| ---------- | --------------------- | --------- | ---------------------------------------------------------------- |
-| Lead (you) | Performance Architect | read-only | Coordinate, synthesise, plan                                     |
-| Setup      | pre-compute agent     | read-only | Snapshot shared context → `tg note` race                         |
-| Scanner A  | schema-profiler       | read-only | Index coverage, Dolt branch design, table sizing                 |
-| Scanner B  | query-auditor         | read-only | N+1 patterns, unbounded scans, hot SQL ferret search             |
-| Scanner C  | hotpath-tracer        | read-only | Expensive code loops, repeated computation, sync-in-async        |
-| Scanner D  | anti-pattern-scanner  | read-only | Broad sweep: memoisation gaps, deep clones, re-compute cycles    |
-| Scanner E  | dolt-specialist       | read-only | Diff ops on hotpaths, versioned-table scan patterns, merge costs |
+| Role       | Agent                 | Mode      | Model                  | Purpose                                                          |
+| ---------- | --------------------- | --------- | ---------------------- | ---------------------------------------------------------------- |
+| Lead (you) | Performance Architect | read-only | inherit (session model) | Coordinate, synthesise, plan                                     |
+| Setup      | pre-compute agent     | read-only | inherit                | Snapshot shared context → `tg note` race                         |
+| Scanner A  | schema-profiler       | read-only | fast                   | Index coverage, Dolt branch design, table sizing                 |
+| Scanner B  | query-auditor         | read-only | fast                   | N+1 patterns, unbounded scans, hot SQL ferret search             |
+| Scanner C  | hotpath-tracer        | read-only | fast                   | Expensive code loops, repeated computation, sync-in-async        |
+| Scanner D  | anti-pattern-scanner  | read-only | fast                   | Broad sweep: memoisation gaps, deep clones, re-compute cycles    |
+| Scanner E  | dolt-specialist       | read-only | fast                   | Diff ops on hotpaths, versioned-table scan patterns, merge costs |
 
 **All agents are read-only.** No file edits, no DB mutations.
 
@@ -74,7 +74,7 @@ Select the 3–5 most relevant for the current audit scope. List them explicitly
 
 ## Step 3 — Dispatch all agents in one turn
 
-**Emit all Task calls in the same response turn** — pre-compute agent plus all 5 scanners simultaneously. Cursor decides parallelism.
+**Emit all Task calls in the same response turn** — pre-compute agent plus all 5 scanners simultaneously. Cursor decides parallelism. (Dispatch all 5 scanners with `model="fast"` (explore type); omit `model` for the pre-compute setup agent so it inherits the session model.)
 
 ### Pre-compute agent prompt
 

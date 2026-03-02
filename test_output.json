@@ -1,0 +1,7 @@
+[
+  {
+    "command": "echo hello",
+    "durationMs": 55,
+    "exitCode": 0
+  }
+]

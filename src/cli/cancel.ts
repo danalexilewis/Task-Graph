@@ -7,6 +7,7 @@ import { syncBlockedStatusForTask } from "../domain/blocked-status";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { checkValidTransition } from "../domain/invariants";
 import type { TaskStatus } from "../domain/types";
+import { getStatusCache } from "./status-cache";
 import { type Config, parseIdList, readConfig } from "./utils";
 
 type ProjectRow = { plan_id: string; status: string };
@@ -200,6 +201,7 @@ export function cancelCommand(program: Command) {
       }
 
       const anyFailed = results.some((r) => "error" in r);
+      if (!anyFailed) getStatusCache().clear();
       if (anyFailed) {
         if (!cmd.parent?.opts().json) {
           for (const r of results) {

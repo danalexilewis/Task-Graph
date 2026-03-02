@@ -9,8 +9,8 @@ describe("benchmark feature options", () => {
     importCommand(program);
     const importCmd = program.commands.find((cmd) => cmd.name() === "import");
     expect(importCmd).toBeDefined();
-    const hasBenchmark = importCmd!.options.some(
-      (opt) => opt.long === "--benchmark <filePath>",
+    const hasBenchmark = importCmd?.options.some(
+      (opt) => opt.long === "--benchmark",
     );
     expect(hasBenchmark).toBe(true);
   });
@@ -20,8 +20,8 @@ describe("benchmark feature options", () => {
     statsCommand(program);
     const statsCmd = program.commands.find((cmd) => cmd.name() === "stats");
     expect(statsCmd).toBeDefined();
-    const hasBenchmark = statsCmd!.options.some(
-      (opt) => opt.long === "--benchmark <benchmark>",
+    const hasBenchmark = statsCmd?.options.some(
+      (opt) => opt.long === "--benchmark",
     );
     expect(hasBenchmark).toBe(true);
   });

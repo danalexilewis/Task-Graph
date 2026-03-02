@@ -10,6 +10,7 @@ import { jsonObj, now, query } from "../db/query";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { checkRunnable, checkValidTransition } from "../domain/invariants";
 import type { TaskStatus } from "../domain/types";
+import { getStatusCache } from "./status-cache";
 import { type Config, parseIdList, readConfig, resolveTaskId } from "./utils";
 import {
   createPlanBranchAndWorktree,
@@ -352,6 +353,7 @@ export function startCommand(program: Command) {
       }
 
       const hasFailure = results.some((r) => "error" in r);
+      if (!hasFailure) getStatusCache().clear();
       if (hasFailure) {
         if (!cmd.parent?.opts().json) {
           for (const r of results) {

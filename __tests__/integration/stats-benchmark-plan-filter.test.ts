@@ -1,9 +1,13 @@
-import { beforeAll, afterAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import { jsonObj, query } from "../../src/db/query";
-import { runTgCli, setupIntegrationTest, teardownIntegrationTest } from "./test-utils";
+import {
+  runTgCli,
+  setupIntegrationTest,
+  teardownIntegrationTest,
+} from "./test-utils";
 
 function toDatetime(d: Date): string {
   return d.toISOString().slice(0, 19).replace("T", " ");
@@ -31,7 +35,10 @@ todos:
 ---
 `;
     fs.writeFileSync(path.join(plansDir, "benchmark-true.md"), benchPlan);
-    await runTgCli(`import plans/benchmark-true.md --plan "Benchmark Plan True" --format cursor`, context.tempDir);
+    await runTgCli(
+      `import plans/benchmark-true.md --plan "Benchmark Plan True" --format cursor`,
+      context.tempDir,
+    );
 
     // Normal plan
     const normalPlan = `---
@@ -44,36 +51,53 @@ todos:
 ---
 `;
     fs.writeFileSync(path.join(plansDir, "normal.md"), normalPlan);
-    await runTgCli(`import plans/normal.md --plan "Normal Plan" --format cursor`, context.tempDir);
+    await runTgCli(
+      `import plans/normal.md --plan "Normal Plan" --format cursor`,
+      context.tempDir,
+    );
 
     // Fetch plan IDs
     const listOut = await runTgCli(`plan list --json`, context.tempDir);
-    const plans = JSON.parse(listOut.stdout) as Array<{ plan_id: string; title: string }>;
-    benchmarkPlanId = plans.find(p => p.title === "Benchmark Plan True")!.plan_id;
-    normalPlanId = plans.find(p => p.title === "Normal Plan")!.plan_id;
+    const plans = JSON.parse(listOut.stdout) as Array<{
+      plan_id: string;
+      title: string;
+    }>;
+    benchmarkPlanId = plans.find(
+      (p) => p.title === "Benchmark Plan True",
+    )?.plan_id;
+    normalPlanId = plans.find((p) => p.title === "Normal Plan")?.plan_id;
 
     // Mark tasks done for each plan
     for (const planId of [benchmarkPlanId, normalPlanId]) {
-      const next = await runTgCli(`next --plan ${planId} --limit 10 --json`, context.tempDir);
+      const next = await runTgCli(
+        `next --plan ${planId} --limit 10 --json`,
+        context.tempDir,
+      );
       const taskId = JSON.parse(next.stdout)[0].task_id;
       const q = query(context.doltRepoPath);
       const s = toDatetime(new Date());
       const d = toDatetime(new Date(Date.now() + 1000));
-      await q.insert("event", {
-        event_id: uuidv4(),
-        task_id: taskId,
-        kind: "started",
-        body: jsonObj({ agent: "impl-test", timestamp: s }),
-        created_at: s,
-      }).then(r => r._unsafeUnwrap());
-      await q.insert("event", {
-        event_id: uuidv4(),
-        task_id: taskId,
-        kind: "done",
-        body: jsonObj({ evidence: "done", timestamp: d }),
-        created_at: d,
-      }).then(r => r._unsafeUnwrap());
-      await q.update("task", { status: "done" }, { task_id: taskId }).then(r => r._unsafeUnwrap());
+      await q
+        .insert("event", {
+          event_id: uuidv4(),
+          task_id: taskId,
+          kind: "started",
+          body: jsonObj({ agent: "impl-test", timestamp: s }),
+          created_at: s,
+        })
+        .then((r) => r._unsafeUnwrap());
+      await q
+        .insert("event", {
+          event_id: uuidv4(),
+          task_id: taskId,
+          kind: "done",
+          body: jsonObj({ evidence: "done", timestamp: d }),
+          created_at: d,
+        })
+        .then((r) => r._unsafeUnwrap());
+      await q
+        .update("task", { status: "done" }, { task_id: taskId })
+        .then((r) => r._unsafeUnwrap());
     }
   }, 60000);
 
@@ -84,7 +108,7 @@ todos:
   it("JSON output for benchmark plan includes summary and tasks", async () => {
     const result = await runTgCli(
       `stats --plan ${benchmarkPlanId} --benchmark --json`,
-      context.tempDir
+      context.tempDir,
     );
     expect(result.exitCode).toBe(0);
     const out = JSON.parse(result.stdout);
@@ -98,7 +122,7 @@ todos:
   it("JSON output for normal plan with --benchmark yields null summary and empty tasks", async () => {
     const result = await runTgCli(
       `stats --plan ${normalPlanId} --benchmark --json`,
-      context.tempDir
+      context.tempDir,
     );
     expect(result.exitCode).toBe(0);
     const out = JSON.parse(result.stdout);

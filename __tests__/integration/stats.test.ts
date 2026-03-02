@@ -54,7 +54,7 @@ async function getTaskIds(
   taskTitles: string[],
 ): Promise<Record<string, string>> {
   const { stdout } = await runTgCli(
-    `next --plan ${planId} --limit 20 --json`,
+    `next --plan ${planId} --limit 8 --json`,
     context.tempDir,
   );
   const tasks = JSON.parse(stdout) as Array<{ task_id: string; title: string }>;

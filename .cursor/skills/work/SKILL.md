@@ -60,15 +60,11 @@ flowchart TD
 
 ## Task orchestration UI — ALWAYS use when running tg tasks
 
-## Benchmark-run self-report checklist
-
-Before completing `run-full-suite` tasks or any benchmark-run tasks, ensure implementer agents include self-report flags for performance metrics. The checklist helps standardize reporting across runs.
-
 When executing tasks from tg, **always structure work so Cursor surfaces the "Task orchestration for autonomous execution" panel.** This gives the human a single place to see which sub-agents are doing what (meta todo + sub-agent management). Assume there will always be one or more tasks; use the same orchestration flow whether it's 1 or 5.
 
 **Before each batch:**
 
-1. Get runnable tasks: `tg next [--plan <planId>] --json --limit 20` (feed all; Cursor decides concurrency)
+1. Get runnable tasks: `tg next [--plan <planId>] --json --limit 8`. **Dispatch at most 8 sub-agents per batch** (same turn); more tasks run in the next loop.
 2. **Call TodoWrite with the task list** (see subagent-dispatch.mdc TodoWrite protocol) — pass the tasks from step 1 before dispatching any sub-agents. TodoWrite is the progress report for the orchestration panel; it surfaces the batch in Cursor's "Task orchestration for autonomous execution" UI.
 3. Keep `.cursor/agents/implementer.md` in context when starting the loop — the orchestration panel is often tied to that agent context.
 4. Dispatch sub-agents via the Task tool or mcp_task; **emit all Task/mcp_task calls for the current batch in the same turn** so the batch runs as intended. Cursor will populate the orchestration panel with task status as work progresses.
@@ -83,7 +79,7 @@ When executing tasks from tg, **always structure work so Cursor surfaces the "Ta
    pnpm tg import plans/<filename> --plan "<Plan Name>" --format cursor
    ```
    Use the plan’s filename and the exact `name` from its frontmatter. If the plan is already imported, the command will still succeed (upsert behavior).
-3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 20` so work focuses on that plan’s tasks first. Otherwise proceed in multi-plan mode (see below).
+3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 8` so work focuses on that plan’s tasks first. Otherwise proceed in multi-plan mode (see below).
 
 If no plan is indicated by context or the user, skip import and use multi-plan mode.
 
@@ -93,9 +89,9 @@ If no plan is indicated by context or the user, skip import and use multi-plan m
 
 ```
 while true:
-  1. tasks = tg next [--plan <planId|planName>] --json --limit 20
+  1. tasks = tg next [--plan <planId|planName>] --json --limit 8
   2. if tasks is empty → for each plan that completed this session, run **Plan-merge step** (below); then report summary, then run **Final action — commit .taskgraph/dolt**; stop
-  3. batch = all non-conflicting tasks from tasks (no file overlap); do not cap size — Cursor decides concurrency
+  3. batch = first 8 non-conflicting tasks from tasks (no file overlap); **max 8 sub-agents per batch** — keeps latency manageable
   4. TodoWrite with the task list (from step 1) before dispatching — this is the orchestration panel progress report.
   5. Emit all Task/mcp_task calls for this batch in the same turn (batch-in-one-turn).
   6. for each task in batch:
@@ -208,6 +204,25 @@ At the end of the loop (plan complete or all tasks done), emit a full summary:
   Duration: ~4 min
 ```
 
+## Benchmark runs — self-report checklist
+
+When executing tasks from a benchmark plan, instruct implementer agents to pass self-report flags to `tg done`. This standardizes performance metrics across runs.
+
+When dispatching implementers for benchmark-plan tasks, include a note in the prompt:
+
+> **Benchmark run:** When you call `tg done`, include self-report flags if your environment exposes them:
+> `--tokens-in <n> --tokens-out <n> --tool-calls <n> --attempt <n>`
+> All flags are optional; omit if unavailable. Do not spend effort estimating.
+
+Checklist before marking each benchmark task done:
+
+- [ ] `--tokens-in <n>` — input tokens for this session
+- [ ] `--tokens-out <n>` — output tokens generated
+- [ ] `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
+- [ ] `--attempt <n>` — attempt number (1 for first attempt, 2 after a reviewer FAIL, etc.)
+
+Example: `(cd {{REPO_PATH}} && pnpm tg done <taskId> --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1)`
+
 ## Final action — commit task graph state
 
 After the full summary and **after** the **Plan-merge step** has run for all completed plans, commit the Dolt task graph state so the DB is tracked in git alongside the code changes it describes. This runs **once per work session**, after all tasks are done, plan-merge has been run, and the full test suite has passed (or was skipped).
@@ -260,7 +275,7 @@ After the full summary and **after** the **Plan-merge step** has run for all com
 
 ## Multi-Plan Mode
 
-If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 20` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency. The orchestrator maintains the map `plan_id -> { worktree_path, plan_branch }` for **all** active plans that use worktrees. When the loop exits (tasks empty), run the **Plan-merge step** for each plan that completed in this session, then the **Final action — commit .taskgraph/dolt**.
+If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 8` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency. The orchestrator maintains the map `plan_id -> { worktree_path, plan_branch }` for **all** active plans that use worktrees. When the loop exits (tasks empty), run the **Plan-merge step** for each plan that completed in this session, then the **Final action — commit .taskgraph/dolt**.
 
 ## Gate strategy — cheap gate per batch, gate:full once at plan end
 

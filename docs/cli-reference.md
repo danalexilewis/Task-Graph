@@ -48,9 +48,9 @@ tg stats [--agent <name>] [--plan <planId>] [--timeline] [--recovery] [--json]
 - `--agent <name>`: Restrict metrics to the given agent.
 - `--plan <planId>` / `-p <planId>`: Show plan-level analytics — total duration, velocity (tasks/hr), and a per-task elapsed table sorted slowest-first. When self-report data is present (`tg done --tokens-in/out/tool-calls`), adds token and tool-call columns.
 - `--timeline`: Show cross-plan execution history sorted newest-first. Columns: started date, plan title, status, tasks completed/total, duration, velocity.
-- `--benchmark`: Filter to benchmark projects (requires is_benchmark flag).
+- `--benchmark`: Filter to benchmark projects. In timeline view or default JSON output, shows only benchmark plans. When used with `--plan`, in JSON mode returns `planSummary: null` and empty `tasks` for non-benchmark plans; in human-readable mode prints "Plan is not marked as benchmark" and exits normally.
 - `--recovery`: Include investigator fix rate metrics based on gate events for run-full-suite tasks.
-- `--json`: Output structured JSON. Default view: `{ agents: [...], recovery?: {...} }`. With `--plan`: `{ planSummary: {...}, tasks: [...], token_usage?: [...], recovery?: {...} }`. With `--timeline`: `{ plans: [...], recovery?: {...} }`.
+- `--json`: Output structured JSON. Default view: `{ agent_metrics: [...], recovery?: {...} }`. With `--plan`: `{ planSummary: {...}, tasks: [...], token_usage?: [...], recovery?: {...} }`. With `--timeline`: `{ plans: [...], recovery?: {...} }`.
 
 **Token usage section (default view):** When any done event body includes `tokens_in`, a "Token Usage" table appears showing per-agent averages and totals. Omitted when no self-report data exists.
 

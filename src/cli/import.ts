@@ -15,6 +15,7 @@ import {
   parsePlanMarkdown,
 } from "../plan-import/parser";
 import { cancelOne } from "./cancel";
+import { getStatusCache } from "./status-cache";
 import { type Config, readConfig } from "./utils";
 
 export function importCommand(program: Command) {
@@ -46,6 +47,7 @@ export function importCommand(program: Command) {
       "--force",
       "Proceed with import even when existing tasks would be unmatched (may create duplicates)",
     )
+    .option("--benchmark", "Mark imported plan as benchmark")
     .option(
       "--replace",
       "Cancel existing tasks that would not be matched by this import, then upsert",
@@ -70,6 +72,8 @@ export function importCommand(program: Command) {
                 risks,
                 tests,
               } = parsedPlan;
+              const isBenchmark =
+                options.benchmark === true || parsedPlan.benchmark === true;
               let planId: string | null = null;
               let planJustCreated = false;
 
@@ -126,6 +130,7 @@ export function importCommand(program: Command) {
                     insertPayload.risks = JSON.stringify(risks);
                   if (tests != null)
                     insertPayload.tests = JSON.stringify(tests);
+                  insertPayload.is_benchmark = isBenchmark ? 1 : 0;
                 }
                 const insertResult = await q.insert("project", insertPayload);
                 if (insertResult.isErr()) throw insertResult.error;
@@ -148,12 +153,10 @@ export function importCommand(program: Command) {
                 );
               }
 
-              if (
-                options.format === "cursor" &&
-                (fileTree != null || risks != null || tests != null)
-              ) {
+              if (options.format === "cursor") {
                 const planUpdatePayload: Record<string, SqlValue> = {
                   updated_at: currentTimestamp,
+                  is_benchmark: isBenchmark ? 1 : 0,
                 };
                 if (fileTree != null) planUpdatePayload.file_tree = fileTree;
                 if (risks != null)
@@ -259,6 +262,7 @@ export function importCommand(program: Command) {
             plan_id: string;
             importedTasksCount: number;
           };
+          getStatusCache().clear();
           if (!cmd.parent?.opts().json) {
             console.log(
               `Successfully imported tasks and edges from ${resultData.filePath} to plan ${resultData.plan_id}.`,

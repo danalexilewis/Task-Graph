@@ -31,13 +31,19 @@ import { statsCommand } from "./stats";
 import { statusCommand } from "./status";
 import { syncCommand } from "./sync";
 import { taskCommand } from "./task";
-import { templateCommand } from "./template";
 import { task01CliCommand } from "./task-01-cli-command";
+import { templateCommand } from "./template";
 import { readConfig, rootOpts } from "./utils";
 import { worktreeCommand } from "./worktree";
 
 /** Commands that create or scaffold; skip auto-migrate (no config or own migration path). */
-const SKIP_MIGRATE_COMMANDS = new Set(["init", "setup", "server"]);
+const SKIP_MIGRATE_COMMANDS = new Set([
+  "init",
+  "setup",
+  "server",
+  "stats",
+  "context",
+]);
 
 function topLevelCommand(cmd: Command): Command {
   let c: Command = cmd;

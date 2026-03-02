@@ -34,6 +34,8 @@ export interface ParsedTask {
 }
 
 export interface ParsedPlan {
+  /** Whether the plan is a benchmark. Mapped from frontmatter 'benchmark' */
+  benchmark?: boolean;
   planTitle: string | null;
   planIntent: string | null;
   tasks: ParsedTask[];
@@ -203,6 +205,8 @@ export interface CursorFrontmatter {
     mitigation?: string;
   }>;
   tests?: string[];
+  /** Whether the plan is a benchmark. Mapped from frontmatter 'benchmark' */
+  benchmark?: boolean;
 }
 
 /** Normalize risks from frontmatter to { description, severity, mitigation }[]. */
@@ -308,6 +312,7 @@ export function frontmatterToParsedPlan(
 
   return ok({
     planTitle: fm.name ?? null,
+    benchmark: typeof fm.benchmark === "boolean" ? fm.benchmark : undefined,
     planIntent: fm.overview ?? null,
     tasks,
     fileTree: fileTree ?? undefined,

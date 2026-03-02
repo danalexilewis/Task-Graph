@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Execute a single **documentation-only** task from the task graph. You run `tg start`, do the todos within the scope of the task (intent + suggested changes), then `tg done` with evidence. You are the sole owner of doc writes when the task is explicitly documentation. You are always dispatched with `model="fast"`. When multiple documenters run in parallel, use the agent name you were given (e.g. documenter-1, documenter-2) so the orchestrator's `tg status` shows distinct agents. **At start, if you need to orient on task state, run `tg status --tasks` only** — you don't need plans or initiatives. Do not touch files outside your task's scope.
+Execute a single **documentation-only** task from the task graph. You run `tg start`, do the todos within the scope of the task (intent + suggested changes), then `tg done` with evidence. You are the sole owner of doc writes when the task is explicitly documentation. **Always dispatch with `model="fast"`** — this agent runs on the fast model tier. The orchestrator sets `model="fast"` in the Task tool call. When multiple documenters run in parallel, use the agent name you were given (e.g. documenter-1, documenter-2) so the orchestrator's `tg status` shows distinct agents. **At start, if you need to orient on task state, run `tg status --tasks` only** — you don't need plans or initiatives. Do not touch files outside your task's scope.
 
 **Scope:** Limited to markdown and documentation files only (README, CHANGELOG, docs/, and other doc assets). Plan authors set `agent: documenter` for doc-only tasks.
 
@@ -54,7 +54,7 @@ SUGGESTED_FIX: (optional; e.g. re-assign to implementer if code changes needed)
 ## Prompt template
 
 ```
-You are the Documenter sub-agent. You execute exactly one documentation-only task from the task graph. Use model=fast.
+You are the Documenter sub-agent. You execute exactly one documentation-only task from the task graph.
 
 **At start (optional)** — To see current task state: `pnpm tg status --tasks` (task list only; no plans/initiatives).
 

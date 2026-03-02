@@ -11,6 +11,7 @@ import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { checkValidTransition } from "../domain/invariants";
 import { autoCompletePlanIfDone } from "../domain/plan-completion";
 import type { TaskStatus } from "../domain/types";
+import { getStatusCache } from "./status-cache";
 import {
   getStartedEventBranch,
   getStartedEventWorktree,
@@ -95,10 +96,6 @@ export function doneCommand(program: Command) {
     .option(
       "--tool-calls <n>",
       "Total tool call invocations (shell, read, write, etc.)",
-    )
-    .option(
-      "--attempt <n>",
-      "Which attempt this is (1 for first, 2 for first retry, etc.)",
     )
     .action(async (taskIds: string[], options, cmd) => {
       const ids = parseIdList(taskIds);
@@ -484,6 +481,7 @@ export function doneCommand(program: Command) {
         console.log(JSON.stringify(results));
       }
 
+      if (!anyFailed) getStatusCache().clear();
       if (anyFailed) process.exit(1);
     });
 }

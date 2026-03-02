@@ -10,6 +10,44 @@ const destructivePattern =
 
 const doltPath = () => process.env.DOLT_PATH || "dolt";
 
+/**
+ * Per-repo semaphore state for the execa path.
+ * Dolt's noms file storage doesn't support concurrent process access — parallel
+ * dolt processes fall back to attempting a TCP server connection (port 3306),
+ * which fails when no server is running. Serializing execa calls per-repo
+ * prevents the contention without touching the SQL server path (mysql2 handles
+ * concurrency natively).
+ */
+interface ExecaSemaphore {
+  running: number;
+  queue: Array<() => void>;
+}
+const execaSemaphores = new Map<string, ExecaSemaphore>();
+
+function acquireExecaSlot(repoPath: string): Promise<() => void> {
+  let sem = execaSemaphores.get(repoPath);
+  if (!sem) {
+    sem = { running: 0, queue: [] };
+    execaSemaphores.set(repoPath, sem);
+  }
+  const s = sem;
+  return new Promise((resolve) => {
+    const tryAcquire = () => {
+      if (s.running === 0) {
+        s.running++;
+        resolve(() => {
+          s.running--;
+          const next = s.queue.shift();
+          if (next) next();
+        });
+      } else {
+        s.queue.push(tryAcquire);
+      }
+    };
+    tryAcquire();
+  });
+}
+
 const SERVER_PORT_ENV = "TG_DOLT_SERVER_PORT";
 const SERVER_HOST_ENV = "TG_DOLT_SERVER_HOST";
 
@@ -156,17 +194,19 @@ export function doltSql(
       );
     }
     return ResultAsync.fromPromise(
-      execa(
-        doltPath(),
-        ["--data-dir", repoPath, "sql", "-q", query, "-r", "json"],
-        {
-          cwd: repoPath,
-          env: {
-            ...process.env,
-            DOLT_READ_ONLY: "false",
-            DOLT_DISABLE_UPDATE_CHECK: "1",
+      acquireExecaSlot(repoPath).then((release) =>
+        execa(
+          doltPath(),
+          ["--data-dir", repoPath, "sql", "-q", query, "-r", "json"],
+          {
+            cwd: repoPath,
+            env: {
+              ...process.env,
+              DOLT_READ_ONLY: "false",
+              DOLT_DISABLE_UPDATE_CHECK: "1",
+            },
           },
-        },
+        ).finally(release),
       ),
       (e) =>
         buildError(

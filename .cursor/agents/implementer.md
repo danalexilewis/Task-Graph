@@ -4,7 +4,7 @@
 
 ## Purpose
 
-Execute a single task from the task graph. You run `tg start`, do the todos within the scope of the task (intent + suggested changes), then `tg done` with evidence. You are always dispatched with `model="fast"`. When multiple implementers run in parallel, use the agent name you were given (e.g. implementer-1, implementer-2) so the orchestrator's `tg status` shows distinct agents. **At start, if you need to orient on task state, run `tg status --tasks` only** — you don't need plans or initiatives. Do not touch files outside your task's scope.
+Execute a single task from the task graph. You run `tg start`, do the todos within the scope of the task (intent + suggested changes), then `tg done` with evidence. **Always dispatch with `model="fast"`** — this agent runs on the fast model tier. The orchestrator sets `model="fast"` in the Task tool call. When multiple implementers run in parallel, use the agent name you were given (e.g. implementer-1, implementer-2) so the orchestrator's `tg status` shows distinct agents. **At start, if you need to orient on task state, run `tg status --tasks` only** — you don't need plans or initiatives. Do not touch files outside your task's scope.
 
 **Scope exclusion:** Do not write or edit documentation files (README, CHANGELOG, docs/). If the task requires documentation changes, note it in your completion or `tg note` for the orchestrator; do not do it yourself.
 
@@ -38,25 +38,23 @@ The orchestrator must pass:
 
 - Run `tg done <taskId> --evidence "..."` with a short evidence string (commands run, git ref, or implemented; no test run).
 - Return a brief completion message to the orchestrator (e.g. "Task X done. Evidence: ...").
-- **Self-report (optional):** If your environment exposes token usage, pass it to `tg done`:
+- **Self-report (optional):** If your environment exposes token usage, pass it to `tg done`.
 
 ### Benchmark runs
 
-**Self-report checklist for benchmark-run tasks:**
+For benchmark-run tasks (when the task or plan represents a benchmark), include self-report flags with `tg done` to standardize performance reporting across runs.
 
-- [ ] Include `--tokens-in <n>` — input tokens for this session
-- [ ] Include `--tokens-out <n>` — output tokens generated
-- [ ] Include `--tool-calls <n>` — total tool calls made
-- [ ] Include `--attempt <n>` — attempt number (1 for first attempt, etc.)
+**Self-report checklist:**
 
-- For benchmark-run tasks (when the task or plan represents a benchmark), implementers SHOULD include the self-report flags (`--tokens-in`, `--tokens-out`, `--tool-calls`, `--attempt`) with `tg done` to standardize performance reporting across runs.
+- [ ] `--tokens-in <n>` — input tokens for this session
+- [ ] `--tokens-out <n>` — output tokens generated
+- [ ] `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
+- [ ] `--attempt <n>` — attempt number (1 for first attempt, 2 after a reviewer FAIL, etc.)
 
-  - `--tokens-in <n>` — input tokens for this session
-  - `--tokens-out <n>` — output tokens generated
-  - `--tool-calls <n>` — total tool calls made (shell, read, write, grep, etc.)
-  - `--attempt <n>` — 1 for first attempt, 2 after a reviewer FAIL, etc.
-  - All flags are optional; omit if unavailable. Do not spend effort estimating.
-  - Example (from `{{REPO_PATH}}`): `pnpm tg done tg-xxxx --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1`
+All flags are optional; omit if unavailable. Do not spend effort estimating.
+
+Example: `pnpm tg done tg-xxxx --evidence "implemented X" --tokens-in 14200 --tokens-out 3800 --tool-calls 52 --attempt 1`
+
 - If you hit environment or gate issues you could not fix (e.g. missing tool, typecheck failure in another area), run `tg note <taskId> --msg "..."` so the orchestrator can decide whether to create follow-up tasks.
 
 **Structured failure output (when you cannot complete the task):**  
@@ -75,7 +73,7 @@ SUGGESTED_FIX: (optional; what to do next, e.g. run gate:full, fix dependency, o
 ## Prompt template
 
 ```
-You are the Implementer sub-agent. You execute exactly one task from the task graph. Use model=fast.
+You are the Implementer sub-agent. You execute exactly one task from the task graph.
 
 **At start (optional)** — To see current task state: `pnpm tg status --tasks` (task list only; no plans/initiatives).
 

@@ -74,24 +74,24 @@ From focus + hypotheses + investigation areas:
 - **Plan** — One short name and 1–2 sentence scope (e.g. "Investigation: Status dashboard and Dolt events — understand failures and remaining work").
 - **Tasks** — A list of **investigation tasks** (not implementation yet). Each task = one tactical directive you will give to the reviewer (e.g. "Investigate status command: entrypoints, fetchStatusData and live path, and where Dolt is called for events").
 
-Keep this draft plan and task list; you will refine it after the investigator returns.
+Keep this draft plan and task list; you will refine it after the reviewer returns.
 
-## Step 4 — Dispatch investigator only
+## Step 4 — Dispatch reviewer only
 
 For each investigation task:
 
 1. Build a **tactical directive** (what to investigate: files, function chains, ASTs, stack traces, architecture, schemas, API facades — only what’s relevant).
 2. Optionally add **scope** (paths/modules) and **context** (one line: why we’re investigating this).
-3. Call **only** the **investigator** sub-agent (read-only). Use the prompt template from `.cursor/agents/investigator.md`: `{{DIRECTIVE}}`, `{{SCOPE}}`, `{{CONTEXT}}`.
+3. Call **only** the **reviewer** sub-agent in **research mode** (read-only, `readonly=true`). Use the research-mode prompt template from `.cursor/agents/reviewer.md`: `{{DIRECTIVE}}`, `{{SCOPE}}`, `{{CONTEXT}}`.
 4. Do **not** call planner-analyst, implementer, or other sub-agents in this skill.
 
-You may batch up to a few directives in one investigator run (e.g. "Investigate (a) status CLI and live path, (b) event table and insert flow") if they’re closely related; otherwise one run per directive is fine.
+You may batch up to a few directives in one reviewer run (e.g. "Investigate (a) status CLI and live path, (b) event table and insert flow") if they’re closely related; otherwise one run per directive is fine.
 
 ## Step 5 — Synthesize and finalize
 
-- Merge the **investigator’s findings** (files and roles, function chains, risks, suggested follow-up tasks) into your draft.
+- Merge the **reviewer’s findings** (files and roles, function chains, risks, suggested follow-up tasks) into your draft.
 - **Finalize the plan**: same or updated name and scope.
-- **Finalize the task list**: turn the investigator’s "Suggested follow-up tasks" into concrete tasks; add any tasks you inferred from findings (e.g. "Fix event insert for tg done", "Add test for status --projects when Dolt read-only").
+- **Finalize the task list**: turn the reviewer’s "Suggested follow-up tasks" into concrete tasks; add any tasks you inferred from findings (e.g. "Fix event insert for tg done", "Add test for status --projects when Dolt read-only").
 - Present to the user: **Plan** (name + scope), **Tasks** (short titles + optional one-line intent), and **Summary** (what was investigated and what the next steps are).
 
 ## Output format

@@ -12,6 +12,13 @@ See `.cursor/rules/memory.mdc` for the learnings routing system.
 - **`pnpm tg` commands CANNOT run from Worktrunk worktrees** — worktrees are sibling dirs (`Repo.tg-abc123`) with no `dist/`, `node_modules/`, or `.taskgraph/`. `readConfig()` uses `process.cwd()` with no directory walking. All `pnpm tg` CLI commands (note, done, status, context) must run from the main repo root. Only file editing and `git add/commit` happen in the worktree.
 - **`tg done` reads worktree path from DB** — it derives the repo root from the stored `worktree_path` (strips `.tg-abc123` suffix), so it works correctly when called from the main repo root. The old "CRITICAL — run from worktree" rule was wrong for Worktrunk.
 
+## Meta skill — crossplan analysis tips
+
+- **Startup sequence (saves N per-plan lookups):** `pnpm tg server start` (if down) → `pnpm tg status --projects` → `pnpm tg next --json --limit 50` (all runnable IDs upfront) → `pnpm tg crossplan summary --json > /tmp/crossplan.json`
+- **`crossplan summary --json` keys:** `domains`, `skills`, `files`, `proposed_edges`. Files array has `plan_count`/`plan_titles`; proposed_edges are mechanical file-overlap pairs (4000+ in a mature graph — too noisy to act on directly).
+- **File name noise:** `files` entries sometimes contain tree diagram prefixes (`│   └──`) — filter/ignore these.
+- **Best signal:** Reason about plan _intent and sequence_ rather than the proposed_edges list. Actionable patterns: gate:full readiness, CLI surface changes → downstream benchmarks/doc-reviews, execution tier ordering.
+
 ## Active quirks
 
 - **`status-live --json` tests (3) failing in gate:full** — `parseAsync + closeAllServerPools + process.exit(0)` in `src/cli/index.ts` may race with stdout flush when output is piped. Investigate before declaring gate green. Try `process.exitCode = 0` + natural drain instead of `process.exit(0)`.

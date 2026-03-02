@@ -1,9 +1,11 @@
 /**
  * CLI for agent-context: collect (spawn collector), query (spawn query script), status (one-shot last 5 min).
  * Spawns Bun scripts; wraps subprocess errors in AppError and uses standard CLI error handling.
+ * If the scripts are missing, fails with a clear "not implemented" message (see docs/agent-context.md).
  */
 
 import { spawn } from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import type { Command } from "commander";
 import { execa } from "execa";
@@ -15,6 +17,16 @@ import { type Config, readConfig, rootOpts } from "./utils";
 const DEFAULT_AGENT_CONTEXT_DB = ".taskgraph/agent_context.db";
 const COLLECT_SCRIPT = "scripts/collect-agent-events.ts";
 const QUERY_SCRIPT = "scripts/query-agent-events.ts";
+
+const AGENT_CONTEXT_NOT_IMPLEMENTED =
+  "Agent context is not implemented: the collector and query scripts are required but were not found. " +
+  "Add scripts/collect-agent-events.ts and scripts/query-agent-events.ts per docs/agent-context.md and plans/26-03-01_agent_context_sync.md. " +
+  "Agent hours and Total Agent Invocations come from the Dolt event table only; see docs/performance.md.";
+
+function scriptsMissing(which: "collect" | "query"): boolean {
+  const script = which === "collect" ? COLLECT_SCRIPT : QUERY_SCRIPT;
+  return !fs.existsSync(path.join(process.cwd(), script));
+}
 
 function getAgentContextDbPath(config: Config): string {
   const raw = config.agentContextDbPath ?? DEFAULT_AGENT_CONTEXT_DB;
@@ -125,6 +137,10 @@ export function agentContextCommand(program: Command) {
     .command("collect")
     .description("Start the agent events collector (foreground)")
     .action(async () => {
+      if (scriptsMissing("collect")) {
+        console.error(AGENT_CONTEXT_NOT_IMPLEMENTED);
+        process.exit(1);
+      }
       const configResult = readConfig();
       if (configResult.isErr()) {
         console.error(configResult.error.message);
@@ -151,6 +167,10 @@ export function agentContextCommand(program: Command) {
     .option("--task <id>", "Filter by task ID")
     .option("--limit <n>", "Max events to return", parseInt, 100)
     .action(async (opts, cmd) => {
+      if (scriptsMissing("query")) {
+        console.error(AGENT_CONTEXT_NOT_IMPLEMENTED);
+        process.exit(1);
+      }
       const configResult = readConfig();
       if (configResult.isErr()) {
         console.error(configResult.error.message);
@@ -197,6 +217,10 @@ export function agentContextCommand(program: Command) {
       "One-shot: events per agent in last 5 min, most recent per agent",
     )
     .action(async (_opts, cmd) => {
+      if (scriptsMissing("query")) {
+        console.error(AGENT_CONTEXT_NOT_IMPLEMENTED);
+        process.exit(1);
+      }
       const configResult = readConfig();
       if (configResult.isErr()) {
         console.error(configResult.error.message);

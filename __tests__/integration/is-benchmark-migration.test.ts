@@ -18,7 +18,8 @@ describe.serial("is_benchmark migration", () => {
     const result = await q.raw<{ cnt: number }>(
       `SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'task' AND COLUMN_NAME = 'is_benchmark'`,
     );
-    expect(result[0].cnt).toBeGreaterThan(0);
+    expect(result.isOk()).toBe(true);
+    expect(Number(result._unsafeUnwrap()[0]?.cnt ?? 0)).toBeGreaterThan(0);
   });
 
   it("adds is_benchmark column to project table after migrations", async () => {
@@ -26,6 +27,7 @@ describe.serial("is_benchmark migration", () => {
     const result = await q.raw<{ cnt: number }>(
       `SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'project' AND COLUMN_NAME = 'is_benchmark'`,
     );
-    expect(result[0].cnt).toBeGreaterThan(0);
+    expect(result.isOk()).toBe(true);
+    expect(Number(result._unsafeUnwrap()[0]?.cnt ?? 0)).toBeGreaterThan(0);
   });
 });

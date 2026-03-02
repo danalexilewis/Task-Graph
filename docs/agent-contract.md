@@ -34,7 +34,7 @@ The agent's primary interaction loop is designed to pick up the next runnable ta
 1.  **Select Next Task**: Always begin by querying for runnable tasks and selecting the top priority one.
 
     ```bash
-    tg next --limit 20
+    tg next --limit 8
     ```
 
     The agent should choose the highest priority task from the list that is currently in `todo` status and has no unmet blockers.

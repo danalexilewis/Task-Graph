@@ -1,9 +1,11 @@
-import { spawnSync } from "child_process";
-import path from "path";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 
 test("run-benchmark smoke", () => {
   const scriptPath = path.resolve(__dirname, "../scripts/run-benchmark.ts");
-  const result = spawnSync("bun", [scriptPath, "echo hello"], { encoding: "utf-8" });
+  const result = spawnSync("bun", [scriptPath, "echo hello"], {
+    encoding: "utf-8",
+  });
   expect(result.status).toBe(0);
   const data = JSON.parse(result.stdout);
   expect(Array.isArray(data)).toBe(true);

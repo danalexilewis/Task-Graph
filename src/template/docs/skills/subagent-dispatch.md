@@ -26,7 +26,7 @@ Execute task-graph work by dispatching fast sub-agents (Cursor Task tool with `m
 
 ## Steps (parallel batch)
 
-1. `tg next --plan "<Plan>" --json --limit 20`
+1. `tg next --plan "<Plan>" --json --limit 8`
 2. Keep only tasks that do not share files (file_tree/suggested_changes). Do not cap the batch size — Cursor decides concurrency.
 3. For each task: `tg context <taskId> --json`; build implementer prompt from `.cursor/agents/implementer.md` placeholders.
 4. Dispatch all tasks in the batch in the same turn (one Task call per task). Agent names implementer-1, implementer-2, …

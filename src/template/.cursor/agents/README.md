@@ -64,7 +64,7 @@ Example:
 
 ## How dispatch works
 
-1. Orchestrator runs `tg next --json --limit 20` to get unblocked tasks.
+1. Orchestrator runs `tg next --json --limit 8` to get unblocked tasks.
 2. For each task, orchestrator runs `tg context <taskId> --json` and optionally runs the explorer.
 3. Orchestrator reads the appropriate agent template (e.g. `implementer.md`), replaces placeholders with the task's context.
 4. Orchestrator calls the Task tool: `Task(description="...", prompt=<interpolated prompt>, model="fast")`.

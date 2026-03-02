@@ -19,7 +19,7 @@ Agent operating loop
 **Task orchestration UI**: You MUST call TodoWrite with the task list from tg next before dispatching sub-agents (this triggers Cursor's orchestration panel). Update TodoWrite statuses as tasks complete. When dispatching a batch of N tasks, emit N Task (or mcp_task) calls in the same turn. See .cursor/rules/subagent-dispatch.mdc for the full protocol.
 
 - Always begin with: tg status to orient — surface stale tasks, plan state, and other agents' active work (if any).
-- Then: tg next --plan "<Plan>" --limit 20 (or tg next --limit 20). Get runnable tasks; include all that don't share files. Follow Pattern 1 (parallel batch) or Pattern 2 (sequential) in subagent-dispatch.mdc. Cursor decides concurrency.
+- Then: tg next --plan "<Plan>" --limit 8 (or tg next --limit 8). Get runnable tasks; include all that don't share files. Follow Pattern 1 (parallel batch) or Pattern 2 (sequential) in subagent-dispatch.mdc. Cursor decides concurrency.
 - For each task: build implementer prompt from tg context and `.cursor/agents/implementer.md`; dispatch implementer (Task tool, agent CLI, or mcp_task per subagent-dispatch). After implementer completes, dispatch reviewer with task context + diff; if FAIL, re-dispatch implementer once; after 2 failures, do that task yourself.
 - Sub-agents run tg start and tg done; you coordinate. Do not run tg start / tg done yourself for a task you delegated.
 - Evidence (tests run, commands, git ref) is supplied by the implementer in tg done; you verify via reviewer.

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { doltCommit } from "../db/commit";
 import { jsonObj, now, query } from "../db/query";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
+import { getStatusCache } from "./status-cache";
 import { parseIdList, readConfig, resolveTaskId } from "./utils";
 
 type NoteResult =
@@ -115,6 +116,7 @@ export function noteCommand(program: Command) {
         console.log(JSON.stringify(results));
       }
 
+      if (!anyFailed) getStatusCache().clear();
       if (anyFailed) process.exit(1);
     });
 }

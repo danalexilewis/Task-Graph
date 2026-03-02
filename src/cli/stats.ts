@@ -60,6 +60,12 @@ interface TokenRow {
   total_tokens_out: number | null;
 }
 
+interface RecoveryRow {
+  plans_with_failures: number;
+  plans_recovered: number;
+  fix_rate_pct: number | null;
+}
+
 function formatDuration(seconds: number | null): string {
   if (seconds == null) return "—";
   const s = Math.round(Number(seconds));
@@ -84,16 +90,14 @@ export function statsCommand(program: Command) {
     .description(
       "Derive agent metrics from event data: tasks completed, review pass/fail counts, average elapsed time per task",
     )
-      .option("--agent <name>", "Filter by agent name")
-      .option('--benchmark <benchmark>', 'Filter by benchmark')
+    .option("--agent <name>", "Filter by agent name")
     .option(
       "--plan <planId>",
       "Show per-task elapsed table and plan summary for a specific plan",
     )
     .option("--timeline", "Show cross-plan execution history sorted by date")
-    .option("--recovery", "Include recovery metrics: investigator fix rate")
-    .option("--benchmark <benchmark>", "Filter to benchmark plans (only include projects where is_benchmark = 1)")
     .option("--benchmark", "Filter benchmark projects")
+    .option("--recovery", "Include recovery metrics: investigator fix rate")
     .action(async (options, cmd) => {
       const configResult = readConfig();
       if (configResult.isErr()) {
@@ -106,11 +110,92 @@ export function statsCommand(program: Command) {
       const filterSql = benchmark ? "AND p.is_benchmark = 1" : "";
       const q = query(config.doltRepoPath);
 
+      // --benchmark alone (without --timeline or --plan) implies timeline mode
+      if (benchmark && !options.timeline && options.plan == null) {
+        options.timeline = true;
+      }
+
+      // --recovery mode: show investigator fix rate
+      if (options.recovery) {
+        const benchmarkFilter = benchmark
+          ? "JOIN project bp ON bp.plan_id = t.plan_id AND bp.is_benchmark = 1"
+          : "";
+        const recoverySql = `
+          SELECT
+            COUNT(DISTINCT gf.plan_id) AS plans_with_failures,
+            COUNT(DISTINCT gp.plan_id) AS plans_recovered,
+            CASE
+              WHEN COUNT(DISTINCT gf.plan_id) = 0 THEN NULL
+              ELSE ROUND(COUNT(DISTINCT gp.plan_id) * 100.0 / COUNT(DISTINCT gf.plan_id), 1)
+            END AS fix_rate_pct
+          FROM (
+            SELECT DISTINCT t.plan_id
+            FROM task t
+            ${benchmarkFilter}
+            JOIN event e ON e.task_id = t.task_id AND e.kind = 'done'
+            WHERE JSON_UNQUOTE(JSON_EXTRACT(e.body, '$.evidence')) LIKE '%gate:full failed%'
+          ) gf
+          LEFT JOIN (
+            SELECT DISTINCT t.plan_id
+            FROM task t
+            JOIN event e ON e.task_id = t.task_id AND e.kind = 'done'
+            WHERE JSON_UNQUOTE(JSON_EXTRACT(e.body, '$.evidence')) LIKE '%gate:full passed%'
+          ) gp ON gp.plan_id = gf.plan_id
+        `;
+        const recoveryResult = await q.raw<RecoveryRow>(recoverySql);
+        recoveryResult.match(
+          (rows) => {
+            const r = rows[0] ?? {
+              plans_with_failures: 0,
+              plans_recovered: 0,
+              fix_rate_pct: null,
+            };
+            const failCount = Number(r.plans_with_failures);
+            const fixedCount = Number(r.plans_recovered);
+            const fixRatePct =
+              r.fix_rate_pct != null ? Number(r.fix_rate_pct) : null;
+            if (json) {
+              console.log(
+                JSON.stringify(
+                  {
+                    plans_with_failures: failCount,
+                    plans_recovered: fixedCount,
+                    fix_rate_pct: fixRatePct,
+                  },
+                  null,
+                  2,
+                ),
+              );
+              return;
+            }
+            const fixRateStr =
+              fixRatePct != null ? `${fixRatePct.toFixed(1)}%` : "N/A";
+            console.log("Recovery Metrics (Investigator Fix Rate):");
+            console.log(`  Plans with gate:full failures:   ${failCount}`);
+            console.log(`  Plans recovered by investigator: ${fixedCount}`);
+            console.log(`  Fix rate:                        ${fixRateStr}`);
+          },
+          (e: AppError) => {
+            console.error(`Error fetching recovery stats: ${e.message}`);
+            if (json)
+              console.log(
+                JSON.stringify({
+                  status: "error",
+                  code: e.code,
+                  message: e.message,
+                }),
+              );
+            process.exit(1);
+          },
+        );
+        return;
+      }
+
       // --timeline mode: show cross-plan history
       if (options.timeline) {
         const tableName = "project";
-        const filterSql = benchmark ? "WHERE p.is_benchmark = 1" : "";
-        let timelineSql = `
+        const benchmarkWhere = benchmark ? "WHERE p.is_benchmark = 1" : "";
+        const timelineSql = `
           SELECT
             p.plan_id,
             p.title,
@@ -124,13 +209,10 @@ export function statsCommand(program: Command) {
           LEFT JOIN task t ON t.plan_id = p.plan_id
           LEFT JOIN event e_start ON e_start.task_id = t.task_id AND e_start.kind = 'started'
           LEFT JOIN event e_done  ON e_done.task_id  = t.task_id AND e_done.kind  = 'done'
+          ${benchmarkWhere}
           GROUP BY p.plan_id, p.title, p.status
           ORDER BY started_at DESC
         `;
-
-        if (options.benchmark) {
-          timelineSql = timelineSql.replace(`FROM \`${tableName}\` p`, `FROM \`${tableName}\` p WHERE p.is_benchmark = 1`);
-        }
         const timelineResult = await q.raw<TimelineRow>(timelineSql);
         timelineResult.match(
           (rows) => {
@@ -202,7 +284,7 @@ export function statsCommand(program: Command) {
           /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/i.test(
             options.plan,
           );
-        let planCondition = isUUID
+        const planCondition = isUUID
           ? `p.plan_id = '${planRaw}'`
           : `p.title = '${planRaw}'`;
         const tableName = "project";
@@ -247,22 +329,23 @@ export function statsCommand(program: Command) {
                 const summary = summaryRows[0];
 
                 if (json) {
-                  const planSummary = summary
-                    ? {
-                        title: summary.title,
-                        plan_started_at: summary.plan_started_at ?? null,
-                        plan_done_at: summary.plan_done_at ?? null,
-                        total_elapsed_s:
-                          summary.total_elapsed_s != null
-                            ? Number(summary.total_elapsed_s)
-                            : null,
-                        task_count: Number(summary.task_count),
-                        velocity: formatVelocity(
-                          Number(summary.task_count),
-                          summary.total_elapsed_s,
-                        ),
-                      }
-                    : null;
+                  const planSummary =
+                    summary && summary.title != null
+                      ? {
+                          title: summary.title,
+                          plan_started_at: summary.plan_started_at ?? null,
+                          plan_done_at: summary.plan_done_at ?? null,
+                          total_elapsed_s:
+                            summary.total_elapsed_s != null
+                              ? Number(summary.total_elapsed_s)
+                              : null,
+                          task_count: Number(summary.task_count),
+                          velocity: formatVelocity(
+                            Number(summary.task_count),
+                            summary.total_elapsed_s,
+                          ),
+                        }
+                      : null;
                   const tasks = taskRows.map((r) => ({
                     hash_id: r.hash_id,
                     title: r.title,
@@ -277,8 +360,14 @@ export function statsCommand(program: Command) {
                   return;
                 }
 
-                if (!summary) {
-                  console.log(`No data found for plan: ${options.plan}`);
+                if (!summary || summary.title == null) {
+                  if (benchmark) {
+                    console.log(
+                      `Plan is not marked as benchmark: ${options.plan}`,
+                    );
+                  } else {
+                    console.log(`No data found for plan: ${options.plan}`);
+                  }
                   return;
                 }
 
@@ -532,43 +621,7 @@ export function statsCommand(program: Command) {
                         };
                         if (tokenUsage.length > 0)
                           result.token_usage = tokenUsage;
-                        if (options.recovery) {
-            const recoverySql = `
-              SELECT
-                SUM(CASE WHEN had_failure THEN 1 ELSE 0 END) AS plans_with_failure,
-                SUM(CASE WHEN fixed THEN 1 ELSE 0 END) AS plans_fixed
-              FROM (
-                SELECT
-                  p.plan_id,
-                  MAX(CASE WHEN body LIKE '%gate:full failed%' THEN 1 ELSE 0 END) = 1 AS had_failure,
-                  MAX(CASE WHEN body LIKE '%gate:full passed%' THEN 1 ELSE 0 END) = 1 AS fixed
-                FROM project p
-                JOIN task t ON t.plan_id = p.plan_id
-                JOIN event e ON e.task_id = t.task_id AND e.kind = 'done'
-                WHERE t.title RLIKE 'run[ -]?full[ -]?suite|gate:full'
-                GROUP BY p.plan_id
-              ) x
-            `;
-            const recoveryResult = await q.raw<{plans_with_failure: number; plans_fixed: number;}>(recoverySql);
-            recoveryResult.match(
-              (rows) => {
-                const stats = rows[0];
-                result.recovery = {
-                  plans_with_failure: Number(stats.plans_with_failure),
-                  plans_fixed: Number(stats.plans_fixed),
-                  fix_rate: stats.plans_with_failure > 0 ? Number(stats.plans_fixed) / Number(stats.plans_with_failure) : null,
-                };
-              },
-              (e: AppError) => {
-                console.error(`Error fetching recovery stats: ${e.message}`);
-                if (json) {
-                  console.log(JSON.stringify({ status: "error", code: e.code, message: e.message }, null, 2));
-                }
-                process.exit(1);
-              },
-            );
-          }
-          console.log(JSON.stringify(result, null, 2));
+                        console.log(JSON.stringify(result, null, 2));
                       } else {
                         if (out.length === 0) {
                           console.log(
@@ -651,14 +704,6 @@ export function statsCommand(program: Command) {
                 status: "error",
                 code: e.code,
                 message: e.message,
-              }),
-            );
-          process.exit(1);
-        },
-      );
-    });
-}
-ssage: e.message,
               }),
             );
           process.exit(1);

@@ -14,6 +14,8 @@ export interface TableOptions {
   flexColumnIndex?: number;
   /** Maximum column widths (indexed by column). Use undefined for no cap. */
   maxWidths?: (number | undefined)[];
+  /** When true, no visible borders (empty chars); table still aligns columns and uses full width. */
+  borderVisible?: boolean;
 }
 
 /**
@@ -31,13 +33,14 @@ export function renderTable(opts: TableOptions): string {
     minWidths = [],
     flexColumnIndex = 0,
     maxWidths = [],
+    borderVisible = true,
   } = opts;
   const colCount = headers.length;
 
-  // Table width = content + padding on both sides of each cell + vertical bars.
+  // Table width = content + padding on both sides of each cell + vertical bars (if visible).
   // cli-table3 colWidths = content + 2 (1 left + 1 right padding per cell).
-  // Total rendered = sum(colWidths) + (colCount + 1) vertical bars (left, between, right).
-  const borders = colCount + 1;
+  // Total rendered = sum(colWidths) + (colCount + 1) vertical bars when borderVisible.
+  const borders = borderVisible ? colCount + 1 : 0;
   const cellPaddingTotal = colCount * 2;
 
   const available = Math.max(colCount * 3, maxWidth - borders);
@@ -153,8 +156,26 @@ export function renderTable(opts: TableOptions): string {
   // cli-table3 colWidths include padding
   const tableColWidths = contentWidths.map((w) => w + 2);
 
+  const emptyBorderChars = {
+    top: "",
+    "top-mid": "",
+    "top-left": "",
+    "top-right": "",
+    bottom: "",
+    "bottom-mid": "",
+    "bottom-left": "",
+    "bottom-right": "",
+    left: "",
+    "left-mid": "",
+    mid: "",
+    "mid-mid": "",
+    right: "",
+    "right-mid": "",
+    middle: "",
+  };
+
   const table = new Table({
-    head: headers.map((h) => chalk.yellow(h)),
+    head: headers.map((h) => (borderVisible ? chalk.yellow(h) : h)),
     colWidths: tableColWidths,
     wordWrap: true,
     style: {
@@ -162,23 +183,25 @@ export function renderTable(opts: TableOptions): string {
       border: ["gray"],
       compact: false,
     },
-    chars: {
-      top: "─",
-      "top-mid": "┬",
-      "top-left": "┌",
-      "top-right": "┐",
-      bottom: "─",
-      "bottom-mid": "┴",
-      "bottom-left": "└",
-      "bottom-right": "┘",
-      left: "│",
-      "left-mid": "├",
-      mid: "─",
-      "mid-mid": "┼",
-      right: "│",
-      "right-mid": "┤",
-      middle: "│",
-    },
+    chars: borderVisible
+      ? {
+          top: "─",
+          "top-mid": "┬",
+          "top-left": "┌",
+          "top-right": "┐",
+          bottom: "─",
+          "bottom-mid": "┴",
+          "bottom-left": "└",
+          "bottom-right": "┘",
+          left: "│",
+          "left-mid": "├",
+          mid: "─",
+          "mid-mid": "┼",
+          right: "│",
+          "right-mid": "┤",
+          middle: "│",
+        }
+      : emptyBorderChars,
   });
 
   for (const row of rows) {

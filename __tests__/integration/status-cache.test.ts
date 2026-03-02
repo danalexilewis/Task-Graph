@@ -6,18 +6,15 @@ import {
   expect,
   it,
 } from "bun:test";
-import { QueryCache } from "../../src/db/cache";
+import { fetchStatusData } from "../../src/cli/status";
 import {
   resetSchemaFlagsCache,
   resetStatusCache,
   statusCacheTtlMs,
 } from "../../src/cli/status-cache";
-import { fetchStatusData } from "../../src/cli/status";
+import { QueryCache } from "../../src/db/cache";
 import type { IntegrationTestContext } from "./test-utils";
-import {
-  setupIntegrationTest,
-  teardownIntegrationTest,
-} from "./test-utils";
+import { setupIntegrationTest, teardownIntegrationTest } from "./test-utils";
 
 // ─── Group 1: Cache hit ───────────────────────────────────────────────────────
 
@@ -44,13 +41,12 @@ describe.serial(
       const config = { doltRepoPath: context.doltRepoPath };
       const cache = new QueryCache();
 
-      await fetchStatusData(config, {}, cache)
-        .match(
-          () => {},
-          (e) => {
-            throw new Error(String(e));
-          },
-        );
+      await fetchStatusData(config, {}, cache).match(
+        () => {},
+        (e) => {
+          throw new Error(String(e));
+        },
+      );
 
       expect(cache.size).toBeGreaterThan(0);
     });
@@ -110,13 +106,12 @@ describe.serial(
       const cache = new QueryCache();
 
       // First fetch: populates the cache.
-      await fetchStatusData(config, {}, cache)
-        .match(
-          () => {},
-          (e) => {
-            throw new Error(String(e));
-          },
-        );
+      await fetchStatusData(config, {}, cache).match(
+        () => {},
+        (e) => {
+          throw new Error(String(e));
+        },
+      );
       expect(cache.size).toBeGreaterThan(0);
 
       // Simulate what write commands do (tg start, tg done, etc.).
@@ -124,13 +119,12 @@ describe.serial(
       expect(cache.size).toBe(0);
 
       // Next fetch repopulates from DB.
-      await fetchStatusData(config, {}, cache)
-        .match(
-          () => {},
-          (e) => {
-            throw new Error(String(e));
-          },
-        );
+      await fetchStatusData(config, {}, cache).match(
+        () => {},
+        (e) => {
+          throw new Error(String(e));
+        },
+      );
       expect(cache.size).toBeGreaterThan(0);
     });
   },

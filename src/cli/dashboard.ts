@@ -9,7 +9,7 @@ import {
   formatDashboardProjectsView,
   formatDashboardTasksView,
   formatStatusAsString,
-  getDashboardFooterLine,
+  getDashboardFooterBox,
   type StatusOptions,
   type StatusViewMode,
 } from "./status";
@@ -134,7 +134,7 @@ function runLiveFallbackDashboardTasks(
               write(
                 formatDashboardTasksView(d, activeRows, w) +
                   "\n\n" +
-                  getDashboardFooterLine(d),
+                  getDashboardFooterBox(d, w),
               );
               timer = setInterval(async () => {
                 const r = await readConfig().asyncAndThen((c: Config) =>
@@ -152,7 +152,7 @@ function runLiveFallbackDashboardTasks(
                         getTerminalWidth(),
                       ) +
                         "\n\n" +
-                        getDashboardFooterLine(data),
+                        getDashboardFooterBox(data, getTerminalWidth()),
                     );
                   },
                   () => {},
@@ -204,7 +204,7 @@ function runLiveFallbackDashboardProjects(
         (d) => {
           const w = getTerminalWidth();
           write(
-            `${formatDashboardProjectsView(d, w)}\n\n${getDashboardFooterLine(d)}`,
+            `${formatDashboardProjectsView(d, w)}\n\n${getDashboardFooterBox(d, w)}`,
           );
           timer = setInterval(async () => {
             const r = await readConfig().asyncAndThen((c: Config) =>
@@ -215,7 +215,7 @@ function runLiveFallbackDashboardProjects(
                 write(
                   formatDashboardProjectsView(data, getTerminalWidth()) +
                     "\n\n" +
-                    getDashboardFooterLine(data),
+                    getDashboardFooterBox(data, getTerminalWidth()),
                 );
               },
               () => {},

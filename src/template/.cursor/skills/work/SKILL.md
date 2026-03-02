@@ -64,7 +64,7 @@ When executing tasks from tg, **always structure work so Cursor surfaces the "Ta
 
 **Before each batch:**
 
-1. Get runnable tasks: `tg next [--plan <planId>] --json --limit 20` (feed all; Cursor decides concurrency)
+1. Get runnable tasks: `tg next [--plan <planId>] --json --limit 8` (feed all; Cursor decides concurrency)
 2. **Call TodoWrite with the task list** (see subagent-dispatch.mdc TodoWrite protocol) — pass the tasks from step 1 before dispatching any sub-agents. TodoWrite is the progress report for the orchestration panel; it surfaces the batch in Cursor's "Task orchestration for autonomous execution" UI.
 3. Keep `.cursor/agents/implementer.md` in context when starting the loop — the orchestration panel is often tied to that agent context.
 4. Dispatch sub-agents via the Task tool or mcp_task; **emit all Task/mcp_task calls for the current batch in the same turn** so the batch runs as intended. Cursor will populate the orchestration panel with task status as work progresses.
@@ -79,7 +79,7 @@ When executing tasks from tg, **always structure work so Cursor surfaces the "Ta
    pnpm tg import plans/<filename> --plan "<Plan Name>" --format cursor
    ```
    Use the plan's filename and the exact `name` from its frontmatter. If the plan is already imported, the command will still succeed (upsert behavior).
-3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 20` so work focuses on that plan's tasks first. Otherwise proceed in multi-plan mode (see below).
+3. **Scope the run (optional)** — If you imported or identified a single plan to run, use it for the loop: `tg next --plan "<Plan Name>" --json --limit 8` so work focuses on that plan's tasks first. Otherwise proceed in multi-plan mode (see below).
 
 If no plan is indicated by context or the user, skip import and use multi-plan mode.
 
@@ -87,7 +87,7 @@ If no plan is indicated by context or the user, skip import and use multi-plan m
 
 ```
 while true:
-  1. tasks = tg next [--plan <planId|planName>] --json --limit 20
+  1. tasks = tg next [--plan <planId|planName>] --json --limit 8
   2. if tasks is empty → plan complete, report summary, stop
   3. batch = all non-conflicting tasks from tasks (no file overlap); do not cap size — Cursor decides concurrency
   4. TodoWrite with the task list (from step 1) before dispatching — this is the orchestration panel progress report.
@@ -156,7 +156,7 @@ At the end of the loop (plan complete or all tasks done), emit a full summary:
 
 ## Multi-Plan Mode
 
-If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 20` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency.
+If no plan was imported or scoped in **Before the loop**, work across all active plans. Use `tg next --json --limit 8` (no plan filter) and process all non-conflicting tasks; Cursor decides concurrency.
 
 ## Per-batch gate vs full test suite
 

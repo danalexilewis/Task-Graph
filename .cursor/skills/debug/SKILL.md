@@ -19,10 +19,10 @@ Use this skill when root cause is unclear: failing test with unknown cause, user
 
 - **You (orchestrator / debug lead)**: Run the four-phase process; may do investigation and fix in-session or dispatch investigator for Phase 1–2 and implementer for Phase 4. Escalate after 3 failed fix attempts.
 - **Sub-agents** (optional, as needed):
-  | Agent | Purpose | Permission |
-  | ------------ | -------------------------------- | ------------- |
-  | investigator | Root cause and pattern analysis | read-only |
-  | implementer | Single-change fixes, verification| read+write |
+  | Agent        | Purpose                            | Permission | Model                   |
+  | ------------ | ---------------------------------- | ---------- | ----------------------- |
+  | investigator | Root cause and pattern analysis    | read-only  | inherit (session model) |
+  | implementer  | Single-change fixes, verification  | read+write | fast                    |
 
 **Constraint**: No fix (no code edit intended to fix the bug) until Phase 1 is complete. After 3 failed fix attempts, stop and report; orchestrator creates an investigate task or escalates to human.
 
@@ -103,6 +103,6 @@ When escalating after 3 failed attempts:
 ## Reference
 
 - **Lead doc**: [docs/leads/debug.md](../../../docs/leads/debug.md)
-- **Investigator** (optional): `.cursor/agents/investigator.md` for Phase 1–2 if delegated
-- **Implementer** (optional): `.cursor/agents/implementer.md` for Phase 4 if delegated
+- **Investigator** (optional): `.cursor/agents/investigator.md` for Phase 1–2 if delegated (omit `model` — investigator inherits the session model)
+- **Implementer** (optional): `.cursor/agents/implementer.md` for Phase 4 if delegated (use `model="fast"`)
 - **Rules**: `.cursor/rules/taskgraph-workflow.mdc`, `.cursor/rules/subagent-dispatch.mdc`

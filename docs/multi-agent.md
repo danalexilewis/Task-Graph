@@ -2,7 +2,17 @@
 triggers:
   files: ["src/cli/**", ".cursor/rules/**", "docs/multi-agent.md"]
   change_types: ["create", "modify"]
-  keywords: ["worktree", "multi-agent", "tg start", "tg done", "plan branch"]
+  keywords:
+    [
+      "worktree",
+      "multi-agent",
+      "tg start",
+      "tg done",
+      "plan branch",
+      "context sharing",
+      "tg context",
+      "tg note",
+    ]
 ---
 
 # Multi-Agent Centaur Model
@@ -78,6 +88,25 @@ See [cli-reference.md](cli-reference.md) (worktree section) and `.cursor/rules/s
 | `tg note <taskId> --msg <text> [--agent <name>]`       | Append a note event; visible in `tg show`                                         |
 | `tg status`                                            | Shows "Active work" section with doing tasks, agent_id, plan title, started_at    |
 | `tg stats [--agent <name>] [--plan <planId>] [--json]` | Derive agent metrics from events: tasks_done, review pass/fail, avg elapsed time  |
+
+## Collaboration: fast read, async write
+
+Effective multi-agent collaboration depends on **deliberate, high-efficiency read communication**. Writes can be async (fire-and-forget); reads must be **extremely fast** so any agent can observe shared state without blocking or polling heavily.
+
+| Channel                   | Read (fast path)                                                                                      | Write (async)                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Task graph**            | `tg context <taskId>`, `tg status [--tasks]`, `tg next --json`                                        | `tg note`, `tg start`, `tg done`, `tg block`                           |
+| **Context hub**           | `tg agent-context query`, `tg agent-context status`                                                   | `[tg:event]` lines in terminal output (collector ingests)              |
+| **Shell / script**        | Env vars, `grep`/pipeline on CLI output                                                               | `export WIRE=... HOIST=...`; later steps or other agents read them     |
+| **Long-running commands** | Read/tail on terminal file (see [agent-field-guide.md](agent-field-guide.md) § Terminal-file polling) | Shell streams stdout to terminal file; consumer polls for `exit_code:` |
+
+**Patterns:**
+
+- **Context sharing**: One agent (or the human) does work; another reads via `tg context` (sibling notes, plan, task spec) or `tg status` to see who is doing what and what was written. Notes are the boundary-crossing mechanism — see [agent-strategy.md](agent-strategy.md#communication-notes-as-cross-dimensional-transmission).
+- **Handoff via env or IDs**: Set task IDs (or other handoff data) in environment variables or a small KV store before dispatching; the next agent or script reads them. Example: `WIRE=... HOIST=...` then `tg status --tasks | grep ...` to verify a dependency before running `tg block $HOIST --on $WIRE`.
+- **Tailing each other’s output**: When one process streams to a terminal file (e.g. long `gate:full` run), another reads that file incrementally until a completion signal. Same idea: write is async, read is on a shared medium optimized for fast, polling-free or low-latency reads where possible.
+
+**Principle:** Optimize for **read speed and clarity**. Writes (notes, env vars, events, DB state) can be async; the collaboration fails if readers cannot get a fresh view of shared state quickly (e.g. `tg context` and `tg status` must stay cheap and authoritative).
 
 ## Conventions
 

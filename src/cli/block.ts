@@ -6,6 +6,7 @@ import { syncBlockedStatusForTask } from "../domain/blocked-status";
 import type { AppError } from "../domain/errors";
 import { checkNoBlockerCycle } from "../domain/invariants";
 import type { Edge, TaskStatus } from "../domain/types";
+import { getStatusCache } from "./status-cache";
 import { type Config, readConfig, resolveTaskId } from "./utils";
 
 export function blockCommand(program: Command) {
@@ -94,6 +95,7 @@ export function blockCommand(program: Command) {
             reason: string;
             status: TaskStatus;
           };
+          getStatusCache().clear();
           if (!cmd.parent?.opts().json) {
             console.log(
               `Task ${resultData.task_id} blocked by ${resultData.blocker_task_id}.`,

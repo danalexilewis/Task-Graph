@@ -50,6 +50,7 @@ Optional frontmatter fields that map to the **project** row when the plan is imp
 | `fileTree`   | string | `project.file_tree`            | Tree of files affected (e.g. paths with `(create)` / `(modify)`).                   |
 | `risks`      | array  | `project.risks`                | List of `{description, severity, mitigation}`. `severity`: `low`, `medium`, `high`. |
 | `tests`      | array  | `project.tests`                | List of strings describing tests that should be created.                            |
+| `benchmark`  | boolean | `project.is_benchmark`        | Whether to mark the project as a benchmark run. Set to `true` to tag the project; `false` (default).                                                                        |
 
 ### Todo (Task) Fields
 

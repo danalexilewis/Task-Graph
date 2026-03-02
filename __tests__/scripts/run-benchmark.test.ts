@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("run-benchmark script smoke test", () => {
   it("should output valid JSON with correct fields for a simple command", () => {
     const result = spawnSync(
-     "bun",
+      "bun",
       ["scripts/run-benchmark.ts", "echo hello"],
       { encoding: "utf-8" },
     );

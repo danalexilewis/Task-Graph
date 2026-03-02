@@ -51,8 +51,9 @@ The Cursor Task tool has exactly **two model states** — there are no named mod
 
 Agent tiers in this repo:
 
-- **fast** — implementer, explorer, test-quality-auditor, test-infra-mapper, test-coverage-scanner
-- **inherit** — planner-analyst, spec-reviewer, quality-reviewer, reviewer, fixer, investigator, debugger
+- **fast** — implementer, documenter, debugger, explorer, test-quality-auditor, test-infra-mapper, test-coverage-scanner
+  - Note: The orchestrator may escalate debugger to a stronger model after 3 failed attempts — see debugger.md.
+- **inherit** — planner-analyst, spec-reviewer, quality-reviewer, reviewer, fixer, investigator
 
 ## Agent file format
 
@@ -65,7 +66,7 @@ Each agent file (e.g. `implementer.md`) should include:
 5. **Prompt template** — The body of the prompt. Use placeholders the orchestrator will replace, e.g. `{{TASK_ID}}`, `{{CONTEXT_JSON}}`, `{{INTENT}}`.
 6. **Learnings** (optional, grows over time) — Accumulated corrections from the orchestrator's learning-mode reviews. See below.
 
-The orchestrator builds the final prompt by substituting these placeholders, then dispatches (Task tool, agent CLI, or mcp_task) with the built prompt; use `model="fast"` when using the Task tool or CLI.
+The orchestrator builds the final prompt by substituting these placeholders, then dispatches (Task tool, agent CLI, or mcp_task) with the built prompt; see the Model tier table above — pass `model="fast"` for fast-tier agents and omit `model` for inherit-tier agents.
 
 ## Learnings section
 
@@ -102,7 +103,7 @@ Example:
 
 ## How dispatch works
 
-1. Orchestrator runs `tg next --json --limit 20` to get unblocked tasks.
+1. Orchestrator runs `tg next --json --limit 8` to get unblocked tasks.
 2. For each task, orchestrator runs `tg context <taskId> --json` and optionally runs the explorer.
 3. Orchestrator reads the appropriate agent template (e.g. `implementer.md`), replaces placeholders with the task's context.
 4. Orchestrator dispatches the sub-agent: Task tool, `agent` CLI, or mcp_task. Pass `model="fast"` for fast-tier agents; omit `model` for inherit-tier agents (see [Model tier](#model-tier)).
