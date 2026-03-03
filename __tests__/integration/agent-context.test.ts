@@ -223,6 +223,8 @@ describe("Agent context collector and query integration", () => {
       () => countRows(dbPath),
       (count) => count >= base + 3,
     );
+    // Allow collector to advance offset before appending more
+    await new Promise((r) => setTimeout(r, 150));
     for (let i = 3; i < 6; i++) {
       fs.appendFileSync(
         terminalFile,
@@ -268,6 +270,7 @@ describe("Agent context collector and query integration", () => {
 
   it("query script --since: events at ts 1000..5000, query --since 3000, assert 2 results", async () => {
     const terminalFile = path.join(terminalsDir, "5.txt");
+    const base = countRows(dbPath);
     const timestamps = [1000, 2000, 3000, 4000, 5000];
     for (const ts of timestamps) {
       fs.appendFileSync(
@@ -278,14 +281,14 @@ describe("Agent context collector and query integration", () => {
     }
     await boundedPoll(
       () => countRows(dbPath),
-      (count) => count >= 5,
+      (count) => count >= base + 5,
     );
 
     const execaModule = await import("execa");
     const execa = execaModule.default;
     const result = await execa(
       "bun",
-      [QUERY_SCRIPT, "--db", dbPath, "--since", "3000"],
+      [QUERY_SCRIPT, "--db", dbPath, "--since", "3000", "--agent", "query-test"],
       {
         cwd: PROJECT_ROOT,
       },
@@ -297,5 +300,6 @@ describe("Agent context collector and query integration", () => {
     const events = out.agent_events ?? [];
     // --since 3000 returns events strictly after 3000, so 4000 and 5000
     expect(events.length).toBe(2);
+    expect(events.every((e) => (e.ts ?? e.timestamp ?? 0) > 3000)).toBe(true);
   }, 15_000);
 });
