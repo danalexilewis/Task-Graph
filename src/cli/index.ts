@@ -38,6 +38,8 @@ import { worktreeCommand } from "./worktree";
 /** Commands that create or scaffold; skip auto-migrate (no config or own migration path). */
 const SKIP_MIGRATE_COMMANDS = new Set(["init", "setup", "server"]);
 
+const MIGRATION_CHECK_TIMEOUT_MS = 60_000;
+
 function topLevelCommand(cmd: Command): Command {
   let c: Command = cmd;
   while (c.parent?.parent) {
@@ -69,17 +71,30 @@ export function createProgram(): Command {
     await detectAndApplyServerPort(configResult.value);
     const opts = rootOpts(actionCommand);
     const noCommit = opts.noCommit ?? false;
-    const runResult = await ensureMigrations(
-      configResult.value.doltRepoPath,
-      noCommit,
-    );
-    runResult.match(
-      () => {},
-      (e) => {
-        console.error(`Migration failed: ${e.message}`);
-        process.exit(1);
-      },
-    );
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Migration check timed out after 60 s")),
+        MIGRATION_CHECK_TIMEOUT_MS,
+      );
+    });
+    try {
+      const runResult = await Promise.race([
+        ensureMigrations(configResult.value.doltRepoPath, noCommit),
+        timeoutPromise,
+      ]);
+      runResult.match(
+        () => {},
+        (e) => {
+          console.error(`Migration failed: ${e.message}`);
+          process.exit(1);
+        },
+      );
+    } catch (e) {
+      console.error(
+        e instanceof Error ? e.message : "Migration check timed out after 60 s",
+      );
+      process.exit(1);
+    }
   });
 
   program
