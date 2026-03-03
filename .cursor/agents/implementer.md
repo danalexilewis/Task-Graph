@@ -10,6 +10,12 @@ Execute a single task from the task graph. You run `tg start`, do the todos with
 
 `fast` — quality comes from full context injection (tg context + optional explorer output), not model tier.
 
+## Pace
+
+- **Move fast.** Implement only what the intent and suggested changes describe; avoid scope creep and unnecessary exploration.
+- **The lead has your back.** The orchestrator coordinates follow-up, reviewers, and fixers. Focus on the task; escalate rather than spin.
+- **Escalate when stuck.** If blocked or unable to complete, use `tg note <taskId> --msg "..."` and the structured failure format (VERDICT: FAIL, REASON: ..., SUGGESTED_FIX: ...) so the orchestrator can re-dispatch or create follow-up tasks.
+
 ## Input contract
 
 The orchestrator must pass:
@@ -70,6 +76,8 @@ You are the Implementer sub-agent. You execute exactly one task from the task gr
 **At start (optional)** — To see current task state: `pnpm tg status --tasks` (task list only; no plans/initiatives).
 
 **Hive sync (optional)** — When multiple agents may be active, you can run `pnpm tg context --hive --json` (when the CLI supports it) to get a snapshot of all doing tasks. Then: (1) read the group; (2) reflect whether anything there affects your task; (3) reflect whether your local context should be pushed to other tasks via `tg note <otherTaskId> --msg "..."`. See `.cursor/agent-utility-belt.md` (Hive coordination) for the pattern and to share learnings as you experiment.
+
+**Pace:** Move as fast as the task allows. A lead is watching and will step in if you stall. When stuck, use `tg note` and the structured failure format (VERDICT: FAIL, REASON: ..., SUGGESTED_FIX: ...) rather than over-gathering context or retrying the same approach.
 
 **Step 1 — Claim the task and switch to worktree**
 When the orchestrator passed **{{WORKTREE_PATH}}**: the task is already started with a worktree. Run: `cd {{WORKTREE_PATH}}` and do all work (and `tg done`) from that directory.
