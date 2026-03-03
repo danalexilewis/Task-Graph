@@ -6,14 +6,24 @@ import * as path from "node:path";
 import execa from "execa";
 import { clearConfigCache } from "../../src/config";
 import { applyMigrations, ensureMigrations } from "../../src/db/migrate";
+import { ensureIntegrationPath } from "./ensure-path";
 import { recordDoltBaseline } from "./dolt-leak-check";
 
 const DOLT_PATH = process.env.DOLT_PATH || "dolt";
 
-/** Fixed path for the golden template (relative to .taskgraph). No env or path file — global setup generates it here. */
+// Ensure dolt, bun, and wt are findable even when test runner has minimal PATH (e.g. CI)
+process.env.PATH = ensureIntegrationPath(process.env.PATH, DOLT_PATH);
+
+/** Fixed path for the golden template (relative to .taskgraph). Global setup generates it here. */
 export const GOLDEN_TEMPLATE_DIR = path.resolve(
   __dirname,
   "../../.taskgraph/tg-golden-template",
+);
+
+/** Path file so workers/teardown can read the golden template path. */
+export const GOLDEN_TEMPLATE_PATH_FILE = path.resolve(
+  __dirname,
+  "../../.taskgraph/tg-golden-template-path.txt",
 );
 
 /** Path file so worker processes can read the Dolt root path used during tests */
@@ -171,6 +181,7 @@ export default async function globalSetup(): Promise<void> {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "tg-dolt-root-"));
   fs.mkdirSync(path.join(tempRoot, "eventsData"), { recursive: true });
   fs.writeFileSync(DOLT_ROOT_PATH_FILE, tempRoot, "utf8");
+  fs.writeFileSync(GOLDEN_TEMPLATE_PATH_FILE, GOLDEN_TEMPLATE_DIR, "utf8");
 
   // Start dolt sql-server on the golden template so a single server is available; per-test servers are started in test-utils
   const server = spawn(
