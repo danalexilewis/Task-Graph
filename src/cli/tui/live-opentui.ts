@@ -42,6 +42,27 @@ const STATUS_ROOT_ID = "tg-status-root";
 const REFRESH_MS = 2000;
 const SETUP_TIMEOUT_MS = 5000;
 
+/** Header row for plans table when there are zero active plans (same column count as getActivePlansTableData without initiative). */
+const PLANS_TABLE_EMPTY_HEADERS = [
+  "Project name",
+  "Priority",
+  "Todo",
+  "Blocked",
+  "Ready",
+  "Doing",
+  "Done",
+];
+
+const PLANS_TABLE_EMPTY_ROW: string[] = [
+  "No active plans",
+  "",
+  "",
+  "",
+  "",
+  "",
+  "",
+];
+
 export type FetchStatusFn = (
   config: Config,
   options: StatusOptions,
@@ -420,13 +441,21 @@ function updateDefaultDashboardSections(
     if (Array.isArray(node.content)) {
       if (!headerFg || !headerBg || !tasksTableData) return false;
       if (i === 0) {
-        if (!plansTableData) return false;
-        node.content = buildTextTableContent(
-          plansTableData.headers,
-          plansTableData.rows,
-          headerFg,
-          headerBg,
-        );
+        if (plansTableData) {
+          node.content = buildTextTableContent(
+            plansTableData.headers,
+            plansTableData.rows,
+            headerFg,
+            headerBg,
+          );
+        } else {
+          node.content = buildTextTableContent(
+            PLANS_TABLE_EMPTY_HEADERS,
+            [PLANS_TABLE_EMPTY_ROW],
+            headerFg,
+            headerBg,
+          );
+        }
       } else if (i === 1) {
         node.content = buildTextTableContent(
           tasksTableData.headers,
