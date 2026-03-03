@@ -1138,6 +1138,7 @@ export function ensureMigrations(
   if (readSentinel(repoPath) === MIGRATION_VERSION) {
     return ResultAsync.fromSafePromise(Promise.resolve(undefined));
   }
+  console.error("[tg] Running migrations…");
   const cache = new QueryCache();
   return applyPlanRichFieldsMigration(repoPath, noCommit, cache)
     .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit, cache))
