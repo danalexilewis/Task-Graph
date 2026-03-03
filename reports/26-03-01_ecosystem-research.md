@@ -60,7 +60,7 @@
 | Pattern                   | Description                                            | Task-Graph status                                                                                            |
 | ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | Compaction (memory decay) | Old closed tasks summarized to save context window     | **Missing.** `tg context` returns full details regardless of age. Context will bloat as projects grow.       |
-| Rich graph links          | `relates_to`, `duplicates`, `supersedes`, `replies_to` | **Partial.** Only `blocks` edges. The meta/pattern-tasks skill tries cross-plan edges but types are limited. |
+| Rich graph links          | `relates_to`, `duplicates`, `supersedes`, `replies_to` | **Partial.** Only `blocks` edges. The meta skill tries cross-plan edges but types are limited. |
 | Hierarchical IDs          | `bd-a3f8.1.1` for epic → task → subtask                | **Missing.** Flat task IDs with plan grouping. No hierarchical decomposition within a plan.                  |
 | Stealth mode              | Use tracker locally without committing to main repo    | **Not relevant** to current use case.                                                                        |
 

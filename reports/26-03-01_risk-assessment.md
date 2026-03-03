@@ -59,7 +59,7 @@ Restructures `.cursor/skills/` SKILL.md files and creates `docs/leads/` entries.
 | ---------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
 | **Entropy**                  | Medium | 10+ SKILL.md files touched, 4+ lead docs created, 2 dirs deleted. Many files but all in `.cursor/skills/` and `docs/leads/`. |
 | **Surface Area**             | Low    | Skills and docs are consumed by the AI agent, not by runtime code. No API surface.                                           |
-| **Backwards Compat**         | Low    | Preserves all existing workflow content within new structure. Deletions are duplicates (risk/ is a copy of assess-risk/).    |
+| **Backwards Compat**         | Low    | Preserves all existing workflow content within new structure. Deletions are duplicates (risk/ supersedes the former assess-risk/).    |
 | **Reversibility**            | High   | Git revert restores all files. No data changes.                                                                              |
 | **Complexity Concentration** | Low    | Each file is independent. No file overlap between tasks.                                                                     |
 | **Testing Surface**          | Low    | No code to test. Validation is structural (check sections exist).                                                            |

@@ -158,6 +158,7 @@ function replaceRootWithNewBox(
 const SECTION_ID_PROJECTS = "tg-dash-projects";
 const SECTION_ID_TASKS = "tg-dash-tasks";
 const SECTION_ID_STATS = "tg-dash-stats";
+const SECTION_ID_ERROR = "tg-dash-error";
 
 /** Modern theme: dark canvas, cyan accent for tables, amber for stats bar. */
 const THEME = {
@@ -207,7 +208,11 @@ function getDefaultDashboardSectionContent(
 
 /**
  * Build OpenTUI TextTableContent from headers + rows (same data as renderTable).
- * Header row gets distinct fg and solid bg; body cells use plain text (ANSI stripped).
+ * OpenTUI TextTableRenderable.toStyledText(cell) expects per cell either an array of
+ * chunks (then it uses new StyledText(content)) or a string. Passing a single chunk
+ * object falls through to String(content) and renders as "[object Object]". So each
+ * cell must be an array of one chunk: rows of [TextChunk[]] per cell, not rows of
+ * TextChunk[] (one chunk per cell).
  */
 function buildTextTableContent(
   headers: string[],
@@ -215,7 +220,7 @@ function buildTextTableContent(
   headerFg: unknown,
   headerBg: unknown,
 ): unknown[] {
-  const headerRow: unknown[][] = headers.map((h) => [
+  const headerRow: unknown[] = headers.map((h) => [
     {
       __isChunk: true as const,
       text: stripAnsi(h),
@@ -224,20 +229,36 @@ function buildTextTableContent(
     },
   ]);
   const bodyRows: unknown[][] = rows.map((row) =>
-    row.map((cell) => [{ __isChunk: true as const, text: stripAnsi(cell) }]),
+    row.map((cell) => {
+      const raw =
+        typeof cell === "string"
+          ? cell
+          : cell != null &&
+              typeof (cell as { toString?: () => string }).toString === "function"
+            ? (cell as { toString: () => string }).toString()
+            : String(cell);
+      return [
+        {
+          __isChunk: true as const,
+          text: stripAnsi(raw),
+        },
+      ];
+    }),
   );
-  return [...headerRow, ...bodyRows];
+  return [headerRow, ...bodyRows];
 }
 
 /**
  * Build root Box with three section Boxes (Active Projects, Active tasks, Stats).
  * When data is undefined, each section shows "Loading...".
+ * When errorMessage is set, a fourth footer Box is added so the user keeps last good data.
  * When mod exposes h + TextTableRenderable + RGBA, Projects and Tasks use TextTable; Stats stays Text.
  */
 function buildDefaultDashboardRoot(
   mod: OpenTUIMod,
   w: number,
   data?: StatusData,
+  errorMessage?: string,
 ): unknown {
   const { Box, Text } = mod;
   const loading = "Loading...";
@@ -378,6 +399,23 @@ function buildDefaultDashboardRoot(
       },
       Text({ content: statsContent, fg: THEME.statsTextFg }),
     ),
+    ...(errorMessage
+      ? [
+          Box(
+            {
+              id: SECTION_ID_ERROR,
+              borderStyle: "round",
+              border: true,
+              borderColor: "#ef4444",
+              backgroundColor: "#7f1d1d",
+              padding: 1,
+              width: w,
+              flexGrow: 0,
+            },
+            Text({ content: errorMessage, fg: "#fecaca" }),
+          ),
+        ]
+      : []),
   );
 }
 
@@ -495,13 +533,14 @@ function replaceRootWithDashboardSections(
   rootId: string,
   data: StatusData | undefined,
   w: number,
+  errorMessage?: string,
 ): void {
   const child = renderer.root.getRenderable(rootId);
   if (child) {
     child.destroy();
     renderer.root.remove(rootId);
   }
-  const newRoot = buildDefaultDashboardRoot(mod, w, data);
+  const newRoot = buildDefaultDashboardRoot(mod, w, data, errorMessage);
   renderer.root.add(newRoot);
 }
 
@@ -564,9 +603,11 @@ export async function runOpenTUILive(
   });
 
   let _lastUsedWidth = getTerminalWidth();
+  let _lastGoodData: StatusData | undefined;
 
   const refreshContent = (data: StatusData) => {
     try {
+      _lastGoodData = data;
       const w = getTerminalWidth();
       if (updateDefaultDashboardSections(renderer, mod, STATUS_ROOT_ID, data)) {
         _lastUsedWidth = w;
@@ -595,14 +636,25 @@ export async function runOpenTUILive(
         },
         (e) => {
           const msg = `[tg] DB refresh error: ${e.message}`;
-          replaceRootWithNewBox(
-            renderer,
-            Box,
-            Text,
-            STATUS_ROOT_ID,
-            msg,
-            getTerminalWidth(),
-          );
+          if (_lastGoodData !== undefined) {
+            replaceRootWithDashboardSections(
+              renderer,
+              mod,
+              STATUS_ROOT_ID,
+              _lastGoodData,
+              getTerminalWidth(),
+              msg,
+            );
+          } else {
+            replaceRootWithNewBox(
+              renderer,
+              Box,
+              Text,
+              STATUS_ROOT_ID,
+              msg,
+              getTerminalWidth(),
+            );
+          }
           renderer.root.requestRender?.();
         },
       );

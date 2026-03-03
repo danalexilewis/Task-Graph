@@ -3,10 +3,10 @@ name: Standardize Skills as Agentic Leads
 overview: Bring all Cursor skills to the agentic lead pattern with named leads, mermaid decision trees, permissions, sub-agent declarations, and standard anatomy. Consolidate duplicates.
 fileTree: |
   .cursor/skills/
-  ├── assess-risk/SKILL.md          (restructure)
+  ├── risk/SKILL.md                 (restructure)
   ├── review/SKILL.md               (restructure)
   ├── rescope/SKILL.md              (restructure)
-  ├── pattern-tasks/SKILL.md        (restructure + merge meta)
+  ├── meta/SKILL.md                 (restructure; merge content)
   ├── review-tests/SKILL.md         (refine)
   ├── work/SKILL.md                 (refine)
   ├── investigate/SKILL.md          (refine)
@@ -16,10 +16,10 @@ fileTree: |
   └── meta/                         (delete)
   docs/leads/
   ├── README.md                     (modify)
-  ├── assess-risk.md                (create)
+  ├── risk.md                       (create)
   ├── review.md                     (create)
   ├── rescope.md                    (create)
-  └── pattern-tasks.md              (create)
+  └── meta.md                       (create)
   .cursor/rules/
   └── available-agents.mdc          (modify)
 risks:
@@ -44,24 +44,24 @@ todos:
     intent: |
       Three small cleanups in one task:
 
-      1. **Delete `.cursor/skills/risk/`** — duplicate of assess-risk. Remove the entire directory.
-      2. **Delete `.cursor/skills/meta/`** — merged into pattern-tasks. Remove the entire directory.
+      1. **Delete duplicate `.cursor/skills/risk/`** — if a duplicate existed (canonical is risk). Remove the entire directory.
+      2. **Delete duplicate `.cursor/skills/meta/`** — if a duplicate existed (canonical is meta). Remove the entire directory.
       3. **Update `.cursor/rules/available-agents.mdc`** — add these three missing entries to the agent list:
          - `fixer`: Escalation agent; resolves tasks after implementer/reviewer failure using a stronger model. See `.cursor/agents/fixer.md`.
          - `spec-reviewer`: Spec compliance check sub-agent (PASS/FAIL). See `.cursor/agents/spec-reviewer.md`.
          - `quality-reviewer`: Code quality check sub-agent (PASS/FAIL). See `.cursor/agents/quality-reviewer.md`.
       4. **Update `.cursor/skills/create-hook/SKILL.md`** — add a line after the title: `**Type:** Utility skill (procedural, no agentic lead or sub-agents).` Add a brief "## When to use" section if not present.
 
-  - id: restructure-assess-risk
-    content: "Restructure assess-risk SKILL.md to standard agentic lead anatomy"
+  - id: restructure-risk
+    content: "Restructure risk SKILL.md to standard agentic lead anatomy"
     agent: implementer
     changeType: modify
     intent: |
-      Rewrite `.cursor/skills/assess-risk/SKILL.md` to the standard anatomy. Preserve all existing workflow content (the 5-step process, risk metrics table, output template) but wrap in the standard structure.
+      Rewrite `.cursor/skills/risk/SKILL.md` to the standard anatomy. Preserve all existing workflow content (the 5-step process, risk metrics table, output template) but wrap in the standard structure.
 
-      **Create `docs/leads/assess-risk.md`** with:
+      **Create `docs/leads/risk.md`** with:
       - Purpose: Read-only risk assessment lead. Orchestrator gathers cross-plan data, reads plan files, rates 8 risk metrics, and produces a risk report.
-      - Skill: `/assess-risk` (`.cursor/skills/assess-risk/SKILL.md`)
+      - Skill: `/risk` (`.cursor/skills/risk/SKILL.md`)
       - Agent files: None (orchestrator performs analysis directly)
       - Pattern: 1. Gather scope data 2. Read plan files 3. Rate metrics 4. Cross-plan interactions 5. Produce report
       - Input: Plan scope (single or multi-plan), optional crossplan summary
@@ -71,11 +71,11 @@ todos:
 
       1. Frontmatter (name, description) — keep existing
       2. `# Assess Risk` title
-      3. `**Lead documentation:** See [docs/leads/assess-risk.md](docs/leads/assess-risk.md).`
+      3. `**Lead documentation:** See [docs/leads/risk.md](docs/leads/risk.md).`
       4. `## When to use` — keep existing triggers
       5. `## Architecture` — add:
          ```
-         - **You (orchestrator / assess-risk lead)**: Gathers data, rates metrics, produces report.
+         - **You (orchestrator / risk lead)**: Gathers data, rates metrics, produces report.
          - **Sub-agents**: None. This lead runs the full workflow directly.
          ```
       6. `## Permissions` — add:
@@ -113,7 +113,7 @@ todos:
       **Create `docs/leads/review.md`** with:
       - Purpose: Read-only review lead for code health, system health, and optional risk assessment.
       - Skill: `/review` (`.cursor/skills/review/SKILL.md`)
-      - Agent files (workers): investigator.md (code health, system health), optionally assess-risk skill or generalPurpose (risk)
+      - Agent files (workers): investigator.md (code health, system health), optionally risk skill or generalPurpose (risk)
       - Pattern: 1. Gather baseline (tg status) 2. Dispatch sub-agents parallel 3. Synthesize report 4. Deliver
       - Input: User request; scope (general vs feature/proposal)
       - Output: Review Report (markdown)
@@ -133,7 +133,7 @@ todos:
            |-------|---------|------------|
            | investigator | Code health analysis | read-only |
            | investigator | System health analysis | read-only |
-           | generalPurpose (or assess-risk skill) | Risk assessment (when feature/proposal in scope) | read-only |
+           | generalPurpose (or risk skill) | Risk assessment (when feature/proposal in scope) | read-only |
          ```
       6. `## Permissions` — add:
          ```
@@ -151,7 +151,7 @@ todos:
              C --> F[Dispatch investigator: system health]
              D --> E
              D --> F
-             D --> G[Run assess-risk or dispatch generalPurpose]
+             D --> G[Run risk or dispatch generalPurpose]
              E --> H[Synthesize report]
              F --> H
              G --> H
@@ -222,21 +222,21 @@ todos:
       9. `## Rules` — keep existing
       10. `## Reference` — add: explorer.md, planner-analyst.md, spec-reviewer.md, quality-reviewer.md, lead doc
 
-  - id: restructure-pattern-tasks
-    content: "Restructure pattern-tasks SKILL.md with merged meta content and standard anatomy"
+  - id: restructure-meta
+    content: "Restructure meta SKILL.md with standard anatomy"
     agent: implementer
     changeType: modify
     intent: |
-      Rewrite `.cursor/skills/pattern-tasks/SKILL.md` to the standard anatomy. Merge content from the now-deleted meta skill. Preserve all existing workflow content.
+      Rewrite `.cursor/skills/meta/SKILL.md` to the standard anatomy. Preserve all existing workflow content.
 
       **Merge from meta**: The deleted meta skill described cross-project edge enrichment. Pattern-tasks currently says "cross-plan". Merge by adding scope:
       - Cross-plan (default): analyze tasks across plans in the current project
       - Cross-project (extended): when multiple projects are loaded, analyze across projects
       Add a scope table similar to review-tests.
 
-      **Create `docs/leads/pattern-tasks.md`** with:
+      **Create `docs/leads/meta.md`** with:
       - Purpose: Enrichment lead that analyzes cross-plan (and optionally cross-project) task relationships. Proposes edges and notes; writes only after user approval.
-      - Skill: `/pattern-tasks` (`.cursor/skills/pattern-tasks/SKILL.md`)
+      - Skill: `/meta` (`.cursor/skills/meta/SKILL.md`)
       - Agent files: None (orchestrator does analysis directly; uses crossplan CLI or manual analysis)
       - Pattern: 1. Gather cross-plan data 2. Analyze and categorize 3. Present proposals 4. Write on approval
       - Input: Cross-plan summary or manual analysis
@@ -246,7 +246,7 @@ todos:
       **Standard anatomy for SKILL.md**:
 
       1. Frontmatter — update description to mention cross-project scope
-      2. Title + `**Lead documentation:** See [docs/leads/pattern-tasks.md](docs/leads/pattern-tasks.md).`
+      2. Title + `**Lead documentation:** See [docs/leads/meta.md](docs/leads/meta.md).`
       3. `## When to use` — keep existing + add cross-project trigger
       4. `## Scope` — add:
          ```
@@ -254,11 +254,11 @@ todos:
          |-------------|-------|
          | "find patterns" / "enrich tasks" | Cross-plan (current project) |
          | "cross-project patterns" | Cross-project (multiple projects) |
-         | After assess-risk | Cross-plan with risk context |
+         | After risk | Cross-plan with risk context |
          ```
       5. `## Architecture` — add:
          ```
-         - **You (orchestrator / pattern-tasks lead)**: Gathers data, analyzes patterns, presents proposals.
+         - **You (orchestrator / meta lead)**: Gathers data, analyzes patterns, presents proposals.
          - **Sub-agents**: None. This lead runs analysis directly using crossplan CLI or manual plan reading.
          ```
       6. `## Permissions` — add:
@@ -479,10 +479,10 @@ todos:
     agent: implementer
     blockedBy:
       [
-        restructure-assess-risk,
+        restructure-risk,
         restructure-review,
         restructure-rescope,
-        restructure-pattern-tasks,
+        restructure-meta,
       ]
     changeType: modify
     intent: |
@@ -494,8 +494,8 @@ todos:
       |------|-------|----------------|---------|
       | review | /review | investigator.md | Read-only code health, system health, and optional risk assessment. |
       | rescope | /rescope | explorer.md, spec-reviewer.md, quality-reviewer.md, planner-analyst.md | PM-role lead that clarifies desired functionality vs shipped behavior. |
-      | assess-risk | /assess-risk | (none; orchestrator direct) | Read-only risk assessment using 8-metric model across plans. |
-      | pattern-tasks | /pattern-tasks | (none; orchestrator direct) | Cross-plan and cross-project edge enrichment; writes only after user approval. |
+| risk | /risk | (none; orchestrator direct) | Read-only risk assessment using 8-metric model across plans. |
+| meta | /meta | (none; orchestrator direct) | Cross-plan and cross-project edge enrichment; writes only after user approval. |
 
       **Add a note about standard SKILL.md anatomy** at the bottom of the file (or in a new section):
 
@@ -517,19 +517,19 @@ todos:
       Utility skills (e.g. create-hook) may omit Architecture, Permissions, and Decision tree.
       ```
 
-      **Validate**: Check that each of the 8 agentic skills (assess-risk, review, review-tests, work, rescope, investigate, plan, pattern-tasks) now has the standard anatomy by scanning section headers. Report any missing sections as a tg note.
+      **Validate**: Check that each of the 8 agentic skills (risk, review, review-tests, work, rescope, investigate, plan, meta) now has the standard anatomy by scanning section headers. Report any missing sections as a tg note.
 isProject: false
 ---
 
 ## Analysis
 
-This plan brings all 9 remaining skills (after deleting 2 duplicates) to the "agentic lead" pattern. The two exemplar skills (review-tests, work) need only refinement (3 missing sections each). The good skills (investigate, plan) also need refinement. The needs-work skills (assess-risk, review, rescope, pattern-tasks) need full restructuring plus new lead docs.
+This plan brings all 9 remaining skills (after deleting 2 duplicates) to the "agentic lead" pattern. The two exemplar skills (review-tests, work) need only refinement (3 missing sections each). The good skills (investigate, plan) also need refinement. The needs-work skills (risk, review, rescope, meta) need full restructuring plus new lead docs.
 
 The `/create-hook` skill is explicitly labeled as a utility — not every skill needs to be an agentic lead.
 
 Key architectural decisions:
 
-- **assess-risk and pattern-tasks have no sub-agents** — they run the orchestrator directly. This is documented explicitly rather than forced into a sub-agent pattern.
+- **risk and meta have no sub-agents** — they run the orchestrator directly. This is documented explicitly rather than forced into a sub-agent pattern.
 - **Permission propagation is a standard section** — every agentic skill declares lead permission + propagation rule + sub-agent table.
 - **Mermaid graphs target 5-15 nodes** — enough to show the decision structure without becoming a maintenance burden.
 
@@ -538,16 +538,16 @@ Key architectural decisions:
 ```
 Parallel start (9 unblocked):
   ├── cleanup-and-registries (delete risk/, meta/; update agents registry; label create-hook)
-  ├── restructure-assess-risk (lead doc + SKILL.md)
+  ├── restructure-risk (lead doc + SKILL.md)
   ├── restructure-review (lead doc + SKILL.md)
   ├── restructure-rescope (lead doc + SKILL.md)
-  ├── restructure-pattern-tasks (merge meta + lead doc + SKILL.md)
+  ├── restructure-meta (lead doc + SKILL.md)
   ├── refine-review-tests (add 2 sections)
   ├── refine-work (add 3 sections)
   ├── refine-investigate (add 3 sections)
   └── refine-plan (add 3 sections)
 
-After restructure-assess-risk, restructure-review, restructure-rescope, restructure-pattern-tasks:
+After restructure-risk, restructure-review, restructure-rescope, restructure-meta:
   └── update-leads-registry (update docs/leads/README.md)
 ```
 
@@ -556,10 +556,10 @@ After restructure-assess-risk, restructure-review, restructure-rescope, restruct
 ```mermaid
 flowchart LR
     A[cleanup-and-registries] --> Z[update-leads-registry]
-    B[restructure-assess-risk] --> Z
+    B[restructure-risk] --> Z
     C[restructure-review] --> Z
     D[restructure-rescope] --> Z
-    E[restructure-pattern-tasks] --> Z
+    E[restructure-meta] --> Z
     F[refine-review-tests] --> Z
     G[refine-work] --> Z
     H[refine-investigate] --> Z
@@ -571,6 +571,6 @@ flowchart LR
 
 also consolidate these into the short versions /risk and /meta
 
-/risk and /assess-risk — Nearly identical content. Keep assess-risk (better name, matches skill trigger), delete risk.
-/meta and /pattern-tasks — Nearly identical. Keep pattern-tasks (more descriptive), update meta to be an alias or merge cross-project behavior into pattern-tasks as a scope option.
+/risk — Canonical risk assessment skill.
+/meta — Canonical cross-plan/cross-project enrichment skill.
 </original_prompt>

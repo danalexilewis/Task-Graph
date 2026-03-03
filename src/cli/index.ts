@@ -165,6 +165,9 @@ if (isMainEntrypoint) {
     .then(() => closeAllServerPools())
     .then(() => {
       process.exitCode = 0;
+      // Force exit on next tick so stdout can flush (avoids pipe race) but process
+      // does not hang when a handle (e.g. mysql2 pool) keeps the loop alive.
+      setImmediate(() => process.exit(0));
     })
     .catch(() => process.exit(1));
 }

@@ -292,21 +292,16 @@ export function fetchStatusData(
       (SELECT COUNT(*) FROM ${bt("task")} WHERE status = 'done') AS completed_tasks,
       (SELECT COUNT(*) FROM ${bt("task")} WHERE status = 'canceled') AS canceled_tasks
   `;
+  /** Agent hours: all time (all tasks with footprint). Not filtered by plan or project status. */
   const agentMetricsSql = `
     SELECT
       (SELECT COUNT(DISTINCT JSON_UNQUOTE(JSON_EXTRACT(body, '$.agent'))) FROM ${bt("event")} WHERE kind = 'started' AND JSON_EXTRACT(body, '$.agent') IS NOT NULL) AS agent_count,
       (SELECT COUNT(*) FROM ${bt("event")} WHERE kind = 'done') AS sub_agent_runs,
       (SELECT COUNT(*) FROM ${bt("event")} WHERE kind = 'done' AND JSON_UNQUOTE(JSON_EXTRACT(body, '$.agent')) = 'investigator') AS investigator_runs,
-      (SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, s.created_at, d.created_at)), 0) / 3600
-        FROM ${bt("event")} d
-        JOIN (
-          SELECT task_id, MAX(created_at) AS created_at
-          FROM ${bt("event")}
-          WHERE kind = 'started'
-          GROUP BY task_id
-        ) s ON s.task_id = d.task_id
-        WHERE d.kind = 'done'
-      ) AS total_agent_minutes
+      (SELECT COALESCE(SUM(TIMESTAMPDIFF(SECOND, started_at, ended_at)), 0) / 3600
+        FROM ${bt("task")}
+        WHERE started_at IS NOT NULL AND ended_at IS NOT NULL
+      ) AS total_agent_hours
   `;
 
   const activePlansSql = `
@@ -427,7 +422,7 @@ export function fetchStatusData(
     agent_count: number;
     sub_agent_runs: number;
     investigator_runs: number;
-    total_agent_minutes: number;
+    total_agent_hours: number;
   }
   interface GlobalCountsRow {
     completed_plans: number;
@@ -483,7 +478,7 @@ export function fetchStatusData(
         const subAgentRuns = Number(amRes[0]?.sub_agent_runs ?? 0);
         const investigatorRuns = Number(amRes[0]?.investigator_runs ?? 0);
         const totalAgentHours = Math.round(
-          Number(amRes[0]?.total_agent_minutes ?? 0),
+          Number(amRes[0]?.total_agent_hours ?? 0),
         );
         const investigatorFixRate =
           subAgentRuns > 0

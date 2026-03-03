@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join as pathJoin } from "node:path";
 import execa from "execa";
-import { ok, ResultAsync } from "neverthrow";
+import { errAsync, ok, ResultAsync } from "neverthrow";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 import { generateUniqueHashId } from "../domain/hash-id";
 import { QueryCache } from "./cache";
@@ -1176,6 +1176,17 @@ export function ensureMigrations(
       }
     }
     console.error("[tg] Running migrations…");
+    const MIGRATION_PROGRESS_INTERVAL_MS = 3000;
+    let progressIntervalId: ReturnType<typeof setInterval> | null = setInterval(
+      () => console.error("[tg] Still running migrations…"),
+      MIGRATION_PROGRESS_INTERVAL_MS,
+    );
+    const clearProgress = () => {
+      if (progressIntervalId !== null) {
+        clearInterval(progressIntervalId);
+        progressIntervalId = null;
+      }
+    };
     const cache = new QueryCache();
     return applyPlanRichFieldsMigration(repoPath, noCommit, cache)
       .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit, cache))
@@ -1209,8 +1220,14 @@ export function ensureMigrations(
         applyLearningRecurrenceMigration(repoPath, noCommit, cache),
       )
       .map(() => {
+        clearProgress();
+        console.error("[tg] Migrations complete.");
         writeSentinel(repoPath);
         return undefined;
+      })
+      .orElse((e) => {
+        clearProgress();
+        return errAsync(e);
       });
   });
 }

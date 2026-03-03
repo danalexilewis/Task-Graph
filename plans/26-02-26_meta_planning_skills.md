@@ -2,9 +2,9 @@
 name: Meta-Planning Skills
 overview: Create two invokable skills for cross-plan risk assessment and pattern-based task enrichment in Dolt.
 fileTree: |
-  .cursor/skills/assess-risk/SKILL.md               (create)
-  .cursor/skills/assess-risk/CODE_RISK_ASSESSMENT.md (create)
-  .cursor/skills/pattern-tasks/SKILL.md              (create)
+  .cursor/skills/risk/SKILL.md               (create)
+  .cursor/skills/risk/CODE_RISK_ASSESSMENT.md (create)
+  .cursor/skills/meta/SKILL.md              (create)
   src/cli/crossplan.ts                               (create)
   src/cli/index.ts                                   (modify)
   docs/cli-reference.md                              (modify)
@@ -24,8 +24,8 @@ tests:
   - "tg crossplan files shows file_tree overlap across plans"
   - "tg crossplan edges --dry-run proposes edges without writing"
   - "tg crossplan edges writes relates edges to Dolt when confirmed"
-  - "assess-risk skill produces structured risk report for loaded plans"
-  - "pattern-tasks skill enriches tasks and proposes cross-plan edges"
+  - "risk skill produces structured risk report for loaded plans"
+  - "meta skill enriches tasks and proposes cross-plan edges"
 todos:
   - id: crossplan-cli
     content: "Add tg crossplan command for cross-plan analysis queries"
@@ -75,10 +75,10 @@ todos:
     blockedBy: [crossplan-cli]
     changeType: test
     skill: [integration-testing]
-  - id: assess-risk-skill
-    content: "Create assess-risk skill for Greg's risk assessment framework"
+  - id: risk-skill
+    content: "Create risk skill for Greg's risk assessment framework"
     intent: |
-      Create .cursor/skills/assess-risk/SKILL.md — an invokable skill that:
+      Create .cursor/skills/risk/SKILL.md — an invokable skill that:
       1. Reads all plans and tasks from Dolt via tg crossplan summary --json
       2. For each plan, rates the 8 risk metrics (Entropy, Surface Area, Backwards Compat,
          Reversibility, Complexity Concentration, Testing Surface, Performance Risk, Blast Radius)
@@ -94,10 +94,10 @@ todos:
       Workflow: user says "assess risk" or "run risk assessment" → skill activates →
       agent runs tg crossplan summary, reads plan files, produces report.
     changeType: create
-  - id: pattern-tasks-skill
-    content: "Create pattern-tasks skill for cross-plan task enrichment"
+  - id: meta-skill
+    content: "Create meta skill for cross-plan task enrichment"
     intent: |
-      Create .cursor/skills/pattern-tasks/SKILL.md — an invokable skill that:
+      Create .cursor/skills/meta/SKILL.md — an invokable skill that:
       1. Reads all plans and tasks from Dolt via tg crossplan summary --json
       2. Identifies patterns:
          a. File conflicts: tasks from different plans touching the same files → proposes
@@ -151,10 +151,10 @@ This tells us:
 
 ### The two skills
 
-**assess-risk** (read-only): Applies Greg's structured risk framework to the loaded plans.
+**risk** (read-only): Applies Greg's structured risk framework to the loaded plans.
 Produces a per-plan risk matrix and a cross-plan interaction analysis. Intended to run first.
 
-**pattern-tasks** (read-write): Enriches the task graph with cross-plan edges and notes.
+**meta** (read-write): Enriches the task graph with cross-plan edges and notes.
 Finds file overlaps, domain clusters, architectural opportunities, and optimal execution order.
 Runs after risk assessment, armed with risk context.
 
@@ -166,8 +166,8 @@ command provides a stable, tested interface for cross-plan analysis. The skills 
 
 ```mermaid
 graph LR
-  User -->|"assess risk"| A[assess-risk skill]
-  User -->|"find patterns"| B[pattern-tasks skill]
+  User -->|"assess risk"| A[risk skill]
+  User -->|"find patterns"| B[meta skill]
   A -->|reads| C[tg crossplan summary]
   B -->|reads| C
   B -->|writes| D[tg edge add / tg note]
@@ -178,14 +178,14 @@ graph LR
 ### Typical workflow
 
 1. Load plans → `tg import` (done)
-2. Risk assessment → invoke assess-risk skill → produces report
-3. Pattern recognition → invoke pattern-tasks skill → proposes and writes edges
+2. Risk assessment → invoke risk skill → produces report
+3. Pattern recognition → invoke meta skill → proposes and writes edges
 4. Execute → begin task execution with enriched graph
 
 <original_prompt>
 Create two invokable skills:
 
-1. assess-risk — Greg's risk assessment framework applied to loaded plans (read-only)
-2. pattern-tasks — Cross-plan task enrichment: find overlaps, propose edges, enrich tasks (read-write)
+1. risk — Greg's risk assessment framework applied to loaded plans (read-only)
+2. meta — Cross-plan task enrichment: find overlaps, propose edges, enrich tasks (read-write)
    Plus a tg crossplan CLI command to support both skills with structured cross-plan queries.
    </original_prompt>

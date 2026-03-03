@@ -13,6 +13,7 @@ Shared learnings for all agent personas and sub-agents. When building prompts or
   - **Other shared resources:** Same principle: give each parallel agent a distinct working directory, branch, or scope so they don’t overwrite each other.
 - **When parallel isn’t possible:** If agents must share one mutable context (e.g. single branch, single DB state), dispatch **sequentially** (one at a time, wait for completion, then next). Document the constraint in the skill (e.g. "Sequential only: reason").
 - **Skills that batch-dispatch:** work (implementers), review (reviewers), review-tests (scanners), audit-performance (scanners), commit-messages (committers). Each should either (a) ensure agents have isolated context (worktrees, tg worktrees, read-only), or (b) explicitly document sequential dispatch and why.
+- **Commit-messages finish script:** When the commit-messages skill times out in the agent environment (git/shell slow), the orchestrator creates a dated finish script (e.g. `scripts/finish-grouped-commits-YYYY-MM-DD.sh`) that the user runs locally. It pops the stash, copies group files into worktrees, creates any missing commits, merges group branches, tags, adds the bundle to the daily initiative, and removes worktrees/branches. Tell the user to run it from repo root: `bash scripts/finish-grouped-commits-YYYY-MM-DD.sh`.
 
 ---
 

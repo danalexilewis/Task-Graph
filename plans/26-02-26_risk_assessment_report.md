@@ -1,6 +1,6 @@
 ---
 name: Risk Assessment Report
-overview: Cross-plan risk assessment (assess-risk skill). Rates entropy, surface area, backwards compat, reversibility, complexity concentration, testing surface, performance risk, blast radius; lists file overlaps, recommended execution order, and mitigations.
+overview: Cross-plan risk assessment (risk skill). Rates entropy, surface area, backwards compat, reversibility, complexity concentration, testing surface, performance risk, blast radius; lists file overlaps, recommended execution order, and mitigations.
 ---
 
 **Source:** `pnpm tg crossplan summary --json` + plan files under `plans/` (2026-02-26).
@@ -16,7 +16,7 @@ overview: Cross-plan risk assessment (assess-risk skill). Rates entropy, surface
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **All tasks done (12)** | Sharpen Orchestrator, Cursor Plan Import, Cursor Sub-Agent Specialization, Export Markdown, Plan Import Robustness, Project Rules, Publish to npm, Restructure package, Rich Planning, Task Dimensions, tg plan list, Agent Sync                                          |
 | **All tasks todo (10)** | Short Hash (8), Context Budget (7), Dolt Branch (7), External Gates (6), Git Worktree (6), TaskGraph MCP (6), Two-Stage Review (6), Task Templates (6), Dolt Replication (5), Persistent Agent Stats (4)                                                                  |
-| **Code done, DB stale** | Meta-Planning Skills (5 todo in DB but crossplan.ts, assess-risk skill, pattern-tasks skill, docs, and tests all exist in codebase — needs `tg done --force`); No Hard Deletes & DAL (plan not in DB at all, but cancel.ts, connection guards, triggers, tests all exist) |
+| **Code done, DB stale** | Meta-Planning Skills (5 todo in DB but crossplan.ts, risk skill, meta skill, docs, and tests all exist in codebase — needs `tg done --force`); No Hard Deletes & DAL (plan not in DB at all, but cancel.ts, connection guards, triggers, tests all exist) |
 | **Multi-Agent Centaur** | 1 task done, 0 todo — effectively complete                                                                                                                                                                                                                                |
 | **Empty**               | update docs (0 tasks)                                                                                                                                                                                                                                                     |
 

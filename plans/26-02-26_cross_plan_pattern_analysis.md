@@ -136,5 +136,5 @@ Both add to migrate.ts and types.ts. Independent features but avoid parallelizin
 - **Notes:** `pnpm tg note <taskId> --msg "..."`
 
 <original_prompt>
-/pattern-tasks — add this to the plans folder
+/meta — add this to the plans folder
 </original_prompt>
