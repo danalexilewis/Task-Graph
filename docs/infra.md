@@ -87,6 +87,7 @@ If the Dolt server is started by a different OS user than the one running `tg`, 
 - **Install**: `brew install dolt` (or from [dolthub](https://github.com/dolthub/dolt)).
 - **Repo location**: `.taskgraph/dolt/` by default. Config in `.taskgraph/config.json` (`doltRepoPath`).
 - **Auto-migrate**: Every CLI command (except `init` and `setup`) runs idempotent migrations at startup. See [schema.md](schema.md).
+- **Missing `project` table**: If you see "table not found: project", the DB may have been restored from an older state (e.g. only `plan` exists). The migrator only skips when both the version sentinel (`.taskgraph/.tg-migration-version`) and the `project` table exist. Run any `tg` command (e.g. `tg status --tasks`) and migrations will re-run and create `project` from `plan`; no manual step needed.
 - **Writable sessions**: All Dolt invocations use `--data-dir <repoPath>` and `DOLT_READ_ONLY=false` in env when the repo allows writes.
 
 ### Dolt sql-server mode

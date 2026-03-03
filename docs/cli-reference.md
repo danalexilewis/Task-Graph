@@ -519,11 +519,21 @@ tg block d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --on c0eebc99-9c0b-4ef8-bb6d-6bb9b
 
 Soft-deletes one or more plans (sets status to `abandoned`) or tasks (sets status to `canceled`). IDs can be space- or comma-separated. Each ID is resolved by trying plan first (by `plan_id` or `title`), then task by `task_id`. Use `--type plan` or `--type task` to force resolution. Refuses to cancel plans in `done` or `abandoned`, or tasks in `done` or `canceled`. For tasks, inserts a `note` event with body `{ type: 'cancel', reason }`. Exit code is 1 if any ID fails.
 
-**Arguments:** `<ids...>` — One or more plan or task IDs (space- or comma-separated).
+**Arguments:** `<ids...>` — One or more plan or task IDs (space- or comma-separated). Pass multiple IDs in one call to cancel in bulk; a single `--reason` applies to all canceled tasks.
 
-**Options:** `--type <plan|task>`, `--reason <reason>`.
+**Options:** `--type <plan|task>`, `--reason <reason>`, `--include-done`.
 
-**Output:** Human: one line per ID (e.g. `Plan <id> abandoned.` or `Task <id> canceled.`). With `--json`: array of `{ id, type?, status?, error? }`.
+**Output:** Human: one line per ID (e.g. `Project <id> abandoned.` or `Task <id> canceled.`). With `--json`: array of `{ id, type?, status?, error? }`.
+
+**Example (bulk cancel):**
+
+```bash
+tg cancel 20b0e6b3-46a3-4281-9389-c50c50356573 6371c7f8-01ed-4c4b-a702-f94cef3f6029 44e81d81-9df7-46e6-ae0c-917e209f090f --reason "Empty draft; no tasks"
+# Output (one line per ID):
+# Project 20b0e6b3-46a3-4281-9389-c50c50356573 abandoned.
+# Project 6371c7f8-01ed-4c4b-a702-f94cef3f6029 abandoned.
+# Project 44e81d81-9df7-46e6-ae0c-917e209f090f abandoned.
+```
 
 ### `tg split <taskId> --into <t1>|<t2>|...`
 
