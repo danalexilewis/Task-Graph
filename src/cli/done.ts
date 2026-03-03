@@ -155,7 +155,11 @@ export function doneCommand(program: Command) {
           .andThen(() =>
             q.update(
               "task",
-              { status: "done", updated_at: currentTimestamp },
+              {
+                status: "done",
+                updated_at: currentTimestamp,
+                ended_at: currentTimestamp,
+              },
               { task_id: resolved },
             ),
           )
