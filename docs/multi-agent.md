@@ -64,7 +64,7 @@ See [cli-reference.md](cli-reference.md) (worktree section) and `.cursor/rules/s
 
 ## Hive coordination (bi-directional check)
 
-When a sub-agent needs to sync with other active agents, it can **ping for context** (e.g. `tg context --hive --json` when available). That ping is the impetus for coordination:
+When a sub-agent needs to sync with other active agents, it **pings for context** by running `tg context --hive --json`. That ping is the impetus for coordination:
 
 1. **Read the group** — Parse the HiveSnapshot: who is doing what, which files they touch, recent notes.
 2. **Reflect on self** — Is there anything in that context I should factor into my work? Any note or heartbeat from another task that affects my task?

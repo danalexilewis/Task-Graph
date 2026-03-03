@@ -623,21 +623,24 @@ tg export markdown --plan <planId> [--out <path>]
 - YAML frontmatter with `name`, `overview`, `todos` (id, content, status, blockedBy). Suitable for re-import via `tg import --format cursor`.
 - Prints the destination path to stdout (unless `--json`).
 
-### `tg context <taskId>`
+### `tg context`
 
-Outputs domain doc path, skill guide path, related done tasks, and (when present) task suggested changes and plan file tree/risks. Run after `tg start` to load the right docs before doing work.
+Outputs domain doc path, skill guide path, related done tasks, and (when present) task suggested changes and plan file tree/risks. With `--hive`, outputs a HiveSnapshot of all doing tasks (agents, phases, files, recent notes) for hive coordination. Run after `tg start` to load the right docs before doing work.
 
 ```bash
-tg context <taskId>
+tg context <taskId>           # Single task context (ContextOutput)
+tg context --hive             # HiveSnapshot of all doing tasks
+tg context --hive --json      # Machine-readable HiveSnapshot
 ```
 
 **Arguments:**
 
-- `<taskId>`: The ID of the task.
+- `<taskId>`: Task ID. Required unless `--hive` is used; with `--hive`, taskId is omitted and the command returns a HiveSnapshot.
 
 **Options:**
 
-- `--json`: Output as JSON: `domains`, `skills` (arrays), `domain_docs`, `skill_docs` (paths), `related_done_by_domain`, `related_done_by_skill`, and when present: `suggested_changes`, `file_tree`, `risks` (plan-level). Includes `token_estimate` (approximate token count of the JSON).
+- `--json`: Output as JSON: `domains`, `skills` (arrays), `domain_docs`, `skill_docs` (paths), `related_done_by_domain`, `related_done_by_skill`, and when present: `suggested_changes`, `file_tree`, `risks` (plan-level). Includes `token_estimate` (approximate token count of the JSON). With `--hive`, outputs machine-readable HiveSnapshot (`entries`, `generatedAt`).
+- `--hive`: Return a HiveSnapshot instead of ContextOutput. Includes agent names, started timestamps, heartbeat phase, files in progress, and recent notes for each doing task. Advisory only; see docs/multi-agent.md.
 
 **Configuration:** Optional `context_token_budget` in `.taskgraph/config.json` (number, e.g. `4000` or `8000`) sets a token limit for context output. When the full context exceeds this budget, the command compacts it by slimming `related_done_by_doc` and `related_done_by_skill` (fewer items, `task_id` and `title` only), then reducing further or clearing those lists if still over budget. Omitted or `null` means no limit.
 
