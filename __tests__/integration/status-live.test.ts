@@ -9,6 +9,23 @@ import {
 
 const DOLT_PATH = process.env.DOLT_PATH || "dolt";
 
+const POLL_TIMEOUT_MS = 5000;
+const POLL_INTERVAL_MS = 150;
+
+/** Wait until predicate(getOutput()) is true or timeout (ms). Reduces flakiness vs fixed sleeps. */
+async function waitForOutput(
+  getOutput: () => string,
+  predicate: (out: string) => boolean,
+  timeoutMs = POLL_TIMEOUT_MS,
+  intervalMs = POLL_INTERVAL_MS,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate(getOutput())) return;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 describe("status-live integration tests", () => {
   let context: Awaited<ReturnType<typeof setupIntegrationTest>> | undefined;
 
@@ -31,7 +48,15 @@ describe("status-live integration tests", () => {
         shell: true,
         env: { ...process.env, DOLT_PATH },
       });
-      await new Promise((r) => setTimeout(r, 2500));
+      let stdout = "";
+      subprocess.stdout?.on("data", (ch: Buffer) => {
+        stdout += ch.toString();
+      });
+      await waitForOutput(
+        () => stdout,
+        (out) =>
+          /Active|Completed|tasks|Next|Last|deprecated/i.test(out),
+      );
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
       try {
@@ -68,7 +93,7 @@ describe("status-live integration tests", () => {
       subprocess.stderr?.on("data", (ch: Buffer) => {
         stderr += ch.toString();
       });
-      await new Promise((r) => setTimeout(r, 2500));
+      await waitForOutput(() => stderr, (out) => out.includes("deprecated"));
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
       try {
@@ -100,7 +125,13 @@ describe("status-live integration tests", () => {
       subprocess.stdout?.on("data", (ch: Buffer) => {
         stdout += ch.toString();
       });
-      await new Promise((r) => setTimeout(r, 2500));
+      await waitForOutput(
+        () => stdout,
+        (out) =>
+          out.includes("Completed") ||
+          out.includes("Active Projects") ||
+          out.includes("Active tasks"),
+      );
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
       try {
@@ -132,7 +163,10 @@ describe("status-live integration tests", () => {
       subprocess.stdout?.on("data", (ch: Buffer) => {
         stdout += ch.toString();
       });
-      await new Promise((r) => setTimeout(r, 2500));
+      await waitForOutput(
+        () => stdout,
+        (out) => /Next 7|next 7/i.test(out) && /Last 7|last 7/i.test(out),
+      );
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
       try {
@@ -161,7 +195,10 @@ describe("status-live integration tests", () => {
       subprocess.stdout?.on("data", (ch: Buffer) => {
         stdout += ch.toString();
       });
-      await new Promise((r) => setTimeout(r, 2500));
+      await waitForOutput(
+        () => stdout,
+        (out) => /Next 7|next 7/i.test(out) && /Last 7|last 7/i.test(out),
+      );
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
       try {
