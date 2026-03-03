@@ -22,7 +22,7 @@ import { noteCommand } from "./note";
 import { planCommand } from "./plan";
 import { portfolioCommand } from "./portfolio";
 import { recoverCommand } from "./recover";
-import { detectAndApplyServerPort, serverCommand } from "./server";
+import { detectAndApplyServerPort, probePort, serverCommand } from "./server";
 import { setupCommand } from "./setup";
 import { showCommand } from "./show";
 import { splitCommand } from "./split";
@@ -69,6 +69,14 @@ export function createProgram(): Command {
       return;
     }
     await detectAndApplyServerPort(configResult.value);
+    if (process.env.TG_DOLT_SERVER_PORT) {
+      try {
+        await probePort(Number(process.env.TG_DOLT_SERVER_PORT), 500);
+      } catch {
+        delete process.env.TG_DOLT_SERVER_PORT;
+        delete process.env.TG_DOLT_SERVER_DATABASE;
+      }
+    }
     const opts = rootOpts(actionCommand);
     const noCommit = opts.noCommit ?? false;
     const timeoutPromise = new Promise<never>((_, reject) => {

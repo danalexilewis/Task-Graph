@@ -38,7 +38,7 @@ export function writeServerMeta(configDir: string, meta: ServerMeta): void {
  * Attempt a TCP connection to the given port on localhost.
  * Resolves if the connection succeeds within `timeoutMs`; rejects otherwise.
  */
-function probePort(port: number, timeoutMs: number): Promise<void> {
+export function probePort(port: number, timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
     const timer = setTimeout(() => {
