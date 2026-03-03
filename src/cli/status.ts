@@ -43,7 +43,7 @@ import {
   getBoxInnerWidthDashboard,
   useAsciiBorders,
 } from "./tui/boxen";
-import { type Config, readConfig, rootOpts } from "./utils";
+import { type Config, readConfig, rootOpts, shouldUseJson } from "./utils";
 
 const UUID_REGEX =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -864,6 +864,7 @@ export function statusCommand(program: Command) {
     )
     .action(async (options, cmd) => {
       const useLive = options.dashboard;
+      const json = shouldUseJson(cmd);
       const statusOptions: StatusOptions = {
         plan: options.plan,
         domain: options.domain,
@@ -950,7 +951,7 @@ export function statusCommand(program: Command) {
           process.exit(1);
         }
         if (!existsResult.value) {
-          if (!rootOpts(cmd).json) {
+          if (!json) {
             console.log(INITIATIVES_STUB_MESSAGE);
           } else {
             console.log(
@@ -966,7 +967,7 @@ export function statusCommand(program: Command) {
           const result = await fetchInitiativesTableData(config, statusOptions);
           result.match(
             (rows: InitiativeRow[]) => {
-              if (!rootOpts(cmd).json) {
+              if (!json) {
                 const w = getTerminalWidth();
                 console.log(`\n${formatInitiativesAsString(rows, w)}\n`);
               } else {
@@ -975,7 +976,7 @@ export function statusCommand(program: Command) {
             },
             (e: AppError) => {
               console.error(`Error fetching initiatives: ${e.message}`);
-              if (rootOpts(cmd).json) {
+              if (json) {
                 console.log(
                   JSON.stringify({
                     status: "error",
@@ -1064,7 +1065,7 @@ export function statusCommand(program: Command) {
         );
         result.match(
           ([rows, staleDoingTasks]) => {
-            if (!rootOpts(cmd).json) {
+            if (!json) {
               const w = getTerminalWidth();
               const staleIds = new Set(staleDoingTasks.map((t) => t.task_id));
               console.log(
@@ -1076,7 +1077,7 @@ export function statusCommand(program: Command) {
           },
           (e: AppError) => {
             console.error(`Error fetching tasks: ${e.message}`);
-            if (rootOpts(cmd).json) {
+            if (json) {
               console.log(
                 JSON.stringify({
                   status: "error",
@@ -1098,7 +1099,7 @@ export function statusCommand(program: Command) {
         );
         result.match(
           (rows: ProjectRow[]) => {
-            if (!rootOpts(cmd).json) {
+            if (!json) {
               const w = getTerminalWidth();
               console.log(`\n${formatProjectsAsString(rows, w)}\n`);
             } else {
@@ -1107,7 +1108,7 @@ export function statusCommand(program: Command) {
           },
           (e: AppError) => {
             console.error(`Error fetching projects: ${e.message}`);
-            if (rootOpts(cmd).json) {
+            if (json) {
               console.log(
                 JSON.stringify({
                   status: "error",
@@ -1341,7 +1342,7 @@ export function statusCommand(program: Command) {
       result.match(
         (data: unknown) => {
           const d = data as StatusData;
-          if (!rootOpts(cmd).json) {
+          if (!json) {
             printHumanStatus(d);
           } else {
             printJsonStatus(d);
@@ -1349,7 +1350,7 @@ export function statusCommand(program: Command) {
         },
         (error: AppError) => {
           console.error(`Error fetching status: ${error.message}`);
-          if (rootOpts(cmd).json) {
+          if (json) {
             console.log(
               JSON.stringify({
                 status: "error",
