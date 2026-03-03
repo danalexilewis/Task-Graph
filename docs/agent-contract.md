@@ -66,7 +66,7 @@ Quick reference for the execution sequence and rules.
 
 **Rules:**
 
-- **`tg done --merge` from worktree directory.** When using a worktree, `pnpm tg done <taskId> --merge --evidence "..."` must run from **inside the worktree directory**, and `--merge` is required. Two separate failure modes: (a) running from repo root silently skips the merge; (b) omitting `--merge` also skips the merge even from the correct directory. Both the directory and the flag are required. Implementers own `--merge` — the orchestrator has no mechanism to retroactively merge after `tg done` has already cleaned up the worktree.
+- **`tg done --merge`.** When using a worktree, `--merge` is required so the task branch is merged into the plan branch. `tg done --merge` uses DB-stored worktree and plan paths; running from repo root (main) does **not** skip the merge. Running from inside the worktree directory is the recommended convention. Omitting `--merge` skips the merge. See [docs/leads/verify-done-merge.md](leads/verify-done-merge.md). Implementers own `--merge` — the orchestrator has no mechanism to retroactively merge after `tg done` has already cleaned up the worktree.
 - **`gate:full` from plan worktree.** Run `pnpm gate:full` from inside the plan worktree where merged task changes are visible, not from repo root. See [gate:full Orchestration Rules](#gatefull-orchestration-rules) in this doc.
 - **WORKTREE_PATH for implementer.** The orchestrator injects `{{WORKTREE_PATH}}` and `{{REPO_PATH}}` into implementer prompts; file editing and git run from the worktree; `tg done --merge` also runs from the worktree. See [.cursor/rules/subagent-dispatch.mdc](../.cursor/rules/subagent-dispatch.mdc) (Worktrunk — standard for sub-agent worktrees).
 
