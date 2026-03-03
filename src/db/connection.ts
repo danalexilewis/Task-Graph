@@ -342,6 +342,16 @@ export function doltSql(
             e,
           );
         }
+        const isEperm =
+          code === "EPERM" ||
+          (e instanceof Error && /operation not permitted/i.test(e.message));
+        if (isEperm) {
+          return buildError(
+            ErrorCode.DB_QUERY_FAILED,
+            "Dolt could not run: operation not permitted. Run tg from an environment that allows reading .taskgraph/ and spawning the dolt binary, or fix permissions.",
+            e,
+          );
+        }
         return buildError(
           ErrorCode.DB_QUERY_FAILED,
           `Dolt SQL query failed: ${query}${e instanceof Error ? ` — ${e.message}` : ""}`,
