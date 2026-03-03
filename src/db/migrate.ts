@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join as pathJoin } from "node:path";
 import execa from "execa";
 import { ok, ResultAsync } from "neverthrow";
@@ -1128,19 +1128,29 @@ export function applyLearningRecurrenceMigration(
 /** Chains all idempotent migrations. Safe to run on every command.
  *
  * Fast path: if `.tg-migration-version` in the parent of repoPath already
- * matches MIGRATION_VERSION, all probes are skipped entirely. The sentinel is
- * written after a successful full run so subsequent invocations are O(1).
+ * matches MIGRATION_VERSION and the `project` table exists, all probes are
+ * skipped. If the sentinel matches but `project` is missing (e.g. DB restored
+ * from backup with old schema), the sentinel is cleared and migrations run.
  */
 export function ensureMigrations(
   repoPath: string,
   noCommit: boolean = false,
 ): ResultAsync<void, AppError> {
-  if (readSentinel(repoPath) === MIGRATION_VERSION) {
-    return ResultAsync.fromSafePromise(Promise.resolve(undefined));
-  }
-  console.error("[tg] Running migrations…");
-  const cache = new QueryCache();
-  return applyPlanRichFieldsMigration(repoPath, noCommit, cache)
+  return tableExists(repoPath, "project").andThen((projectExists) => {
+    if (projectExists && readSentinel(repoPath) === MIGRATION_VERSION) {
+      return ResultAsync.fromSafePromise(Promise.resolve(undefined));
+    }
+    if (!projectExists) {
+      try {
+        const p = getSentinelPath(repoPath);
+        if (existsSync(p)) unlinkSync(p);
+      } catch {
+        // Non-fatal; migrations will run
+      }
+    }
+    console.error("[tg] Running migrations…");
+    const cache = new QueryCache();
+    return applyPlanRichFieldsMigration(repoPath, noCommit, cache)
     .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit, cache))
     .andThen(() =>
       applyTaskSuggestedChangesMigration(repoPath, noCommit, cache),
@@ -1170,6 +1180,7 @@ export function ensureMigrations(
       writeSentinel(repoPath);
       return undefined;
     });
+  });
 }
 
 export function applyMigrations(
