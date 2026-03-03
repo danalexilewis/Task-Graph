@@ -57,7 +57,7 @@ function acquireExecaSlot(repoPath: string): Promise<() => void> {
       reject(
         buildError(
           ErrorCode.DB_QUERY_FAILED,
-          `Failed to acquire exec slot within ${EXECA_SLOT_WAIT_TIMEOUT_MS / 1000} s. Another Dolt operation may be stuck or the repo is busy.`,
+          "Dolt operation timed out: another operation may be stuck or the repo is busy. Wait and retry, or check for stuck processes.",
         ),
       );
     }, EXECA_SLOT_WAIT_TIMEOUT_MS);
