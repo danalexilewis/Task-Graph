@@ -17,6 +17,7 @@ const {
   recordFinding,
   listRecurrences,
 } = await import("../../src/db/recurrence");
+
 import { buildError, ErrorCode } from "../../src/domain/errors";
 
 const REPO_PATH = "./test_repo";

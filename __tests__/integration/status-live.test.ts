@@ -54,8 +54,7 @@ describe("status-live integration tests", () => {
       });
       await waitForOutput(
         () => stdout,
-        (out) =>
-          /Active|Completed|tasks|Next|Last|deprecated/i.test(out),
+        (out) => /Active|Completed|tasks|Next|Last|deprecated/i.test(out),
       );
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
@@ -93,7 +92,10 @@ describe("status-live integration tests", () => {
       subprocess.stderr?.on("data", (ch: Buffer) => {
         stderr += ch.toString();
       });
-      await waitForOutput(() => stderr, (out) => out.includes("deprecated"));
+      await waitForOutput(
+        () => stderr,
+        (out) => out.includes("deprecated"),
+      );
       subprocess.kill("SIGINT");
       let exitCode: number | undefined;
       try {

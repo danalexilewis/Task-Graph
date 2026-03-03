@@ -34,6 +34,7 @@ export function createDiffWriter(): (content: string) => void {
     process.stdout.write(diff.update(`\n${content}\n`));
   };
 }
+
 import {
   boxedSection,
   getBoxInnerWidth,
@@ -1834,8 +1835,14 @@ function buildMergedActiveNextTable(
     sym.emDash,
     sym.emDash,
   ];
-  const emptyPlaceholderRow = (): string[] =>
-    [sym.emDash, sym.emDash, sym.emDash, sym.emDash, sym.emDash, sym.emDash];
+  const emptyPlaceholderRow = (): string[] => [
+    sym.emDash,
+    sym.emDash,
+    sym.emDash,
+    sym.emDash,
+    sym.emDash,
+    sym.emDash,
+  ];
   let tableRows: string[][];
   if (rows.length > 0) {
     tableRows = [...rows];
