@@ -550,19 +550,17 @@ export async function runOpenTUILive(
     return false;
   });
 
+  let lastUsedWidth = getTerminalWidth();
+
   const refreshContent = (data: StatusData) => {
     try {
-      if (
-        !updateDefaultDashboardSections(renderer, mod, STATUS_ROOT_ID, data)
-      ) {
-        replaceRootWithDashboardSections(
-          renderer,
-          mod,
-          STATUS_ROOT_ID,
-          data,
-          getTerminalWidth(),
-        );
+      const w = getTerminalWidth();
+      if (updateDefaultDashboardSections(renderer, mod, STATUS_ROOT_ID, data)) {
+        lastUsedWidth = w;
+        return;
       }
+      replaceRootWithDashboardSections(renderer, mod, STATUS_ROOT_ID, data, w);
+      lastUsedWidth = w;
       renderer.root.requestRender?.();
     } catch {
       // ignore
