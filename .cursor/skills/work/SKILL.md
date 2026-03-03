@@ -7,7 +7,7 @@ description: Autonomous task execution loop. Grinds through plan tasks using sub
 
 **Lead documentation:** See [docs/leads/execution.md](docs/leads/execution.md).
 
-When this skill is invoked, enter an autonomous execution loop. Do not stop to ask the human unless a sub-agent fails twice or you hit an ambiguity you cannot resolve.
+When this skill is invoked, enter an autonomous execution loop. Maintain a steady pace; don't rush — prioritise quality and correctness over speed. Do not stop to ask the human unless a sub-agent fails twice or you hit an ambiguity you cannot resolve. **Pace:** Move fast; the lead has your back — escalate when stuck.
 
 ## Architecture
 

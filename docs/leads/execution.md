@@ -2,6 +2,10 @@
 
 Created by the **/work** skill. Autonomous task execution loop: grind through plan tasks using sub-agent dispatch without stopping for human confirmation.
 
+## Pace
+
+Maintain a steady, consistent pace; don't rush — prioritise quality and correctness over speed.
+
 ## When
 
 - **/work** (no args) — Self-orient via sitrep, then execute.
@@ -38,7 +42,7 @@ When a plan is specified (by context or user), skip Phase 0 and go straight to t
 3. **Review:** Two-stage — spec-reviewer then quality-reviewer (or reviewer when single-stage).
 4. **Repeat** until no runnable tasks or plan complete.
 
-Orchestrator coordinates; implementers and reviewers are workers.
+Orchestrator coordinates; implementers and reviewers are workers. **Pace:** Move fast; the lead has your back — escalate when stuck.
 
 ### Task batching (optional)
 
