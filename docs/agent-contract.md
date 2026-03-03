@@ -91,6 +91,8 @@ Sub-agents receive a small **general context** block at start to give them backg
 
 The command `tg context <taskId> --json` (and the programmatic `TgClient.context(taskId)`) returns a **ContextResult** object. The orchestrator uses this to build implementer (and other sub-agent) prompts by mapping each field to template placeholders.
 
+**Fallback when ACTION_DIRECTIVE is absent:** When the orchestrator does **not** provide an **ACTION_DIRECTIVE** in the implementer prompt, the implementer uses **full intent and suggested_changes** as the scope — the existing "Load context / Do the todos" behaviour. This is the fallback for ambiguous or exploratory tasks where no single action directive is injected.
+
 ### Field list and types
 
 | Field | Type | Description |
@@ -119,7 +121,9 @@ The command `tg context <taskId> --json` (and the programmatic `TgClient.context
 | ------------------- | ----------------------- | ----- |
 | `task_id` | `{{TASK_ID}}` | Required. |
 | `title` | `{{TITLE}}` | Required. |
-| (see Intent above) | `{{INTENT}}` | Not in context JSON; use title/plan_overview stand-in until API adds intent. |
+| `plan_name` | — | Orchestrator may use for plan context; not a direct placeholder. |
+| `plan_overview` | `{{INTENT}}` stand-in | When intent is missing from context, orchestrator may use plan_overview (or title) for `{{INTENT}}`. |
+| (see Intent above) | `{{INTENT}}` | Not in context JSON; use title or plan_overview stand-in until API adds intent. |
 | `change_type` | `{{CHANGE_TYPE}}` | e.g. create, modify, document. |
 | `doc_paths` | `{{DOC_PATHS}}` | Newline- or list-form for "Docs to read". |
 | `skill_docs` | `{{SKILL_DOCS}}` | "Skill guides to read". |
@@ -127,15 +131,17 @@ The command `tg context <taskId> --json` (and the programmatic `TgClient.context
 | `file_tree` | `{{FILE_TREE}}` | "Plan file tree". |
 | `risks` | `{{RISKS}}` | "Plan risks". |
 | (see below) | `{{RELATED_DONE}}` | See "Not yet implemented" below. |
+| `immediate_blockers` | — | Orchestrator may use to warn implementer of blockers; not a template placeholder. |
+| `token_estimate` | — | For context-budget awareness; not injected into the prompt. |
 | — | `{{WORKTREE_PATH}}` | Optional; from orchestrator or `tg worktree list --json` after start. |
 | — | `{{EXPLORER_OUTPUT}}` | Optional; from explorer sub-agent. |
 | — | `{{LEARNINGS}}` | From agent file `## Learnings` section. |
 
-The **agent** field is used to choose which template to load (e.g. `implementer.md` vs `documenter.md`), not injected as a placeholder.
+The **agent** field is used to choose which template to load (e.g. `implementer.md` vs `documenter.md`), not injected as a placeholder. The **docs** and **skills** fields are the slugs used to resolve **doc_paths** and **skill_docs**; the implementer receives the paths, not the slugs.
 
 ### related_done_by_domain and related_done_by_skill — not yet implemented
 
-The dispatch rule (`.cursor/rules/subagent-dispatch.mdc`) and agent README refer to **related_done_by_domain** and **related_done_by_skill** in the context JSON. These fields are **not yet implemented**: they are not in the `ContextResult` type (`src/api/types.ts`) and are not populated by `runContextChain` in `src/api/client.ts`. The implementer placeholder `{{RELATED_DONE}}` is therefore either empty or filled from another source until the API supports these fields.
+The dispatch rule (`.cursor/rules/subagent-dispatch.mdc`) and [cli-reference.md § tg context](cli-reference.md#tg-context-taskid) refer to **related_done_by_domain** and **related_done_by_skill** in the context JSON. These fields are **not yet implemented**: they are not in the `ContextResult` type (`src/api/types.ts`) and are not populated by `runContextChain` in `src/api/client.ts`. The implementer placeholder `{{RELATED_DONE}}` is therefore either empty or filled from another source until the API supports these fields.
 
 ### Fallback when ACTION_DIRECTIVE is absent
 
