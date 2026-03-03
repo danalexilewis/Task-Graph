@@ -1,4 +1,4 @@
-import { errAsync, ok, ResultAsync } from "neverthrow";
+import { errAsync, ok, okAsync, ResultAsync } from "neverthrow";
 import { recoverStaleTasks } from "../cli/recover";
 import type { StatusOptions } from "../cli/status";
 import { fetchStatusData } from "../cli/status";
@@ -16,144 +16,197 @@ import {
 } from "../domain/token-estimate";
 import type { ContextResult, NextTaskRow, StatusResult } from "./types";
 
-async function runContextChain(
+function runContextChain(
   config: Config,
   taskId: string,
-): Promise<ContextResult> {
-  const resolved = await resolveTaskId(taskId, config.doltRepoPath);
-  if (resolved.isErr()) throw resolved.error;
-  const taskIdResolved = resolved.value;
+): ResultAsync<ContextResult, AppError> {
   const q = cachedQuery(
     config.doltRepoPath,
     getStatusCache(),
     statusCacheTtlMs,
   );
 
-  const taskRows = await q.select<{
-    task_id: string;
-    title: string;
-    change_type: string | null;
-    plan_id: string;
-    suggested_changes: string | null;
-    agent: string | null;
-  }>("task", {
-    columns: [
-      "task_id",
-      "title",
-      "change_type",
-      "plan_id",
-      "suggested_changes",
-      "agent",
-    ],
-    where: { task_id: taskIdResolved },
-  });
-  if (taskRows.isErr()) throw taskRows.error;
-  if (taskRows.value.length === 0) {
-    throw buildError(ErrorCode.TASK_NOT_FOUND, `Task ${taskId} not found`);
-  }
-  const task = taskRows.value[0];
-
-  const planRows = await q.select<{
-    title: string | null;
-    overview: string | null;
-    file_tree: string | null;
-    risks: string | null;
-  }>("project", {
-    columns: ["title", "overview", "file_tree", "risks"],
-    where: { plan_id: task.plan_id },
-  });
-  if (planRows.isErr()) throw planRows.error;
-  const plan = planRows.value[0];
-  const plan_name = plan?.title ?? null;
-  const plan_overview = plan?.overview ?? null;
-  const file_tree = plan?.file_tree ?? null;
-  let risks: unknown = null;
-  if (plan?.risks != null && typeof plan.risks === "string") {
-    try {
-      risks = JSON.parse(plan.risks);
-    } catch {
-      risks = null;
-    }
-  }
-
-  const docRows = await q.select<{ doc: string }>("task_doc", {
-    columns: ["doc"],
-    where: { task_id: taskIdResolved },
-  });
-  if (docRows.isErr()) throw docRows.error;
-  const docs = docRows.value.map((r) => r.doc);
-
-  const skillRows = await q.select<{ skill: string }>("task_skill", {
-    columns: ["skill"],
-    where: { task_id: taskIdResolved },
-  });
-  if (skillRows.isErr()) throw skillRows.error;
-  const skills = skillRows.value.map((r) => r.skill);
-
-  const doc_paths = docs.map((d) => `docs/${d}.md`);
-  const skill_docs = skills.map((s) => `docs/skills/${s}.md`);
-
-  const blockerResult = await q.raw<{
-    task_id: string;
-    title: string;
-    status: string;
-  }>(
-    `SELECT e.from_task_id AS task_id, t.title, t.status FROM \`edge\` e JOIN \`task\` t ON e.from_task_id = t.task_id WHERE e.to_task_id = '${sqlEscape(taskIdResolved)}' AND e.type = 'blocks'`,
-  );
-  if (blockerResult.isErr()) throw blockerResult.error;
-  const blockerRows = blockerResult.value;
-
-  const doneBlockerIds = blockerRows
-    .filter((b) => b.status === "done")
-    .map((b) => b.task_id);
-  const evidenceByTaskId = new Map<string, string>();
-  if (doneBlockerIds.length > 0) {
-    const evidenceResult = await q.raw<{ task_id: string; body: string }>(
-      `SELECT task_id, body FROM \`event\` WHERE kind = 'done' AND task_id IN (${doneBlockerIds.map((id) => `'${sqlEscape(id)}'`).join(",")}) ORDER BY created_at DESC`,
-    );
-    if (evidenceResult.isOk()) {
-      for (const ev of evidenceResult.value) {
-        if (!evidenceByTaskId.has(ev.task_id)) {
-          try {
-            const parsed = JSON.parse(ev.body) as { evidence?: string };
-            evidenceByTaskId.set(ev.task_id, parsed.evidence ?? "");
-          } catch {
-            evidenceByTaskId.set(ev.task_id, "");
+  return resolveTaskId(taskId, config.doltRepoPath)
+    .andThen((taskIdResolved) =>
+      q
+        .select<{
+          task_id: string;
+          title: string;
+          change_type: string | null;
+          plan_id: string;
+          suggested_changes: string | null;
+          agent: string | null;
+        }>("task", {
+          columns: [
+            "task_id",
+            "title",
+            "change_type",
+            "plan_id",
+            "suggested_changes",
+            "agent",
+          ],
+          where: { task_id: taskIdResolved },
+        })
+        .andThen((taskRows) => {
+          if (taskRows.length === 0) {
+            return errAsync(
+              buildError(ErrorCode.TASK_NOT_FOUND, `Task ${taskId} not found`),
+            );
           }
-        }
-      }
-    }
-  }
+          const task = taskRows[0];
+          return q
+            .select<{
+              title: string | null;
+              overview: string | null;
+              file_tree: string | null;
+              risks: string | null;
+            }>("project", {
+              columns: ["title", "overview", "file_tree", "risks"],
+              where: { plan_id: task.plan_id },
+            })
+            .andThen((planRows) => {
+              const plan = planRows[0];
+              const plan_name = plan?.title ?? null;
+              const plan_overview = plan?.overview ?? null;
+              const file_tree = plan?.file_tree ?? null;
+              let risks: unknown = null;
+              if (plan?.risks != null && typeof plan.risks === "string") {
+                try {
+                  risks = JSON.parse(plan.risks);
+                } catch {
+                  risks = null;
+                }
+              }
 
-  const immediate_blockers = blockerRows.map((b) => ({
-    task_id: b.task_id,
-    title: b.title,
-    status: b.status,
-    evidence: evidenceByTaskId.get(b.task_id) ?? null,
-  }));
+              return q
+                .select<{ doc: string }>("task_doc", {
+                  columns: ["doc"],
+                  where: { task_id: taskIdResolved },
+                })
+                .andThen((docRows) =>
+                  q
+                    .select<{ skill: string }>("task_skill", {
+                      columns: ["skill"],
+                      where: { task_id: taskIdResolved },
+                    })
+                    .andThen((skillRows) => {
+                      const docs = docRows.map((r) => r.doc);
+                      const skills = skillRows.map((r) => r.skill);
+                      const doc_paths = docs.map((d) => `docs/${d}.md`);
+                      const skill_docs = skills.map((s) => `docs/skills/${s}.md`);
 
-  const data: ContextOutput = {
-    task_id: task.task_id,
-    title: task.title,
-    agent: task.agent ?? null,
-    plan_name,
-    plan_overview,
-    docs,
-    skills,
-    change_type: task.change_type ?? null,
-    suggested_changes: task.suggested_changes ?? null,
-    file_tree,
-    risks,
-    doc_paths,
-    skill_docs,
-    immediate_blockers,
-  };
-  const budget = config.context_token_budget;
-  const finalData =
-    budget != null && budget > 0 && estimateJsonTokens(data) > budget
-      ? compactContext(data, budget)
-      : data;
-  return { ...finalData, token_estimate: estimateJsonTokens(finalData) };
+                      return q
+                        .raw<{
+                          task_id: string;
+                          title: string;
+                          status: string;
+                        }>(
+                          `SELECT e.from_task_id AS task_id, t.title, t.status FROM \`edge\` e JOIN \`task\` t ON e.from_task_id = t.task_id WHERE e.to_task_id = '${sqlEscape(taskIdResolved)}' AND e.type = 'blocks'`,
+                        )
+                        .andThen((blockerRows) => {
+                          const doneBlockerIds = blockerRows
+                            .filter((b) => b.status === "done")
+                            .map((b) => b.task_id);
+
+                          if (doneBlockerIds.length === 0) {
+                            const evidenceByTaskId = new Map<string, string>();
+                            const immediate_blockers = blockerRows.map((b) => ({
+                              task_id: b.task_id,
+                              title: b.title,
+                              status: b.status,
+                              evidence: evidenceByTaskId.get(b.task_id) ?? null,
+                            }));
+                            const data: ContextOutput = {
+                              task_id: task.task_id,
+                              title: task.title,
+                              agent: task.agent ?? null,
+                              plan_name,
+                              plan_overview,
+                              docs,
+                              skills,
+                              change_type: task.change_type ?? null,
+                              suggested_changes: task.suggested_changes ?? null,
+                              file_tree,
+                              risks,
+                              doc_paths,
+                              skill_docs,
+                              immediate_blockers,
+                            };
+                            const budget = config.context_token_budget;
+                            const finalData =
+                              budget != null &&
+                              budget > 0 &&
+                              estimateJsonTokens(data) > budget
+                                ? compactContext(data, budget)
+                                : data;
+                            return okAsync({
+                              ...finalData,
+                              token_estimate: estimateJsonTokens(finalData),
+                            });
+                          }
+
+                          return q
+                            .raw<{ task_id: string; body: string }>(
+                              `SELECT task_id, body FROM \`event\` WHERE kind = 'done' AND task_id IN (${doneBlockerIds.map((id) => `'${sqlEscape(id)}'`).join(",")}) ORDER BY created_at DESC`,
+                            )
+                            .map((evidenceRows) => {
+                              const evidenceByTaskId = new Map<string, string>();
+                              for (const ev of evidenceRows) {
+                                if (!evidenceByTaskId.has(ev.task_id)) {
+                                  try {
+                                    const parsed = JSON.parse(ev.body) as {
+                                      evidence?: string;
+                                    };
+                                    evidenceByTaskId.set(
+                                      ev.task_id,
+                                      parsed.evidence ?? "",
+                                    );
+                                  } catch {
+                                    evidenceByTaskId.set(ev.task_id, "");
+                                  }
+                                }
+                              }
+                              const immediate_blockers = blockerRows.map((b) => ({
+                                task_id: b.task_id,
+                                title: b.title,
+                                status: b.status,
+                                evidence:
+                                  evidenceByTaskId.get(b.task_id) ?? null,
+                              }));
+                              const data: ContextOutput = {
+                                task_id: task.task_id,
+                                title: task.title,
+                                agent: task.agent ?? null,
+                                plan_name,
+                                plan_overview,
+                                docs,
+                                skills,
+                                change_type: task.change_type ?? null,
+                                suggested_changes: task.suggested_changes ?? null,
+                                file_tree,
+                                risks,
+                                doc_paths,
+                                skill_docs,
+                                immediate_blockers,
+                              };
+                              const budget = config.context_token_budget;
+                              const finalData =
+                                budget != null &&
+                                budget > 0 &&
+                                estimateJsonTokens(data) > budget
+                                  ? compactContext(data, budget)
+                                  : data;
+                              return {
+                                ...finalData,
+                                token_estimate: estimateJsonTokens(finalData),
+                              };
+                            });
+                        });
+                    }),
+                );
+            });
+        }),
+    );
 }
 
 export interface NextOptions {
@@ -281,10 +334,7 @@ export class TgClient {
     const configResult = this.readConfig();
     if (configResult.isErr()) return errAsync(configResult.error);
     const config = configResult.value;
-    return ResultAsync.fromPromise(
-      runContextChain(config, taskId),
-      (e) => e as AppError,
-    );
+    return runContextChain(config, taskId);
   }
 
   /**

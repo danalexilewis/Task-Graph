@@ -1,10 +1,9 @@
 import type { Command } from "commander";
-import { ResultAsync } from "neverthrow";
+import { okAsync, ResultAsync } from "neverthrow";
 import { TgClient } from "../api";
 import { sqlEscape } from "../db/escape";
 import { query } from "../db/query";
 import type { AppError } from "../domain/errors";
-import { buildError, ErrorCode } from "../domain/errors";
 import type { HiveSnapshot, HiveTaskEntry } from "../domain/hive";
 import { readConfig, shouldUseJson } from "./utils";
 
@@ -71,9 +70,9 @@ function parseHeartbeatBody(body: string | null): {
  * Query function: returns a HiveSnapshot of all doing tasks with agent, phase, files, and recent notes.
  * If there are no doing tasks, query 3 (recent notes) is skipped and tasks array is empty.
  */
-export async function getHiveSnapshot(
+export function getHiveSnapshot(
   doltRepoPath: string,
-): Promise<HiveSnapshot> {
+): ResultAsync<HiveSnapshot, AppError> {
   const q = query(doltRepoPath);
   const asOf = new Date().toISOString();
   const doingTasksSql = `
@@ -90,17 +89,16 @@ export async function getHiveSnapshot(
     ORDER BY e.created_at DESC
   `;
 
-  const doingResult = await q.raw<DoingTaskRow>(doingTasksSql);
-  if (doingResult.isErr()) {
-    throw doingResult.error;
-  }
-  const doingRows = doingResult.value;
+  return q.raw<DoingTaskRow>(doingTasksSql).andThen((doingRows) => {
+    if (doingRows.length === 0) {
+      return okAsync({
+        as_of: asOf,
+        doing_count: 0,
+        tasks: [],
+      });
+    }
 
-  if (doingRows.length === 0) {
-    return { as_of: asOf, doing_count: 0, tasks: [] };
-  }
-
-  const heartbeatSql = `
+    const heartbeatSql = `
     SELECT e.task_id, e.body AS heartbeat_body, e.created_at AS heartbeat_at
     FROM event e
     WHERE e.kind = 'note'
@@ -116,91 +114,89 @@ export async function getHiveSnapshot(
       )
   `;
 
-  const taskIds = doingRows.map((r) => r.task_id);
-  const inList = taskIds.map((id) => `'${sqlEscape(id)}'`).join(", ");
-  const recentNotesSql = `
+    const taskIds = doingRows.map((r) => r.task_id);
+    const inList = taskIds.map((id) => `'${sqlEscape(id)}'`).join(", ");
+    const recentNotesSql = `
     SELECT task_id, body, created_at
     FROM event
     WHERE kind = 'note' AND task_id IN (${inList})
     ORDER BY created_at DESC
   `;
 
-  const [heartbeatResult, notesResult] = await Promise.all([
-    q.raw<HeartbeatRow>(heartbeatSql),
-    q.raw<NoteRow>(recentNotesSql),
-  ]);
-
-  if (heartbeatResult.isErr()) throw heartbeatResult.error;
-  if (notesResult.isErr()) throw notesResult.error;
-
-  const heartbeatMap = new Map<string, HeartbeatRow>();
-  for (const row of heartbeatResult.value) {
-    heartbeatMap.set(row.task_id, row);
-  }
-
-  const notesByTask = new Map<string, HiveTaskEntry["recent_notes"]>();
-  const maxNotesPerTask = 5;
-  for (const row of notesResult.value) {
-    const list = notesByTask.get(row.task_id) ?? [];
-    if (list.length >= maxNotesPerTask) continue;
-    let bodyText = "";
-    let agent: string | null = null;
-    if (row.body) {
-      try {
-        const b =
-          typeof row.body === "string"
-            ? (JSON.parse(row.body) as Record<string, unknown>)
-            : (row.body as Record<string, unknown>);
-        const msg = b.message;
-        bodyText =
-          typeof msg === "string"
-            ? msg
-            : msg &&
-                typeof msg === "object" &&
-                (msg as { type?: string }).type === "heartbeat"
-              ? "[heartbeat]"
-              : JSON.stringify(msg ?? "");
-        agent = b.agent != null ? String(b.agent) : null;
-      } catch {
-        bodyText = String(row.body).slice(0, 200);
+    return ResultAsync.combine([
+      q.raw<HeartbeatRow>(heartbeatSql),
+      q.raw<NoteRow>(recentNotesSql),
+    ]).map(([heartbeatRows, notesRows]) => {
+      const heartbeatMap = new Map<string, HeartbeatRow>();
+      for (const row of heartbeatRows) {
+        heartbeatMap.set(row.task_id, row);
       }
-    }
-    list.push({
-      body_text: bodyText,
-      agent,
-      created_at: row.created_at != null ? String(row.created_at) : "",
-    });
-    notesByTask.set(row.task_id, list);
-  }
 
-  const taskMap = new Map<string, HiveTaskEntry>();
-  for (const row of doingRows) {
-    const hb = heartbeatMap.get(row.task_id);
-    const { phase, files } = hb
-      ? parseHeartbeatBody(
-          hb.heartbeat_body != null ? String(hb.heartbeat_body) : null,
-        )
-      : { phase: null, files: [] };
-    taskMap.set(row.task_id, {
-      task_id: row.task_id,
-      title: row.title,
-      agent_name: parseStartedBody(
-        row.started_body != null ? String(row.started_body) : null,
-      ),
-      plan_name: row.plan_title ?? null,
-      change_type: row.change_type ?? null,
-      started_at: row.started_at != null ? String(row.started_at) : null,
-      heartbeat_phase: phase,
-      heartbeat_files: files,
-      recent_notes: notesByTask.get(row.task_id) ?? [],
-    });
-  }
+      const notesByTask = new Map<string, HiveTaskEntry["recent_notes"]>();
+      const maxNotesPerTask = 5;
+      for (const row of notesRows) {
+        const list = notesByTask.get(row.task_id) ?? [];
+        if (list.length >= maxNotesPerTask) continue;
+        let bodyText = "";
+        let agent: string | null = null;
+        if (row.body) {
+          try {
+            const b =
+              typeof row.body === "string"
+                ? (JSON.parse(row.body) as Record<string, unknown>)
+                : (row.body as Record<string, unknown>);
+            const msg = b.message;
+            bodyText =
+              typeof msg === "string"
+                ? msg
+                : msg &&
+                    typeof msg === "object" &&
+                    (msg as { type?: string }).type === "heartbeat"
+                  ? "[heartbeat]"
+                  : JSON.stringify(msg ?? "");
+            agent = b.agent != null ? String(b.agent) : null;
+          } catch {
+            bodyText = String(row.body).slice(0, 200);
+          }
+        }
+        list.push({
+          body_text: bodyText,
+          agent,
+          created_at: row.created_at != null ? String(row.created_at) : "",
+        });
+        notesByTask.set(row.task_id, list);
+      }
 
-  return {
-    as_of: asOf,
-    doing_count: taskMap.size,
-    tasks: Array.from(taskMap.values()),
-  };
+      const taskMap = new Map<string, HiveTaskEntry>();
+      for (const row of doingRows) {
+        const hb = heartbeatMap.get(row.task_id);
+        const { phase, files } = hb
+          ? parseHeartbeatBody(
+              hb.heartbeat_body != null ? String(hb.heartbeat_body) : null,
+            )
+          : { phase: null, files: [] };
+        taskMap.set(row.task_id, {
+          task_id: row.task_id,
+          title: row.title,
+          agent_name: parseStartedBody(
+            row.started_body != null ? String(row.started_body) : null,
+          ),
+          plan_name: row.plan_title ?? null,
+          change_type: row.change_type ?? null,
+          started_at: row.started_at != null ? String(row.started_at) : null,
+          heartbeat_phase: phase,
+          heartbeat_files: files,
+          recent_notes: notesByTask.get(row.task_id) ?? [],
+        });
+      }
+
+      return {
+        as_of: asOf,
+        doing_count: taskMap.size,
+        tasks: Array.from(taskMap.values()),
+      };
+    });
+  });
 }
 
 export function contextCommand(program: Command) {
@@ -222,15 +218,7 @@ export function contextCommand(program: Command) {
           process.exit(1);
         }
         const config = configResult.value;
-        const result = await ResultAsync.fromPromise(
-          getHiveSnapshot(config.doltRepoPath),
-          (e): AppError =>
-            buildError(
-              ErrorCode.UNKNOWN_ERROR,
-              e instanceof Error ? e.message : String(e),
-              e,
-            ),
-        );
+        const result = await getHiveSnapshot(config.doltRepoPath);
         result.match(
           (snapshot) => {
             if (json) {
