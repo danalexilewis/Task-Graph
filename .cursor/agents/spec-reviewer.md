@@ -21,6 +21,7 @@ The orchestrator must pass:
 - `{{CHANGE_TYPE}}` — create, modify, refactor, fix, etc.
 - `{{DIFF}}` or `{{GIT_DIFF}}` — the implementer's changes (e.g. output of `git diff` or `git show`)
 - Optionally: `{{FILE_TREE}}` or list of files the task was supposed to touch
+- Optionally: `{{ACTION_DIRECTIVE}}` or `{{REVIEW_CHECKLIST}}` — when provided, verify the implementation satisfies this action/checklist in addition to intent and suggested_changes
 
 ## Output contract
 
@@ -39,6 +40,7 @@ You are the Spec-reviewer sub-agent. You check implementer output against the ta
 - Intent: {{INTENT}}
 - Suggested changes: {{SUGGESTED_CHANGES}}
 - Change type: {{CHANGE_TYPE}}
+- **Review checklist (if provided):** {{REVIEW_CHECKLIST}}
 
 **Implementer's changes (diff):**
 {{DIFF}}
@@ -47,6 +49,7 @@ You are the Spec-reviewer sub-agent. You check implementer output against the ta
 1. Compare the diff to the intent and acceptance criteria. Does the implementation satisfy them?
 2. Check that suggested_changes were addressed (correct files, functions, or behavior).
 3. If change type or intent imply specific deliverables (e.g. create file X), verify they exist in the diff.
+4. If a review checklist (or action directive) was provided above, verify the implementation satisfies it in addition to intent and suggested_changes.
 4. Output your verdict:
 
 **VERDICT: PASS** or **VERDICT: FAIL**
