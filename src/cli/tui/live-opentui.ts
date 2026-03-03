@@ -385,6 +385,13 @@ function buildDefaultDashboardRoot(
  * Update the three section content nodes in place (Text or TextTable).
  * Returns true if updated, false if structure doesn't match.
  */
+/**
+ * In-place update of the three dashboard sections (Projects, Tasks, Stats).
+ * Returns true when all sections were updated in place; returns false on structure mismatch
+ * (e.g. child count !== 3, missing root), so the caller may call replaceRootWithDashboardSections.
+ * Zero plans (plansTableData null) with section 0 as TextTable is handled in-place via a minimal
+ * table (same header shape, one body row); it does not force a full root replace.
+ */
 function updateDefaultDashboardSections(
   renderer: OpenTUIRenderer,
   mod: OpenTUIMod,
@@ -475,6 +482,12 @@ function updateDefaultDashboardSections(
 
 /**
  * Replace root with the multi-section dashboard root (used after error state or initial load).
+ */
+/**
+ * Replace the root with a fresh three-section dashboard. Call only when:
+ * - structure mismatch (child count !== 3), error recovery (root is single Box or missing),
+ * - or terminal width changed. Do not replace when zero plans with three-section shape —
+ * section 0 is updated in place by updateDefaultDashboardSections in that case.
  */
 function replaceRootWithDashboardSections(
   renderer: OpenTUIRenderer,
