@@ -90,6 +90,16 @@ If the Dolt server is started by a different OS user than the one running `tg`, 
 - **Missing `project` table**: If you see "table not found: project", the DB may have been restored from an older state (e.g. only `plan` exists). The migrator only skips when both the version sentinel (`.taskgraph/.tg-migration-version`) and the `project` table exist. Run any `tg` command (e.g. `tg status --tasks`) and migrations will re-run and create `project` from `plan`; no manual step needed.
 - **Writable sessions**: All Dolt invocations use `--data-dir <repoPath>` and `DOLT_READ_ONLY=false` in env when the repo allows writes.
 
+### Recovery (corrupted journal or data loss)
+
+If `tg` fails with "corrupted journal" or "possible data loss detected" (e.g. migration failing on table probe), the Dolt repo may be in a bad state. Before re-running `tg`, run `dolt fsck` in the data directory to assess and attempt repairs:
+
+```bash
+dolt --data-dir .taskgraph/dolt fsck
+```
+
+Use the same path as `doltRepoPath` in `.taskgraph/config.json` if you have overridden the default. After fsck reports or repairs issues, re-run the failing `tg` command so migrations can run again.
+
 ### Dolt sql-server mode
 
 TaskGraph supports an optional **sql-server mode** that replaces the default `dolt --data-dir ... sql -q` execa calls with a persistent mysql2 connection pool. This eliminates per-query process spawn overhead (~150 ms/query) and is recommended for integration tests and production use.
