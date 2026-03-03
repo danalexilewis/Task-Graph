@@ -87,6 +87,60 @@ Sub-agents receive a small **general context** block at start to give them backg
 
 **Scope discipline:** General context is **advisory only**. The sub-agent must not expand its task scope based on it. Use it to avoid file conflicts or to interpret memory; do not start solving other agents' tasks or adding work that is not in the task's intent and scope.
 
+## Context output (tg context --json)
+
+The command `tg context <taskId> --json` (and the programmatic `TgClient.context(taskId)`) returns a **ContextResult** object. The orchestrator uses this to build implementer (and other sub-agent) prompts by mapping each field to template placeholders.
+
+### Field list and types
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `task_id` | `string` | Task UUID. |
+| `title` | `string` | Task title. |
+| `agent` | `string \| null` | Preferred agent template (e.g. `implementer`, `documenter`); when set, orchestrator selects `.cursor/agents/{{agent}}.md`. |
+| `plan_name` | `string \| null` | Plan/project title. |
+| `plan_overview` | `string \| null` | Plan overview text. |
+| `docs` | `string[]` | Domain doc slugs (e.g. `schema`, `cli-tables`). |
+| `skills` | `string[]` | Skill slugs (e.g. `plan`, `work`). |
+| `change_type` | `string \| null` | e.g. `create`, `modify`, `fix`, `document`. |
+| `suggested_changes` | `string \| null` | Free-form snippet or pointer for the task. |
+| `file_tree` | `string \| null` | Plan-level file tree (files this plan touches). |
+| `risks` | `unknown` | Plan risks (often array of `{ description, severity, mitigation }`). |
+| `doc_paths` | `string[]` | Resolved paths to read (e.g. `docs/schema.md`). |
+| `skill_docs` | `string[]` | Resolved skill guide paths (e.g. `docs/skills/plan.md`). |
+| `immediate_blockers` | `ContextBlocker[]` | Tasks that block this one; each has `task_id`, `title`, `status`, optional `evidence`. |
+| `token_estimate` | `number` | Approximate token count (chars/4 heuristic). |
+
+**Intent:** The implementer template expects `{{INTENT}}`, but **ContextResult does not currently include an `intent` field**. The task table has an `intent` column; `runContextChain` (in `src/api/client.ts`) does not select or return it. Until the API adds it, orchestrators may use `title` or `plan_overview` as a stand-in for intent when building the prompt.
+
+### Mapping to implementer template placeholders
+
+| ContextResult field | Implementer placeholder | Notes |
+| ------------------- | ----------------------- | ----- |
+| `task_id` | `{{TASK_ID}}` | Required. |
+| `title` | `{{TITLE}}` | Required. |
+| (see Intent above) | `{{INTENT}}` | Not in context JSON; use title/plan_overview stand-in until API adds intent. |
+| `change_type` | `{{CHANGE_TYPE}}` | e.g. create, modify, document. |
+| `doc_paths` | `{{DOC_PATHS}}` | Newline- or list-form for "Docs to read". |
+| `skill_docs` | `{{SKILL_DOCS}}` | "Skill guides to read". |
+| `suggested_changes` | `{{SUGGESTED_CHANGES}}` | "Suggested changes (directional)". |
+| `file_tree` | `{{FILE_TREE}}` | "Plan file tree". |
+| `risks` | `{{RISKS}}` | "Plan risks". |
+| (see below) | `{{RELATED_DONE}}` | See "Not yet implemented" below. |
+| — | `{{WORKTREE_PATH}}` | Optional; from orchestrator or `tg worktree list --json` after start. |
+| — | `{{EXPLORER_OUTPUT}}` | Optional; from explorer sub-agent. |
+| — | `{{LEARNINGS}}` | From agent file `## Learnings` section. |
+
+The **agent** field is used to choose which template to load (e.g. `implementer.md` vs `documenter.md`), not injected as a placeholder.
+
+### related_done_by_domain and related_done_by_skill — not yet implemented
+
+The dispatch rule (`.cursor/rules/subagent-dispatch.mdc`) and agent README refer to **related_done_by_domain** and **related_done_by_skill** in the context JSON. These fields are **not yet implemented**: they are not in the `ContextResult` type (`src/api/types.ts`) and are not populated by `runContextChain` in `src/api/client.ts`. The implementer placeholder `{{RELATED_DONE}}` is therefore either empty or filled from another source until the API supports these fields.
+
+### Fallback when ACTION_DIRECTIVE is absent
+
+The implementer template may later support an optional **ACTION_DIRECTIVE** (and **TARGET_PATHS**) for narrow "act-only" tasks. **When ACTION_DIRECTIVE is absent in the prompt**, the implementer uses **full intent and suggested_changes** as the scope — i.e. the existing "Load context / Do the todos" behaviour. This is the fallback for ambiguous or exploratory tasks where the orchestrator does not inject a single action directive.
+
 ## When Blocked
 
 If the agent encounters a situation where it cannot proceed with a task due to an external dependency or prerequisite, it must follow this protocol:
