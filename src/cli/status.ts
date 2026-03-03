@@ -1630,8 +1630,11 @@ function buildActivePlansTable(
   innerW: number;
   minWidths: number[];
   maxWidths: (number | undefined)[];
-} | null {
-  if (d.activePlans.length === 0) return null;
+} {
+  if (d.activePlans.length === 0) {
+    const innerW = innerWidthOverride ?? getBoxInnerWidth(w);
+    return { headers: [], rows: [], innerW, minWidths: [], maxWidths: [] };
+  }
   const sym = getDashboardSymbols();
   const innerW = innerWidthOverride ?? getBoxInnerWidth(w);
   const narrow = innerW < NARROW_PLAN_WIDTH;

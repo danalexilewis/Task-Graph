@@ -476,6 +476,17 @@ function updateDefaultDashboardSections(
     sectionContent.stats,
   ];
 
+  // If Projects or Tasks section is still a Text node (initial "Loading..." state),
+  // in-place update would only set string content; replace root so we get proper TextTable.
+  const projectsContentNode = children[0]?.getChildren?.()?.[0] as
+    | { content?: string | unknown[] }
+    | undefined;
+  const projectsHasTableContent =
+    Array.isArray(projectsContentNode?.content) && plansTableData;
+  if (useTextTable && plansTableData && !projectsHasTableContent) {
+    return false;
+  }
+
   for (let i = 0; i < 3; i++) {
     const sectionBox = children[i];
     if (!sectionBox?.getChildren) return false;
