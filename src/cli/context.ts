@@ -219,6 +219,7 @@ export function contextCommand(program: Command) {
         }
         const config = configResult.value;
         const result = await getHiveSnapshot(config.doltRepoPath);
+        // Unwrap Result at CLI boundary; exit on error to avoid unhandled rejections.
         result.match(
           (snapshot) => {
             if (json) {
@@ -265,7 +266,7 @@ export function contextCommand(program: Command) {
 
       const client = new TgClient();
       const result = await client.context(String(taskId).trim());
-
+      // Unwrap Result at CLI boundary; exit on error to avoid unhandled rejections.
       result.match(
         (d) => {
           const tokenCount = d.token_estimate;
