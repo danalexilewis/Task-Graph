@@ -81,7 +81,8 @@ describe("tg recover integration", () => {
       context.doltRepoPath,
     ).then((r) => r._unsafeUnwrap() as Array<{ body: string }>);
     expect(events.length).toBeGreaterThan(0);
-    const body = JSON.parse(events[0].body) as { type?: string };
+    const raw = events[0].body;
+    const body = typeof raw === "string" ? JSON.parse(raw) : (raw as Record<string, unknown>);
     expect(body.type).toBe("recovery");
   });
 
