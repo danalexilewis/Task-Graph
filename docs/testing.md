@@ -77,7 +77,7 @@ Integration tests live in `__tests__/integration/` and use a **golden template**
 
 **Script order**: `pnpm test:integration` runs **global setup** (`scripts/run-integration-global-setup.ts` → `__tests__/integration/global-setup.ts`), then **`bun test __tests__/integration`**, then **global teardown** (`scripts/run-integration-global-teardown.ts`). Teardown removes the template and path file so the next run gets a fresh template.
 
-**Concurrency**: Integration test files run sequentially by default (`concurrentTestGlob` in `bunfig.toml` excludes them). Concurrency limit for integration tests: use `--concurrency 4` in CI for faster runs (e.g. `bun test __tests__/integration --concurrency 4`). Isolation when using concurrency is safe thanks to per-file `DOLT_ROOT_PATH` and optional `TG_SKIP_MIGRATE`; each test uses its own Dolt root. If flakiness appears, keep the default sequential run.
+**Concurrency**: Integration test file concurrency is limited to 4 (e.g. `bun test __tests__/integration --concurrency 4`) in `pnpm test:integration` and in `pnpm gate` / `pnpm gate:full` to avoid overloading Dolt. Isolation when using concurrency is safe thanks to per-file `DOLT_ROOT_PATH` and optional `TG_SKIP_MIGRATE`; each test uses its own Dolt root. If flakiness appears, reduce the limit or run a single file.
 
 **Gate**: `pnpm gate:full` runs setup before the full test suite and teardown after. When `pnpm gate` (or `scripts/cheap-gate.sh`) runs affected tests and the set includes `__tests__/integration`, setup runs before those tests and teardown after. Integration tests that use `describe.serial` (Bun API) must be run with Bun.
 

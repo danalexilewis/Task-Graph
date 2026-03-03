@@ -3,7 +3,8 @@
  * (dolt init + migrations) and writes its path to GOLDEN_TEMPLATE_PATH_FILE
  * so that `bun test __tests__/integration` can find it. Bun does not run
  * Vitest-style globalSetup automatically; this script is invoked before
- * test:integration in package.json.
+ * test:integration in package.json. Callers run integration tests with
+ * --concurrency 4 to limit file-level parallelism and avoid overloading Dolt.
  */
 import globalSetup from "../__tests__/integration/global-setup";
 

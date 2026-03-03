@@ -58,8 +58,8 @@ if [[ -n "$FULL" ]]; then
   # Run mcp/ tests in isolation: tools.test.ts mocks domain/invariants which bleeds into domain tests
   bun test __tests__/mcp/
   MCP_EXIT=$?
-  # Then run the rest (exclude db and mcp to avoid double-run)
-  bun test __tests__/cli/ __tests__/domain/ __tests__/e2e/ __tests__/export/ __tests__/integration/ __tests__/plan-import/ __tests__/skills/
+  # Then run the rest (exclude db and mcp to avoid double-run). Limit file concurrency to avoid overloading Dolt.
+  bun test --concurrency 4 __tests__/cli/ __tests__/domain/ __tests__/e2e/ __tests__/export/ __tests__/integration/ __tests__/plan-import/ __tests__/skills/
   REST_EXIT=$?
   EXIT=$((DB_EXIT | MCP_EXIT | REST_EXIT))
   set -e
@@ -76,7 +76,7 @@ else
   fi
   if [[ -n "$AFFECTED" ]]; then
     set +e
-    echo "$AFFECTED" | xargs bun test
+    echo "$AFFECTED" | xargs sh -c 'bun test --concurrency 4 "$@"' _
     EXIT=$?
     set -e
     if [[ -n "$RAN_INTEGRATION_SETUP" ]]; then
