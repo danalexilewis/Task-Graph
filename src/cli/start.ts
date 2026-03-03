@@ -167,8 +167,12 @@ export function validateBatchStart(
   }
 
   return ResultAsync.combine([
-    doingIds.length > 0 ? batchClaimCheck(repoPath, doingIds) : okAsync(new Map<string, StartedBody | null>()),
-    todoIds.length > 0 ? batchBlockerCount(repoPath, todoIds) : okAsync(new Map<string, number>()),
+    doingIds.length > 0
+      ? batchClaimCheck(repoPath, doingIds)
+      : okAsync(new Map<string, StartedBody | null>()),
+    todoIds.length > 0
+      ? batchBlockerCount(repoPath, todoIds)
+      : okAsync(new Map<string, number>()),
   ] as const).map(([claimMap, blockerCountMap]) => {
     for (const taskId of doingIds) {
       const body = claimMap.get(taskId) ?? null;
@@ -213,45 +217,43 @@ export function startMany(
 
   const planIdsSql = `SELECT DISTINCT plan_id FROM \`task\` WHERE task_id IN (${idList})`;
 
-  return q
-    .raw<{ plan_id: string }>(planIdsSql)
-    .andThen((planRows) => {
-      const planIds = planRows.map((r) => r.plan_id);
-      const planIdList = planIds.map((id) => `'${sqlEscape(id)}'`).join(",");
+  return q.raw<{ plan_id: string }>(planIdsSql).andThen((planRows) => {
+    const planIds = planRows.map((r) => r.plan_id);
+    const planIdList = planIds.map((id) => `'${sqlEscape(id)}'`).join(",");
 
-      return q
-        .raw(
-          `UPDATE \`task\` SET status = 'doing', updated_at = '${sqlEscape(currentTimestamp)}' WHERE task_id IN (${idList})`,
-        )
-        .andThen(() => {
-          const eventInserts = taskIds.map((taskId) =>
-            q.insert("event", {
-              event_id: uuidv4(),
-              task_id: taskId,
-              kind: "started",
-              body: jsonObj({ agent: agentName, timestamp: currentTimestamp }),
-              created_at: currentTimestamp,
-            }),
-          );
-          return ResultAsync.combine(eventInserts);
-        })
-        .andThen(() => {
-          if (planIds.length === 0) return okAsync(undefined as void);
-          return q
-            .raw(
-              `UPDATE \`project\` SET status = 'active', updated_at = '${sqlEscape(currentTimestamp)}' WHERE plan_id IN (${planIdList}) AND status = 'draft'`,
-            )
-            .map(() => undefined);
-        })
-        .andThen(() =>
-          doltCommit(
-            `task: start ${taskIds.length} tasks`,
-            repoPath,
-            noCommit ?? false,
-          ),
-        )
-        .map(() => ({ started: taskIds }));
-    });
+    return q
+      .raw(
+        `UPDATE \`task\` SET status = 'doing', updated_at = '${sqlEscape(currentTimestamp)}' WHERE task_id IN (${idList})`,
+      )
+      .andThen(() => {
+        const eventInserts = taskIds.map((taskId) =>
+          q.insert("event", {
+            event_id: uuidv4(),
+            task_id: taskId,
+            kind: "started",
+            body: jsonObj({ agent: agentName, timestamp: currentTimestamp }),
+            created_at: currentTimestamp,
+          }),
+        );
+        return ResultAsync.combine(eventInserts);
+      })
+      .andThen(() => {
+        if (planIds.length === 0) return okAsync(undefined as undefined);
+        return q
+          .raw(
+            `UPDATE \`project\` SET status = 'active', updated_at = '${sqlEscape(currentTimestamp)}' WHERE plan_id IN (${planIdList}) AND status = 'draft'`,
+          )
+          .map(() => undefined);
+      })
+      .andThen(() =>
+        doltCommit(
+          `task: start ${taskIds.length} tasks`,
+          repoPath,
+          noCommit ?? false,
+        ),
+      )
+      .map(() => ({ started: taskIds }));
+  });
 }
 
 function agentBranchName(taskId: string): string {
@@ -484,50 +486,50 @@ export function startOne(
         plan_worktree_path,
       } = payload;
       return q
-          .update(
-            "task",
-            { status: "doing", updated_at: currentTimestamp },
-            { task_id: taskId },
-          )
-          .andThen(() =>
-            q.insert("event", {
-              event_id: uuidv4(),
-              task_id: taskId,
-              kind: "started",
-              body: jsonObj({
-                agent: agentName,
-                timestamp: currentTimestamp,
-                ...(branchName ? { branch: branchName } : {}),
-                ...(worktreeInfo && worktreeRepoPath
-                  ? {
-                      worktree_path: worktreeInfo.worktree_path,
-                      worktree_branch: worktreeInfo.worktree_branch,
-                      worktree_repo_root: fs.realpathSync(worktreeRepoPath),
-                      ...(plan_branch != null ? { plan_branch } : {}),
-                      ...(plan_worktree_path != null
-                        ? { plan_worktree_path }
-                        : {}),
-                    }
-                  : {}),
-              }),
-              created_at: currentTimestamp,
-            }),
-          )
-          .andThen(() =>
-            q.update(
-              "project",
-              { status: "active", updated_at: currentTimestamp },
-              { plan_id: planId, status: "draft" },
-            ),
-          )
-          .andThen(() =>
-            doltCommit(`task: start ${taskId}`, config.doltRepoPath, noCommit),
-          )
-          .map(() => ({
+        .update(
+          "task",
+          { status: "doing", updated_at: currentTimestamp },
+          { task_id: taskId },
+        )
+        .andThen(() =>
+          q.insert("event", {
+            event_id: uuidv4(),
             task_id: taskId,
-            status: "doing" as TaskStatus,
-            worktree_path: worktreeInfo?.worktree_path,
-          }));
+            kind: "started",
+            body: jsonObj({
+              agent: agentName,
+              timestamp: currentTimestamp,
+              ...(branchName ? { branch: branchName } : {}),
+              ...(worktreeInfo && worktreeRepoPath
+                ? {
+                    worktree_path: worktreeInfo.worktree_path,
+                    worktree_branch: worktreeInfo.worktree_branch,
+                    worktree_repo_root: fs.realpathSync(worktreeRepoPath),
+                    ...(plan_branch != null ? { plan_branch } : {}),
+                    ...(plan_worktree_path != null
+                      ? { plan_worktree_path }
+                      : {}),
+                  }
+                : {}),
+            }),
+            created_at: currentTimestamp,
+          }),
+        )
+        .andThen(() =>
+          q.update(
+            "project",
+            { status: "active", updated_at: currentTimestamp },
+            { plan_id: planId, status: "draft" },
+          ),
+        )
+        .andThen(() =>
+          doltCommit(`task: start ${taskId}`, config.doltRepoPath, noCommit),
+        )
+        .map(() => ({
+          task_id: taskId,
+          status: "doing" as TaskStatus,
+          worktree_path: worktreeInfo?.worktree_path,
+        }));
     });
 }
 
@@ -747,7 +749,14 @@ export function startCommand(program: Command) {
                           }
                         : {}),
                     }
-                  : { id: r.id, status: r.status, ...("worktree_path" in r && r.worktree_path != null && { worktree_path: r.worktree_path }) },
+                  : {
+                      id: r.id,
+                      status: r.status,
+                      ...("worktree_path" in r &&
+                        r.worktree_path != null && {
+                          worktree_path: r.worktree_path,
+                        }),
+                    },
               ),
             ),
           );
@@ -779,7 +788,14 @@ export function startCommand(program: Command) {
                         }
                       : {}),
                   }
-                : { id: r.id, status: r.status, ...("worktree_path" in r && r.worktree_path != null && { worktree_path: r.worktree_path }) },
+                : {
+                    id: r.id,
+                    status: r.status,
+                    ...("worktree_path" in r &&
+                      r.worktree_path != null && {
+                        worktree_path: r.worktree_path,
+                      }),
+                  },
             ),
           ),
         );

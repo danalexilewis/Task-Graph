@@ -1,0 +1,1 @@
+{"type":"done","payload":{"repoPath":"/Users/dan/repos/taskgraph/.taskgraph/dolt","taskIds":["57f2a90b-ad08-4f50-9aa9-ed9514b54c32"],"evidence":"all write commands enqueue; drain applicators for start/done/block/cancel/gate/split/task/edge/import/plan/recover/crossplan/cycle/initiative/template; drain-start-done test","merge":true,"force":false}}

@@ -41,6 +41,9 @@ export interface Config {
   };
 }
 
+/** Clear any in-memory config cache so tests see fresh config. No-op when no cache is used. */
+export function clearConfigCache(): void {}
+
 export function readConfig(basePath?: string): Result<Config, AppError> {
   const configPath = path.join(basePath ?? process.cwd(), CONFIG_FILE);
   if (!existsSync(configPath)) {

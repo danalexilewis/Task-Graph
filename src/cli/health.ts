@@ -5,15 +5,17 @@
 import type { Command } from "commander";
 import { doltSql } from "../db/connection";
 import { ErrorCode } from "../domain/errors";
-import { readConfig, rootOpts } from "./utils";
 import { detectAndApplyServerPort, probePort } from "./server";
+import { readConfig, rootOpts } from "./utils";
 
 const HEALTH_TIMEOUT_MS = 5000; // used for server probe only
 
 export function healthCommand(program: Command): void {
   program
     .command("health")
-    .description("Check Dolt/DB reachability (no migrations). Exit 0 if reachable.")
+    .description(
+      "Check Dolt/DB reachability (no migrations). Exit 0 if reachable.",
+    )
     .action(async (_options, cmd) => {
       const configResult = readConfig();
       if (configResult.isErr()) {
@@ -30,7 +32,9 @@ export function healthCommand(program: Command): void {
         try {
           await probePort(Number(port), HEALTH_TIMEOUT_MS);
           if (rootOpts(cmd).json) {
-            console.log(JSON.stringify({ status: "ok", message: "Dolt reachable" }));
+            console.log(
+              JSON.stringify({ status: "ok", message: "Dolt reachable" }),
+            );
           } else {
             console.log("Dolt reachable.");
           }
@@ -49,7 +53,9 @@ export function healthCommand(program: Command): void {
       result.match(
         () => {
           if (rootOpts(cmd).json) {
-            console.log(JSON.stringify({ status: "ok", message: "Dolt reachable" }));
+            console.log(
+              JSON.stringify({ status: "ok", message: "Dolt reachable" }),
+            );
           } else {
             console.log("Dolt reachable.");
           }

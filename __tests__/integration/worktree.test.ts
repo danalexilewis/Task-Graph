@@ -358,7 +358,7 @@ todos:
     const gitignorePath = path.join(tempDir, ".gitignore");
     const existing = fs.readFileSync(gitignorePath, "utf-8");
     if (!existing.includes("test-ignored")) {
-      fs.writeFileSync(gitignorePath, existing.trimEnd() + "\ntest-ignored\n");
+      fs.writeFileSync(gitignorePath, `${existing.trimEnd()}\ntest-ignored\n`);
     }
     const ignoredDir = path.join(tempDir, "test-ignored");
     fs.mkdirSync(ignoredDir, { recursive: true });
@@ -379,7 +379,9 @@ todos:
     expect(startResults[0].worktree_path).toBeDefined();
     expect(typeof startResults[0].worktree_path).toBe("string");
     expect((startResults[0].worktree_path as string).length).toBeGreaterThan(0);
-    const worktreePath = path.isAbsolute(startResults[0].worktree_path as string)
+    const worktreePath = path.isAbsolute(
+      startResults[0].worktree_path as string,
+    )
       ? (startResults[0].worktree_path as string)
       : path.resolve(tempDir, startResults[0].worktree_path as string);
 

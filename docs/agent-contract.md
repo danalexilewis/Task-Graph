@@ -112,7 +112,7 @@ tg block <currentTaskId> --on <newBlockerTaskId> --reason "Requires human decisi
 
 1. Implementers run `pnpm tg done <taskId> --merge --evidence "..."` from _inside the worktree directory_. The `--merge` flag is required to merge the task branch into the plan branch — it does not happen automatically from the directory alone. Without `--merge`, `tg done` marks the task done and cleans up the worktree without merging, silently orphaning all commits.
 2. After all tasks in a wave are done, the orchestrator dispatches the `run-full-suite` task to an implementer sub-agent. That sub-agent runs `pnpm gate:full` from inside the plan worktree, where all merged task changes are visible.
-3. The orchestrator then runs the plan-merge step (`wt merge main` or `git merge`) to land everything on `main`.
+3. The orchestrator then runs the plan-merge step (`wt merge main` or `git merge`) to land everything on `main`. See [docs/multi-agent.md § Plan completion](multi-agent.md#plan-completion) for step order, Worktrunk path (no custom message flag), and git fallback (custom message via `git commit -m` / `-F`).
 
 **Anti-pattern**: orchestrator runs `pnpm gate:full` on `main` — tests stale code, worktree changes are invisible.
 

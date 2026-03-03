@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
-import { readdirSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 
@@ -64,16 +64,15 @@ function writeSuiteResults(repoRoot: string, results: SuiteTaskResult[]): void {
   const jsonPath = join(resultsPath, `${slug}.json`);
   writeFileSync(
     jsonPath,
-    JSON.stringify(
-      { timestamp: new Date().toISOString(), results },
-      null,
-      2,
-    ),
+    JSON.stringify({ timestamp: new Date().toISOString(), results }, null, 2),
   );
 
   const csvPath = join(resultsPath, `${slug}.csv`);
-  const csvLines = ["task,durationMs,exitCode", ...results.map((r) => `${r.task},${r.durationMs},${r.exitCode}`)];
-  writeFileSync(csvPath, csvLines.join("\n") + "\n");
+  const csvLines = [
+    "task,durationMs,exitCode",
+    ...results.map((r) => `${r.task},${r.durationMs},${r.exitCode}`),
+  ];
+  writeFileSync(csvPath, `${csvLines.join("\n")}\n`);
 
   console.log("Wrote", jsonPath);
   console.log("Wrote", csvPath);
@@ -83,7 +82,8 @@ function main() {
   const args = process.argv.slice(2);
   const repoRoot = process.cwd();
 
-  const runSuite = args.length === 0 || args[0] === "--suite" || args[0] === "--custom";
+  const runSuite =
+    args.length === 0 || args[0] === "--suite" || args[0] === "--custom";
   if (runSuite) {
     const results = runCustomSuite(repoRoot);
     writeSuiteResults(repoRoot, results);

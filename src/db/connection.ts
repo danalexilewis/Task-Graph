@@ -431,14 +431,12 @@ export function doltSql(
 
   return runOnce().orElse((e) => {
     if (!isUnresolvedBranchError(e)) return errAsync(e);
-    return ResultAsync.fromPromise(
-      repairMainBranch(repoPath),
-      (repairErr) =>
-        buildError(
-          ErrorCode.DB_QUERY_FAILED,
-          "Could not repair Dolt main branch. Try: cd .taskgraph/dolt && dolt checkout -b main",
-          repairErr,
-        ),
+    return ResultAsync.fromPromise(repairMainBranch(repoPath), (repairErr) =>
+      buildError(
+        ErrorCode.DB_QUERY_FAILED,
+        "Could not repair Dolt main branch. Try: cd .taskgraph/dolt && dolt checkout -b main",
+        repairErr,
+      ),
     ).andThen(() => runOnce());
   });
 }

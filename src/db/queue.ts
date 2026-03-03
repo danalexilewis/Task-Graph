@@ -1,7 +1,7 @@
 /// <reference types="bun-types" />
 import { Database } from "bun:sqlite";
 import * as path from "node:path";
-import { ok, err, type Result } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import type { Config } from "../config";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
 

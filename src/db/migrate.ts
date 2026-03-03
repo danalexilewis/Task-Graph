@@ -1151,35 +1151,39 @@ export function ensureMigrations(
     console.error("[tg] Running migrations…");
     const cache = new QueryCache();
     return applyPlanRichFieldsMigration(repoPath, noCommit, cache)
-    .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit, cache))
-    .andThen(() =>
-      applyTaskSuggestedChangesMigration(repoPath, noCommit, cache),
-    )
-    .andThen(() =>
-      applyTaskDomainSkillJunctionMigration(repoPath, noCommit, cache),
-    )
-    .andThen(() => applyDomainToDocRenameMigration(repoPath, noCommit, cache))
-    .andThen(() => applyTaskAgentMigration(repoPath, noCommit, cache))
-    .andThen(() => applyHashIdMigration(repoPath, noCommit, cache))
-    .andThen(() => applyNoDeleteTriggersMigration(repoPath, noCommit, cache))
-    .andThen(() => applyGateTableMigration(repoPath, noCommit, cache))
-    .andThen(() => applyInitiativeMigration(repoPath, noCommit, cache))
-    .andThen(() => applyPlanToProjectRenameMigration(repoPath, noCommit, cache))
-    .andThen(() => applyPlanViewMigration(repoPath, noCommit, cache))
-    .andThen(() => applyPlanHashIdMigration(repoPath, noCommit, cache))
-    .andThen(() => applyDefaultInitiativeMigration(repoPath, noCommit, cache))
-    .andThen(() => applyCycleMigration(repoPath, noCommit, cache))
-    .andThen(() => applyInitiativeCycleIdMigration(repoPath, noCommit, cache))
-    .andThen(() => applyPlanWorktreeMigration(repoPath, noCommit, cache))
-    .andThen(() => applyIndexMigration(repoPath, noCommit, cache))
-    .andThen(() => applyEventKindIndex(repoPath, noCommit, cache))
-    .andThen(() => applyIsBenchmarkMigration(repoPath, noCommit, cache))
-    .andThen(() => applyEvolveRunQualityMigration(repoPath, noCommit, cache))
-    .andThen(() => applyLearningRecurrenceMigration(repoPath, noCommit, cache))
-    .map(() => {
-      writeSentinel(repoPath);
-      return undefined;
-    });
+      .andThen(() => applyTaskDimensionsMigration(repoPath, noCommit, cache))
+      .andThen(() =>
+        applyTaskSuggestedChangesMigration(repoPath, noCommit, cache),
+      )
+      .andThen(() =>
+        applyTaskDomainSkillJunctionMigration(repoPath, noCommit, cache),
+      )
+      .andThen(() => applyDomainToDocRenameMigration(repoPath, noCommit, cache))
+      .andThen(() => applyTaskAgentMigration(repoPath, noCommit, cache))
+      .andThen(() => applyHashIdMigration(repoPath, noCommit, cache))
+      .andThen(() => applyNoDeleteTriggersMigration(repoPath, noCommit, cache))
+      .andThen(() => applyGateTableMigration(repoPath, noCommit, cache))
+      .andThen(() => applyInitiativeMigration(repoPath, noCommit, cache))
+      .andThen(() =>
+        applyPlanToProjectRenameMigration(repoPath, noCommit, cache),
+      )
+      .andThen(() => applyPlanViewMigration(repoPath, noCommit, cache))
+      .andThen(() => applyPlanHashIdMigration(repoPath, noCommit, cache))
+      .andThen(() => applyDefaultInitiativeMigration(repoPath, noCommit, cache))
+      .andThen(() => applyCycleMigration(repoPath, noCommit, cache))
+      .andThen(() => applyInitiativeCycleIdMigration(repoPath, noCommit, cache))
+      .andThen(() => applyPlanWorktreeMigration(repoPath, noCommit, cache))
+      .andThen(() => applyIndexMigration(repoPath, noCommit, cache))
+      .andThen(() => applyEventKindIndex(repoPath, noCommit, cache))
+      .andThen(() => applyIsBenchmarkMigration(repoPath, noCommit, cache))
+      .andThen(() => applyEvolveRunQualityMigration(repoPath, noCommit, cache))
+      .andThen(() =>
+        applyLearningRecurrenceMigration(repoPath, noCommit, cache),
+      )
+      .map(() => {
+        writeSentinel(repoPath);
+        return undefined;
+      });
   });
 }
 

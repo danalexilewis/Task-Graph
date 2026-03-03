@@ -6,7 +6,7 @@ import { query } from "../db/query";
 import type { AppError } from "../domain/errors";
 import { buildError, ErrorCode } from "../domain/errors";
 import type { HiveSnapshot, HiveTaskEntry } from "../domain/hive";
-import { readConfig, rootOpts, shouldUseJson } from "./utils";
+import { readConfig, shouldUseJson } from "./utils";
 
 interface DoingTaskRow {
   task_id: string;
@@ -117,9 +117,7 @@ export async function getHiveSnapshot(
   `;
 
   const taskIds = doingRows.map((r) => r.task_id);
-  const inList = taskIds
-    .map((id) => `'${sqlEscape(id)}'`)
-    .join(", ");
+  const inList = taskIds.map((id) => `'${sqlEscape(id)}'`).join(", ");
   const recentNotesSql = `
     SELECT task_id, body, created_at
     FROM event
@@ -157,7 +155,9 @@ export async function getHiveSnapshot(
         bodyText =
           typeof msg === "string"
             ? msg
-            : msg && typeof msg === "object" && (msg as { type?: string }).type === "heartbeat"
+            : msg &&
+                typeof msg === "object" &&
+                (msg as { type?: string }).type === "heartbeat"
               ? "[heartbeat]"
               : JSON.stringify(msg ?? "");
         agent = b.agent != null ? String(b.agent) : null;
@@ -246,7 +246,9 @@ export function contextCommand(program: Command) {
               );
               if (e.recent_notes?.length) {
                 for (const n of e.recent_notes) {
-                  console.log(`    note: ${n.body_text.slice(0, 80)}${n.body_text.length > 80 ? "…" : ""}`);
+                  console.log(
+                    `    note: ${n.body_text.slice(0, 80)}${n.body_text.length > 80 ? "…" : ""}`,
+                  );
                 }
               }
             }

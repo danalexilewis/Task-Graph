@@ -113,13 +113,18 @@ todos:
         phase?: string;
         files: string[];
         startedAt?: string;
-        recentNotes?: Array<{ message: string; agent?: string; timestamp: string }>;
+        recentNotes?: Array<{
+          message: string;
+          agent?: string;
+          timestamp: string;
+        }>;
       }>;
       generatedAt?: string;
     };
     expect(Array.isArray(snapshot.entries)).toBe(true);
     expect(snapshot.entries.length).toBeGreaterThanOrEqual(1);
-    const entry = snapshot.entries.find((e) => e.taskId === taskId) ?? snapshot.entries[0];
+    const entry =
+      snapshot.entries.find((e) => e.taskId === taskId) ?? snapshot.entries[0];
     expect(entry.taskId).toBeDefined();
     expect(Array.isArray(entry.files)).toBe(true);
     expect(snapshot.generatedAt).toBeDefined();

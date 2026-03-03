@@ -75,13 +75,16 @@ export function resolveTaskIdsBatch(
       ids.map(async (inputId): Promise<SettledItem> => {
         const r = await resolveTaskId(inputId, repoPath);
         return r.match(
-          (taskId) => ({ inputId, taskId, error: null } as SettledItem),
-          (e) => ({ inputId, taskId: null, error: e.message } as SettledItem),
+          (taskId) => ({ inputId, taskId, error: null }) as SettledItem,
+          (e) => ({ inputId, taskId: null, error: e.message }) as SettledItem,
         );
       }),
     );
     const resolved = settled
-      .filter((x): x is { inputId: string; taskId: string; error: null } => x.error === null)
+      .filter(
+        (x): x is { inputId: string; taskId: string; error: null } =>
+          x.error === null,
+      )
       .map((x) => ({ inputId: x.inputId, taskId: x.taskId }));
     const errors = new Map<string, string>();
     for (const x of settled) {
@@ -89,9 +92,8 @@ export function resolveTaskIdsBatch(
     }
     return { resolved, errors };
   };
-  return ResultAsync.fromPromise(
-    run(),
-    (e) => buildError(ErrorCode.UNKNOWN_ERROR, (e as Error).message),
+  return ResultAsync.fromPromise(run(), (e) =>
+    buildError(ErrorCode.UNKNOWN_ERROR, (e as Error).message),
   );
 }
 

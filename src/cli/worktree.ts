@@ -467,12 +467,13 @@ export function createPlanBranchAndWorktree(
           ).orElse((e) => {
             // Retry with wt switch (no --create) only when cause indicates branch already exists.
             // See docs/multi-agent.md § Worktree failure conditions.
-            const cause = e.cause as { message?: string; stderr?: string } | undefined;
+            const cause = e.cause as
+              | { message?: string; stderr?: string }
+              | undefined;
             const stderr = (cause?.stderr ?? "").toLowerCase();
             const causeMsg = (cause?.message ?? "").toLowerCase();
             const combined = [e.message, stderr, causeMsg].join(" ");
-            const branchExists =
-              /already exists|branch exists/.test(combined);
+            const branchExists = /already exists|branch exists/.test(combined);
             if (branchExists) {
               return ResultAsync.fromPromise(
                 execa(

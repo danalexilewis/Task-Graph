@@ -66,6 +66,30 @@ The CLI emits the following error messages when worktree/Worktrunk operations fa
 
 **Retry heuristic (plan/task branch create):** The CLI retries with `wt switch` (no `--create`) only when the underlying cause indicates the branch already exists. It inspects `AppError.cause` (e.g. `cause.stderr` or `cause.message` from the `wt` process) and the wrapper `message` for substring matches: `already exists`, `branch exists`. It does **not** retry on generic "worktree create failed" alone (e.g. permissions, PATH, or other create failures). When `wt` output or exit behaviour changes, update the condition in `createPlanBranchAndWorktree` (and this list) to match.
 
+### Plan completion — plan-merge commit message (breadcrumb)
+
+When all tasks in a plan are done, the orchestrator merges the plan branch to main (e.g. `wt merge main -C <plan-worktree-path>`). The **squash commit** (or single merge commit) should use a **PR-style message** that acts as a **breadcrumb** for future readers of git history. Use the following format.
+
+**Format**
+
+1. **Subject line**: Short summary (e.g. `plan: <Plan Name> — N tasks`).
+2. **What changed**: Plan title + bullet list of task titles (from the task table, done tasks only).
+3. **Why**: Plan overview / intent (from `project.intent` or plan metadata).
+4. **Key insights/learnings** (optional): From task notes (event `kind=note`, `body.message`) or /evolve report if run before merge; leave empty if none.
+5. **Deliverables**: Same as what changed, or one-line evidence per task (from done event `body.evidence`) when available.
+
+**Data sources**
+
+| Section | Source |
+|---------|--------|
+| Subject line | Plan name (`project.title`), task count from task table where `task.status` = done |
+| What changed | `project.title`; `task.content` (task title) for tasks where `task.status` = done |
+| Why | `project.intent` (or plan overview metadata) |
+| Key insights/learnings | Events with `kind=note`, `body.message`; or /evolve report path if run before merge |
+| Deliverables | Task titles (same as What changed), or events with `kind=done`, `body.evidence` per task |
+
+No code changes are required to implement this format; it is a convention for the commit message body when performing the plan-merge step.
+
 ## CLI Additions
 
 | Command                                                | Purpose                                                                                          |
@@ -157,6 +181,30 @@ The `--msg` value must be valid JSON. List only files being **actively modified*
 
 - `tg agents` queries heartbeat events using `JSON_UNQUOTE(JSON_EXTRACT(...))` on `message.type` — the same double-extract approach used for review events. **Do not change the body shape without also updating `src/cli/agents.ts`.**
 - `files` should be a minimal list of files the agent is writing, not an exhaustive read list.
+
+## Plan completion
+
+After all tasks in a plan are done, the orchestrator runs the **plan-merge** step to land the plan branch onto `main`.
+
+### Step order
+
+1. **Optional:** Run the /evolve skill (post-plan pattern mining; analyse task diffs and route learnings).
+2. **Then:** Merge the plan branch into `main` using either the Worktrunk path or the git fallback.
+
+### Worktrunk path
+
+When using Worktrunk (`wt`):
+
+- Run: `wt merge main -C <plan-worktree-path>`. Get `<plan-worktree-path>` from `pnpm tg worktree list --json` (the `plan-p-*` entry's `path` field).
+- **Message:** `wt merge` has no `-m`/`--message` flag. The squash commit uses the tool's default message unless the user configures Worktrunk's LLM message feature or runs a post-merge amend.
+
+### Git fallback path
+
+When not using Worktrunk (raw git worktrees):
+
+- Run: `git checkout main && git merge --squash <plan-branch> && git commit` with a custom message.
+- Custom message can be passed via `git commit -m "<subject>" -m "<body>"` or `git commit -F <file>`.
+- The work skill will be updated to compose a PR-style message and use it here for the git fallback.
 
 ## Decisions / gotchas
 

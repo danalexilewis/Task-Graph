@@ -63,15 +63,23 @@ todos:
         tempDir,
       );
       const { stdout: listOut } = await runTgCli(`plan list --json`, tempDir);
-      const plans = JSON.parse(listOut) as Array<{ plan_id: string; title: string }>;
-      const planId = plans.find((p) => p.title === "Start Error Cause Plan")?.plan_id;
+      const plans = JSON.parse(listOut) as Array<{
+        plan_id: string;
+        title: string;
+      }>;
+      const planId = plans.find(
+        (p) => p.title === "Start Error Cause Plan",
+      )?.plan_id;
       expect(planId).toBeDefined();
 
       const { stdout: nextOut } = await runTgCli(
         `next --plan ${planId} --limit 1 --json`,
         tempDir,
       );
-      const tasks = JSON.parse(nextOut) as Array<{ task_id: string; title: string }>;
+      const tasks = JSON.parse(nextOut) as Array<{
+        task_id: string;
+        title: string;
+      }>;
       taskId = tasks[0]?.task_id;
       expect(taskId).toBeDefined();
     }, 60000);
@@ -97,7 +105,11 @@ todos:
         context.tempDir,
       );
       expect(exitCode).toBe(1);
-      const results = JSON.parse(stdout) as Array<{ id: string; error?: string; cause?: string }>;
+      const results = JSON.parse(stdout) as Array<{
+        id: string;
+        error?: string;
+        cause?: string;
+      }>;
       expect(results.length).toBeGreaterThanOrEqual(1);
       const errItem = results.find((r) => "error" in r && r.error);
       expect(errItem).toBeDefined();

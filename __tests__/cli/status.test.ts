@@ -1,7 +1,7 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import stripAnsi from "strip-ansi";
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { fetchStatusData } from "../../src/cli/status";
 import { renderTable } from "../../src/cli/table";
 import type { Config } from "../../src/cli/utils";

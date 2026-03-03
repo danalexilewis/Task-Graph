@@ -7,8 +7,8 @@ import type { QueryCache } from "../db/cache";
 import { sqlEscape } from "../db/escape";
 import { tableExists } from "../db/migrate";
 import { cachedQuery, query } from "../db/query";
-import { getStatusCache, statusCacheTtlMs } from "./status-cache";
 import { type AppError, buildError, ErrorCode } from "../domain/errors";
+import { getStatusCache, statusCacheTtlMs } from "./status-cache";
 import { renderTable } from "./table";
 import {
   enterAlternateScreen,
@@ -596,7 +596,10 @@ export function fetchStatusData(
             let data: StatusData = base;
             if (initiativeRows.length > 0) {
               const imap = new Map(
-                initiativeRows.map((r) => [r.plan_id, r.initiative_title ?? null]),
+                initiativeRows.map((r) => [
+                  r.plan_id,
+                  r.initiative_title ?? null,
+                ]),
               );
               data = {
                 ...data,
