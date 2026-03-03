@@ -224,6 +224,7 @@ The following business logic invariants are enforced by the application to maint
 
 ## Decisions / gotchas
 
+- **Dolt corruption repair before migrations**: If the Dolt journal (or repo) may be corrupted, run a repair before running migrations—e.g. `dolt fsck` (or equivalent) from the Dolt repo directory (e.g. `.taskgraph/dolt/`). Migrations assume a healthy store; a corrupted journal can cause failures or inconsistent state.
 - **cachedQuery raw writes**: For cache invalidation, `extractWriteTable` must recognize not only `INSERT INTO table` but also `UPDATE table` and `DELETE FROM table`; otherwise raw DELETE/UPDATE do not invalidate the affected table cache.
 - **SELECT COUNT(\*) with mysql2**: When using the server pool (mysql2), result column names can differ from the execa/JSON path. Use an alias (e.g. `SELECT COUNT(*) AS cnt`) and read `Number(row.cnt)` so the same code works for both paths.
 - **Dolt JSON columns**: `event.body` may be returned as object or string by doltSql depending on driver. Handle both: `typeof raw === 'string' ? JSON.parse(raw) : raw`.
