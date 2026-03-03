@@ -103,7 +103,7 @@ Example:
 
 ## How dispatch works
 
-1. Orchestrator runs `tg next --json --limit 8` to get unblocked tasks.
+1. Orchestrator runs `pnpm tg next --plan "<Plan>" --json --limit 20` to get unblocked tasks.
 2. For each task, orchestrator runs `tg context <taskId> --json` and optionally runs the explorer.
 3. Orchestrator reads the appropriate agent template (e.g. `implementer.md`), replaces placeholders with the task's context.
 4. Orchestrator dispatches the sub-agent: Task tool, `agent` CLI, or mcp_task. Pass `model="fast"` for fast-tier agents; omit `model` for inherit-tier agents (see [Model tier](#model-tier)).
