@@ -15,6 +15,7 @@ import {
   GOLDEN_TEMPLATE_PATH_FILE,
   TEST_SERVER_PID_REGISTRY,
 } from "./global-setup";
+import { ensureIntegrationPath } from "./ensure-path";
 
 // Load .env.local from project root so single-file integration runs work (bun test does not auto-load it)
 const projectRoot = path.resolve(__dirname, "..", "..");
@@ -160,6 +161,9 @@ export async function assertNoDoltLeak<T>(fn: () => Promise<T>): Promise<T> {
 
 const DOLT_PATH = process.env.DOLT_PATH || "dolt";
 if (!process.env.DOLT_PATH) process.env.DOLT_PATH = DOLT_PATH;
+
+// Ensure dolt, bun, and wt are findable even when test runner has minimal PATH (e.g. CI)
+process.env.PATH = ensureIntegrationPath(process.env.PATH, DOLT_PATH);
 
 function getGoldenTemplatePath(): string {
   if (process.env.TG_GOLDEN_TEMPLATE) return process.env.TG_GOLDEN_TEMPLATE;
