@@ -580,7 +580,6 @@ export async function runOpenTUILive(
     }
   };
 
-  let consecutiveErrors = 0;
   let timer: ReturnType<typeof setInterval>;
 
   const startRefreshInterval = () => {
@@ -592,23 +591,19 @@ export async function runOpenTUILive(
       const result = await fetchStatus(config, statusOptions);
       result.match(
         (data) => {
-          consecutiveErrors = 0;
           refreshContent(data);
         },
         (e) => {
-          consecutiveErrors++;
-          if (consecutiveErrors >= 3) {
-            const msg = `[tg] DB refresh error: ${e.message}`;
-            replaceRootWithNewBox(
-              renderer,
-              Box,
-              Text,
-              STATUS_ROOT_ID,
-              msg,
-              getTerminalWidth(),
-            );
-            renderer.root.requestRender?.();
-          }
+          const msg = `[tg] DB refresh error: ${e.message}`;
+          replaceRootWithNewBox(
+            renderer,
+            Box,
+            Text,
+            STATUS_ROOT_ID,
+            msg,
+            getTerminalWidth(),
+          );
+          renderer.root.requestRender?.();
         },
       );
     }, REFRESH_MS);
@@ -735,7 +730,6 @@ export async function runOpenTUILiveDashboardTasks(
     }
   };
 
-  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -747,37 +741,38 @@ export async function runOpenTUILiveDashboardTasks(
     ]);
     let data: StatusData | null = null;
     let activeRows: TaskRow[] = [];
+    let errMsg: string | null = null;
     resStatus.match(
       (d) => {
         data = d;
       },
-      () => {},
+      (e) => {
+        errMsg = e.message;
+      },
     );
     resActive.match(
       (rows) => {
         activeRows = rows;
       },
-      () => {},
+      (e) => {
+        errMsg = errMsg ? `${errMsg}; ${e.message}` : e.message;
+      },
     );
-    if (data != null) {
-      consecutiveErrors = 0;
+    if (data != null && errMsg === null) {
       refreshContent(data, activeRows);
-    } else {
-      consecutiveErrors++;
-      if (consecutiveErrors >= 3) {
-        const msg = "[tg] DB refresh error";
-        if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
-          replaceRootWithNewBox(
-            renderer,
-            Box,
-            Text,
-            STATUS_ROOT_ID,
-            msg,
-            getTerminalWidth(),
-          );
-        }
-        renderer.root.requestRender?.();
+    } else if (errMsg !== null) {
+      const msg = `[tg] DB refresh error: ${errMsg}`;
+      if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+        replaceRootWithNewBox(
+          renderer,
+          Box,
+          Text,
+          STATUS_ROOT_ID,
+          msg,
+          getTerminalWidth(),
+        );
       }
+      renderer.root.requestRender?.();
     }
   }, REFRESH_MS);
 
@@ -919,7 +914,6 @@ export async function runOpenTUILiveDashboardProjects(
     }
   };
 
-  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -928,25 +922,21 @@ export async function runOpenTUILiveDashboardProjects(
     const result = await fetchStatusData(config, statusOptions);
     result.match(
       (data) => {
-        consecutiveErrors = 0;
         refreshContent(data);
       },
       (e) => {
-        consecutiveErrors++;
-        if (consecutiveErrors >= 3) {
-          const msg = `[tg] DB refresh error: ${e.message}`;
-          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
-            replaceRootWithNewBox(
-              renderer,
-              Box,
-              Text,
-              STATUS_ROOT_ID,
-              msg,
-              getTerminalWidth(),
-            );
-          }
-          renderer.root.requestRender?.();
+        const msg = `[tg] DB refresh error: ${e.message}`;
+        if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+          replaceRootWithNewBox(
+            renderer,
+            Box,
+            Text,
+            STATUS_ROOT_ID,
+            msg,
+            getTerminalWidth(),
+          );
         }
+        renderer.root.requestRender?.();
       },
     );
   }, REFRESH_MS);
@@ -1056,7 +1046,6 @@ export async function runOpenTUILiveProjects(
     return false;
   });
 
-  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -1065,7 +1054,6 @@ export async function runOpenTUILiveProjects(
     const result = await fetchProjects(config, statusOptions);
     result.match(
       (data) => {
-        consecutiveErrors = 0;
         try {
           const w = getTerminalWidth();
           const newContent = formatProjectsAsString(data, w);
@@ -1084,19 +1072,16 @@ export async function runOpenTUILiveProjects(
         }
       },
       (e) => {
-        consecutiveErrors++;
-        if (consecutiveErrors >= 3) {
-          const msg = `[tg] DB refresh error: ${e.message}`;
-          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
-            replaceRootWithNewBox(
-              renderer,
-              Box,
-              Text,
-              STATUS_ROOT_ID,
-              msg,
-              getTerminalWidth(),
-            );
-          }
+        const msg = `[tg] DB refresh error: ${e.message}`;
+        if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+          replaceRootWithNewBox(
+            renderer,
+            Box,
+            Text,
+            STATUS_ROOT_ID,
+            msg,
+            getTerminalWidth(),
+          );
         }
       },
     );
@@ -1209,7 +1194,6 @@ export async function runOpenTUILiveTasks(
     return false;
   });
 
-  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -1224,7 +1208,6 @@ export async function runOpenTUILiveTasks(
     ]);
     result.match(
       ([data, staleDoingTasks]) => {
-        consecutiveErrors = 0;
         try {
           const w = getTerminalWidth();
           const staleIds = new Set(staleDoingTasks.map((t) => t.task_id));
@@ -1246,19 +1229,16 @@ export async function runOpenTUILiveTasks(
         }
       },
       (e) => {
-        consecutiveErrors++;
-        if (consecutiveErrors >= 3) {
-          const msg = `[tg] DB refresh error: ${e.message}`;
-          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
-            replaceRootWithNewBox(
-              renderer,
-              Box,
-              Text,
-              STATUS_ROOT_ID,
-              msg,
-              getTerminalWidth(),
-            );
-          }
+        const msg = `[tg] DB refresh error: ${e.message}`;
+        if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+          replaceRootWithNewBox(
+            renderer,
+            Box,
+            Text,
+            STATUS_ROOT_ID,
+            msg,
+            getTerminalWidth(),
+          );
         }
       },
     );
@@ -1361,7 +1341,6 @@ export async function runOpenTUILiveInitiatives(
     return false;
   });
 
-  let consecutiveErrors = 0;
   const timer = setInterval(async () => {
     if (renderer.isDestroyed) {
       clearInterval(timer);
@@ -1370,7 +1349,6 @@ export async function runOpenTUILiveInitiatives(
     const result = await fetchInitiatives(config, statusOptions);
     result.match(
       (data) => {
-        consecutiveErrors = 0;
         try {
           const w = getTerminalWidth();
           const newContent = formatInitiativesAsString(data, w);
@@ -1389,19 +1367,16 @@ export async function runOpenTUILiveInitiatives(
         }
       },
       (e) => {
-        consecutiveErrors++;
-        if (consecutiveErrors >= 3) {
-          const msg = `[tg] DB refresh error: ${e.message}`;
-          if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
-            replaceRootWithNewBox(
-              renderer,
-              Box,
-              Text,
-              STATUS_ROOT_ID,
-              msg,
-              getTerminalWidth(),
-            );
-          }
+        const msg = `[tg] DB refresh error: ${e.message}`;
+        if (!updateRootTextContent(renderer, STATUS_ROOT_ID, msg)) {
+          replaceRootWithNewBox(
+            renderer,
+            Box,
+            Text,
+            STATUS_ROOT_ID,
+            msg,
+            getTerminalWidth(),
+          );
         }
       },
     );
