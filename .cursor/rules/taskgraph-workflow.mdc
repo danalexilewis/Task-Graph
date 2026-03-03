@@ -77,7 +77,7 @@ When executing N tasks in sequence, complete the full start→work→done cycle 
 
 After marking the last task in a plan as done:
 
-1. **Plan-merge (worktree plans — mandatory):** Run `wt merge main -C <plan-worktree-path>` to land all plan-branch commits onto main. Get `<plan-worktree-path>` from `pnpm tg worktree list --json` (the `plan-p-*` entry's `path` field). **Without this step, all task-branch work stays on the plan branch and never reaches main.**
+1. **Plan-merge (worktree plans — mandatory):** Compose message: run `tg plan summary --plan <planId> --format commit` and capture stdout (or write to a temp file). Then run `wt merge main -C <plan-worktree-path>` to land all plan-branch commits onto main. Get `<plan-worktree-path>` from `pnpm tg worktree list --json` (the `plan-p-*` entry's `path` field). If using git fallback (wt not on PATH), run `git checkout main && git merge --squash <plan-branch>` then `git commit -F <tempfile>` (or `-m subject -m body`) using that composed message. **Without this step, all task-branch work stays on the plan branch and never reaches main.**
 
 2. Export the plan summary:
 

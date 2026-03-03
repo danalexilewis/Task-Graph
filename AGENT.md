@@ -58,7 +58,7 @@ Plan completion
 
 After marking the last task in a plan as done:
 
-1. **Plan-merge (worktree plans — mandatory):** Run `wt merge main -C <plan-worktree-path>` to land all plan-branch commits onto main. Get `<plan-worktree-path>` from `pnpm tg worktree list --json` (the `plan-p-*` entry's `path` field). If Worktrunk is not available, from the plan worktree directory run `git checkout main && git merge plan-<hash>`. **Without this step, all task-branch work stays on the plan branch and never reaches main.**
+1. **Plan-merge (worktree plans — mandatory):** Run `wt merge main -C <plan-worktree-path>` to land all plan-branch commits onto main. Get `<plan-worktree-path>` from `pnpm tg worktree list --json` (the `plan-p-*` entry's `path` field). If Worktrunk is not available (git fallback), run `tg plan summary --plan <planId> --format commit` and use the output as the commit message: from repo root run `git checkout main && git merge --squash <plan-branch>`, then `git commit -F <tempfile>` (or `-m subject -m body`) with that message. **Without this step, all task-branch work stays on the plan branch and never reaches main.**
 2. Run `tg export markdown --plan <planId>` to update the plan file with final statuses.
 
 When blocked

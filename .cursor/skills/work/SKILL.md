@@ -202,19 +202,22 @@ When a plan completes (after the run-full-suite task passes and `tg next` return
 
 > **Optionally run `/evolve` before plan-merge** — reads the plan branch's diffs to surface implementation anti-patterns before the branch is deleted. Invoke if the plan had reviewer FAIL events, follow-up fix tasks, or you want to capture learnings from this execution. Syntax: read `.cursor/skills/evolve/SKILL.md` and follow the workflow with the just-completed plan as input. Must run BEFORE the plan-merge step. In multi-plan mode, run it for **each plan that completed in this session**, using the stored `plan_id -> worktree_path` (and plan branch) from the orchestrator map.
 
+**Compose message (before running the merge):** Run `tg plan summary --plan <planId> --format commit` and capture stdout (or write to a temp file). Use this for the git fallback commit message below.
+
 1. **Preferred (Worktrunk available):**
 
    ```bash
    wt merge main -C <plan-worktree-path> --no-verify -y
    ```
 
-   This squash-merges the plan branch into main from the plan worktree.
+   This squash-merges the plan branch into main from the plan worktree. Custom message not supported by wt merge; for a PR-style message use git fallback or amend after merge.
 
 2. **Fallback (wt not on PATH):**
    ```bash
-   git checkout main && git merge --squash <plan-branch> && git commit -m "plan: <plan-name>"
+   git checkout main && git merge --squash <plan-branch>
+   git commit -F <tempfile>
    ```
-   Run from repo root; use the plan branch name from the orchestrator map and the plan's display name for the commit message.
+   (Or use `git commit -m "<subject>" -m "<body>"` if you captured subject and body separately.) Run from repo root; use the plan branch name from the orchestrator map. Use the output from `tg plan summary --plan <planId> --format commit` as the commit message (via `-F <tempfile>` or `-m`).
 
 Order: run plan-merge for all completed plans first, then **Final action — commit .taskgraph/dolt** (so the dolt commit runs after plan-merge, not before).
 
