@@ -1,3 +1,5 @@
+/// <reference path="../ansi-diff.d.ts" />
+import ansiDiff from "ansi-diff";
 import chalk from "chalk";
 import type { Command } from "commander";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
@@ -12,6 +14,26 @@ import {
   getTerminalHeight,
   getTerminalWidth,
 } from "./terminal";
+/** Write content to stdout via ansi-diff so only changed regions are updated (no full-screen clear). Exported for use by dashboard.ts fallback. */
+export function createDiffWriter(): (content: string) => void {
+  const diff = ansiDiff({
+    width: getTerminalWidth(),
+    height:
+      typeof process.stdout.rows === "number" ? process.stdout.rows : undefined,
+  });
+  process.stdout.on("resize", () => {
+    diff.resize({
+      width: getTerminalWidth(),
+      height:
+        typeof process.stdout.rows === "number"
+          ? process.stdout.rows
+          : undefined,
+    });
+  });
+  return (content: string) => {
+    process.stdout.write(diff.update(`\n${content}\n`));
+  };
+}
 import {
   boxedSection,
   getBoxInnerWidth,
@@ -1242,18 +1264,33 @@ export function statusCommand(program: Command) {
             if (ch.toString().toLowerCase() === "q") cleanup();
           });
         }
+        const write = createDiffWriter();
+        const w = getTerminalWidth();
+        const dashboardContent = (data: StatusData): string => {
+          let content = formatStatusAsString(data, w, { dashboard: true });
+          if (data.currentCycle) {
+            const sym = getDashboardSymbols();
+            const c = data.currentCycle;
+            const startShort = c.start_date.slice(0, 10);
+            const endShort = c.end_date.slice(0, 10);
+            const line = chalk.cyan(
+              `${sym.diamond} Cycle: ${c.name}  (${startShort} – ${endShort})  │  ${c.initiative_count} initiatives`,
+            );
+            content = `\n  ${line}\n\n${content}`;
+          }
+          return content;
+        };
         const result = await fetchStatusData(config, statusOptions);
         result.match(
           (d: StatusData) => {
-            printHumanStatus(d, { dashboard: true });
+            write(dashboardContent(d));
             timer = setInterval(async () => {
               const r = await readConfig().asyncAndThen((c: Config) =>
                 fetchStatusData(c, statusOptions),
               );
               r.match(
                 (data) => {
-                  process.stdout.write("\x1b[2J\x1b[H");
-                  printHumanStatus(data, { dashboard: true });
+                  write(dashboardContent(data));
                 },
                 () => {},
               );

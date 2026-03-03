@@ -1,9 +1,8 @@
-/// <reference path="../ansi-diff.d.ts" />
-import ansiDiff from "ansi-diff";
 import type { Command } from "commander";
 import { ResultAsync } from "neverthrow";
 import type { AppError } from "../domain/errors";
 import {
+  createDiffWriter,
   fetchStatusData,
   fetchTasksTableData,
   formatDashboardProjectsView,
@@ -23,27 +22,6 @@ const REFRESH_MS = 2000;
 /** OpenTUI is Bun/native-oriented; under Node we use the ansi-diff fallback for the same dashboard look. */
 function isBun(): boolean {
   return typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
-}
-
-/** Write content to stdout via ansi-diff so only changed pixels are updated (no full-screen clear). */
-function createDiffWriter(): (content: string) => void {
-  const diff = ansiDiff({
-    width: getTerminalWidth(),
-    height:
-      typeof process.stdout.rows === "number" ? process.stdout.rows : undefined,
-  });
-  process.stdout.on("resize", () => {
-    diff.resize({
-      width: getTerminalWidth(),
-      height:
-        typeof process.stdout.rows === "number"
-          ? process.stdout.rows
-          : undefined,
-    });
-  });
-  return (content: string) => {
-    process.stdout.write(diff.update(`\n${content}\n`));
-  };
 }
 
 async function runLiveFallbackDashboard(
