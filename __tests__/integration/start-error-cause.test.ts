@@ -9,9 +9,23 @@ import {
 } from "./test-utils";
 
 let wtAvailable = false;
+let pathWithoutWt: string | undefined;
 try {
   execa.sync("wt", ["--version"]);
   wtAvailable = true;
+  // When wt is on PATH, strip its directory so we can trigger the error in tests
+  const whichResult = execa.sync("which", ["wt"], { reject: false });
+  const wtPath = whichResult.stdout?.trim();
+  if (wtPath) {
+    const wtDir = path.dirname(wtPath);
+    const pathSegments = (process.env.PATH || "").split(path.delimiter);
+    const filtered = pathSegments
+      .filter((p) => path.resolve(p) !== path.resolve(wtDir))
+      .join(path.delimiter);
+    // Ensure PATH includes current runtime (bun) so subprocess can start even if wt and bun share a directory
+    const runtimeDir = path.dirname(process.execPath);
+    pathWithoutWt = runtimeDir + path.delimiter + filtered;
+  }
 } catch {
   // wt not on PATH
 }
@@ -20,10 +34,12 @@ try {
  * When tg start --worktree fails with a worktree/Worktrunk error that has an
  * underlying cause (e.g. wt not on PATH), the CLI should surface that cause
  * in stderr (human output) and in the JSON error object when --json is set.
+ *
+ * When wt is on PATH, we run the start command in a subprocess with PATH
+ * stripped so wt is not found, triggering the error path. When wt is not on
+ * PATH, the error occurs naturally.
  */
-describe.skipIf(wtAvailable)(
-  "tg start surfaces error cause when worktree fails (wt not on PATH)",
-  () => {
+describe("tg start surfaces error cause when worktree fails (wt not on PATH)", () => {
     let context: Awaited<ReturnType<typeof setupIntegrationTest>> | undefined;
     let taskId: string;
 
@@ -90,9 +106,12 @@ todos:
 
     it("human output includes cause line when start fails with worktree error", async () => {
       if (!context) throw new Error("Context not initialized");
+      const envOverrides = wtAvailable && pathWithoutWt ? { PATH: pathWithoutWt } : undefined;
       const { exitCode, stderr } = await runTgCli(
         `start ${taskId} --worktree --no-commit`,
         context.tempDir,
+        true,
+        envOverrides,
       );
       expect(exitCode).toBe(1);
       expect(stderr).toContain(" Cause:");
@@ -100,9 +119,12 @@ todos:
 
     it("JSON output includes cause when start fails with worktree error", async () => {
       if (!context) throw new Error("Context not initialized");
+      const envOverrides = wtAvailable && pathWithoutWt ? { PATH: pathWithoutWt } : undefined;
       const { exitCode, stdout } = await runTgCli(
         `start ${taskId} --worktree --json --no-commit`,
         context.tempDir,
+        true,
+        envOverrides,
       );
       expect(exitCode).toBe(1);
       const results = JSON.parse(stdout) as Array<{
@@ -116,5 +138,4 @@ todos:
       expect(errItem).toHaveProperty("cause");
       expect(typeof (errItem as { cause?: string }).cause).toBe("string");
     });
-  },
-);
+});

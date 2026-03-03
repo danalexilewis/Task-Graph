@@ -433,17 +433,24 @@ export async function runTgCliSubprocess(
   command: string,
   cwd: string,
   expectError = false,
+  envOverrides?: Record<string, string>,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   const cliPath = path.resolve(__dirname, "../../dist/cli/index.js");
   const finalCommand = command.includes("--no-commit")
     ? command
     : `${command} --no-commit`;
   const TG_BIN = `bun ${cliPath} `;
+  const baseEnv = {
+    ...process.env,
+    DOLT_PATH,
+    TG_SKIP_MIGRATE: "1",
+    ...envOverrides,
+  };
   try {
     const result = await execa(TG_BIN + finalCommand, {
       cwd,
       shell: true,
-      env: { ...process.env, DOLT_PATH, TG_SKIP_MIGRATE: "1" },
+      env: baseEnv,
     });
     const exitCode = result.exitCode ?? 0;
     if (expectError && exitCode === 0) {
@@ -470,14 +477,15 @@ export async function runTgCliSubprocess(
   }
 }
 
-// Default: in-process unless TG_IN_PROCESS_CLI === '0'
+// Default: in-process unless TG_IN_PROCESS_CLI === '0' or envOverrides provided
 export async function runTgCli(
   command: string,
   cwd: string,
   expectError = false,
+  envOverrides?: Record<string, string>,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  if (process.env.TG_IN_PROCESS_CLI === "0") {
-    return runTgCliSubprocess(command, cwd, expectError);
+  if (process.env.TG_IN_PROCESS_CLI === "0" || envOverrides) {
+    return runTgCliSubprocess(command, cwd, expectError, envOverrides);
   }
   return runTgCliInProcess(command, cwd, expectError);
 }

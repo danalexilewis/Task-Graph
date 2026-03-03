@@ -38,6 +38,9 @@ Single-task inputs:
   - `{{FILE_TREE}}` — plan-level file tree if present
   - `{{RISKS}}` — plan risks if present
   - `{{RELATED_DONE}}` — related done tasks (same domain/skill) for context
+  - `{{ACTION_DIRECTIVE}}` — **(optional)** when set, the implementer performs only this one action on the given path(s); intent/suggested_changes/file_tree become read-only reference
+  - `{{TARGET_PATHS}}` — **(optional)** path(s) to apply the action to (used when ACTION_DIRECTIVE is set)
+  - `{{PRECONDITIONS}}` — **(optional)** conditions that must hold; if false, report VERDICT: FAIL and SUGGESTED_FIX instead of performing the action
 - `{{EXPLORER_OUTPUT}}` — optional; structured analysis from explorer sub-agent
 
 ## Output contract
@@ -87,7 +90,11 @@ Use a unique agent name (e.g. implementer-1) when running in parallel.
 **Worktree setup:** Do **not** run `pnpm install`, `pnpm build`, or `pnpm typecheck` in the worktree at start or at any time, unless this task explicitly added or changed a dependency (e.g. edited `package.json`). In that case run only `pnpm install` (and optionally build/typecheck to verify). Otherwise the worktree already has deps and build from the branch it was created from; no setup is needed.
 
 **Step 2 — Load context**
-You have been given task context below. Read any domain docs and skill guides listed — they are paths relative to the repo root (e.g. docs/backend.md, docs/skills/plan-authoring.md). Read those files before coding.
+You have been given task context below.
+
+**If ACTION_DIRECTIVE was provided above (non-empty):** You have one action; perform it on the given path(s). Do not re-observe or re-decide — perform only that action. Treat intent, suggested_changes, and file tree as read-only reference. If the action is impossible (e.g. file missing, precondition false), report VERDICT: FAIL and SUGGESTED_FIX; do not attempt the action.
+
+**If ACTION_DIRECTIVE was absent (empty or omitted):** Read any domain docs and skill guides listed — they are paths relative to the repo root (e.g. docs/backend.md, docs/skills/plan-authoring.md). Read those files before coding.
 
 **Also read `docs/agent-field-guide.md`** before any implementation work — it contains patterns and gotchas specific to this codebase (Dolt datetime coercion, JSON column read/write, table name branching, --json output shape conventions, worktree lifecycle, etc.).
 
@@ -99,6 +106,12 @@ You have been given task context below. Read any domain docs and skill guides li
 - Title: {{TITLE}}
 - Intent: {{INTENT}}
 - Change type: {{CHANGE_TYPE}}
+
+**Action directive (perform this):** {{ACTION_DIRECTIVE}}
+
+**Target path(s):** {{TARGET_PATHS}}
+
+**Preconditions (bail if false):** {{PRECONDITIONS}}
 
 **Docs to read:**
 {{DOC_PATHS}}
