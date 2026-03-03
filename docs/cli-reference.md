@@ -417,6 +417,21 @@ tg worktree list
 
 When running **parallel implementers**, use `tg start --worktree` so each task gets an isolated worktree. **Per-plan model:** when the plan has a `hash_id`, all task worktrees for that plan share a common plan branch (`plan-<hash_id>`) and branch from it rather than from `main`. Multiple tasks can run in parallel, each on its own task branch; `tg done --merge` accumulates their work on the plan branch. **Worktrunk (wt) is the standard backend** for sub-agent work: set `"useWorktrunk": true` in `.taskgraph/config.json` or ensure `wt` is on PATH (auto-detect). With Worktrunk, worktrees are wt-managed (e.g. `<repo>.tg-<hash_id>`); with raw git, worktrees live at `.taskgraph/worktrees/<taskId>/` on branch `tg/<taskId>` or `tg-<hash_id>`. The **started event body** stores `worktree_path`, `worktree_branch`, `worktree_repo_root`, and (when a plan branch was used) `plan_branch` and `plan_worktree_path`. The **orchestrator** must pass the worktree path (e.g. from `tg worktree list --json`) to implementers as **WORKTREE_PATH** so they run all work and `tg done` from that directory. When the task is complete, run `tg done --evidence "..."`; add `--merge` to merge the task worktree branch into the plan branch (or `main` as fallback). The plan worktree is not removed by `tg done`. **Worktrunk remove gotcha:** `wt remove <branch> -C <repoRoot>` can fail with "No branch named" when the repo path differs from the path used at create. Reliable fix: run `wt remove` with **no branch argument** and **cwd = worktree path** (the path to the worktree to remove). The CLI passes `worktreePathOverride` from `tg done` into `removeWorktree()` and uses it for worktrunk. See `.cursor/rules/subagent-dispatch.mdc` and [multi-agent.md](multi-agent.md).
 
+### `tg drain`
+
+Processes the write queue and applies pending write operations to the Dolt repository. The queue is stored at `.taskgraph/queue.db`. When the CLI is configured to use the queue (write commands enqueue instead of writing directly to Dolt), **write commands** such as `tg start`, `tg done`, and `tg note` return immediately; a separate process must run `tg drain` to apply those operations to Dolt. Visibility of writes in `tg status`, `tg next`, and `tg context` is **eventual** (typically within a few seconds after drain runs). Run `tg drain` from the project root (directory containing `.taskgraph/`). See [architecture.md § Dolt I/O and agents](architecture.md#dolt-io-and-agents).
+
+```bash
+tg drain
+```
+
+**Example:**
+
+```bash
+tg drain
+# Processes queued writes and applies them to .taskgraph/dolt/
+```
+
 ### `tg gate create <name>`
 
 Creates an external gate and blocks the given task until the gate is resolved (e.g., human approval, CI pass, webhook). Gates represent dependencies on conditions _outside_ the task graph; use `tg block` for task-on-task dependencies.
@@ -519,11 +534,21 @@ tg block d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11 --on c0eebc99-9c0b-4ef8-bb6d-6bb9b
 
 Soft-deletes one or more plans (sets status to `abandoned`) or tasks (sets status to `canceled`). IDs can be space- or comma-separated. Each ID is resolved by trying plan first (by `plan_id` or `title`), then task by `task_id`. Use `--type plan` or `--type task` to force resolution. Refuses to cancel plans in `done` or `abandoned`, or tasks in `done` or `canceled`. For tasks, inserts a `note` event with body `{ type: 'cancel', reason }`. Exit code is 1 if any ID fails.
 
-**Arguments:** `<ids...>` — One or more plan or task IDs (space- or comma-separated).
+**Arguments:** `<ids...>` — One or more plan or task IDs (space- or comma-separated). Pass multiple IDs in one call to cancel in bulk; a single `--reason` applies to all canceled tasks.
 
-**Options:** `--type <plan|task>`, `--reason <reason>`.
+**Options:** `--type <plan|task>`, `--reason <reason>`, `--include-done`.
 
-**Output:** Human: one line per ID (e.g. `Plan <id> abandoned.` or `Task <id> canceled.`). With `--json`: array of `{ id, type?, status?, error? }`.
+**Output:** Human: one line per ID (e.g. `Project <id> abandoned.` or `Task <id> canceled.`). With `--json`: array of `{ id, type?, status?, error? }`.
+
+**Example (bulk cancel):**
+
+```bash
+tg cancel 20b0e6b3-46a3-4281-9389-c50c50356573 6371c7f8-01ed-4c4b-a702-f94cef3f6029 44e81d81-9df7-46e6-ae0c-917e209f090f --reason "Empty draft; no tasks"
+# Output (one line per ID):
+# Project 20b0e6b3-46a3-4281-9389-c50c50356573 abandoned.
+# Project 6371c7f8-01ed-4c4b-a702-f94cef3f6029 abandoned.
+# Project 44e81d81-9df7-46e6-ae0c-917e209f090f abandoned.
+```
 
 ### `tg split <taskId> --into <t1>|<t2>|...`
 
