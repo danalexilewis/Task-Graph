@@ -108,6 +108,34 @@ The OOD/Act proposal (`reports/review-26-03-03_ood-act-proposal.md`) formalizes 
 
 This is why the best sub-agent prompts look like: `{{ACTION_DIRECTIVE}} + {{TARGET_PATHS}} + minimal supporting context` rather than `{{INTENT}} + {{FILE_TREE}} + "figure it out"`. The latter forces the sub-agent to redo work the orchestrator already did; the former focuses the sub-agent's full context budget on execution.
 
+The speed of this loop determines how quickly agents converge on correct implementations.
+
+```
+OOD / Act Agent Loop
+
+Orchestrator
+  Observe → Orient → Decide
+            │
+            ▼
+      Action Directive
+            │
+            ▼
+        Sub-Agent
+           Act
+            │
+            ▼
+        Run Tests
+            │
+            ▼
+        Feedback
+            │
+            └─────────── back to Observe
+```
+
+The important insight is that tests sit directly inside the Act loop. If tests are slow, the loop slows down. If tests are fast, agents can iterate rapidly and converge quickly on correct solutions.
+
+This makes test speed an architectural concern when designing systems intended to be developed with agents.
+
 **Pre-conditions matter:** If the sub-agent's action depends on something being true (e.g. "file F exists", "function G is present"), include `{{PRECONDITIONS}}` so the sub-agent can bail fast with `VERDICT: FAIL + SUGGESTED_FIX` rather than getting confused.
 
 **What to take back:**  
@@ -223,6 +251,34 @@ They're most valuable for: non-obvious workarounds, security-critical patterns, 
 
 **What to take back:**  
 A committed metadata file (`breadcrumbs.json` or similar) is a simple and powerful pattern for any codebase with non-obvious constraints. It puts the "why" where agents will find it — before they touch the file — rather than in a commit message they'd have to know to search for.
+
+---
+## 13. Test speed is a scaling constraint for agents
+
+**What happened:**
+In an agent-driven workflow, tests run far more frequently than in a normal human development loop. Agents run tests after nearly every implementation step, often multiple times per task when iterating or recovering from errors. If the test suite is slow, the entire system becomes bottlenecked by test runtime.
+
+During the experiment, several optimizations proved critical:
+- Bun test runner was used instead of heavier test runners to minimize startup and execution overhead.
+- In-memory test database initialization was used to avoid expensive disk or container setup. The test environment was fully loaded before the test suite ran.
+- Golden database templates were used so test suites could clone a prepared state instantly instead of rebuilding schema/data each time.
+- Dependency reuse across worktrees: when worktrees were used, .node_modules was copied into the new tree to avoid reinstalling dependencies for every agent workspace.
+
+These optimizations turned tests from multi-second operations into near-instant feedback loops, dramatically improving agent throughput.
+
+The underlying lesson is that test speed directly controls agent productivity. An agent that waits 10 seconds for a test suite after every code change burns turns and context window on idle time. An agent that gets results in under a second can iterate rapidly and produce higher-quality output.
+
+**What to take back:**
+
+Treat test runtime as infrastructure when working with agents.
+1. Target sub-second unit tests. If tests take multiple seconds to run, agents will repeatedly stall waiting for feedback.
+2. Use fast runtimes and runners. Bun or similarly lightweight runners reduce cold-start overhead significantly.
+3. Preload test environments. Initialize schema and fixtures once rather than per test run.
+4. Use golden templates. Clone prepared database states instead of rebuilding them every time.
+5. Avoid reinstalling dependencies in ephemeral environments. If using worktrees or temporary directories, reuse or copy dependency folders to skip installation steps.
+
+**Rule of thumb:**
+If a test suite takes longer than ~2 seconds to run locally, it will become a scaling bottleneck for agent workflows.
 
 ---
 
